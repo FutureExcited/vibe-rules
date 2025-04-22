@@ -106,6 +106,7 @@ program
 // Command to load a rule
 program
   .command("load")
+  .alias("add")
   .description("Load a rule into an editor configuration")
   .argument("<name>", "Name of the rule")
   .argument("<editor>", "Target editor (cursor, windsurf)")
@@ -214,45 +215,7 @@ program
     }
   });
 
-// Command to initialize for a specific editor/tool
-program
-  .command("init")
-  .description("Initialize directory structure for a specific editor")
-  .argument("<editor>", "Editor to initialize (cursor, windsurf)")
-  .action(async (editor) => {
-    try {
-      const ruleType = editor.toLowerCase() as RuleType;
-      const targetPath = getDefaultTargetPath(ruleType);
-
-      if (ruleType === RuleType.CURSOR) {
-        await fs.ensureDir(targetPath);
-        console.log(
-          chalk.green(`Initialized cursor rules directory at ${targetPath}`)
-        );
-      } else if (ruleType === RuleType.WINDSURF) {
-        if (!(await fs.pathExists(targetPath))) {
-          await fs.writeFile(targetPath, "# Windsurf Rules\n");
-          console.log(
-            chalk.green(`Created windsurf rules file at ${targetPath}`)
-          );
-        } else {
-          console.log(
-            chalk.yellow(`Windsurf rules file already exists at ${targetPath}`)
-          );
-        }
-      }
-    } catch (error) {
-      console.error(
-        chalk.red(
-          `Error initializing: ${error instanceof Error ? error.message : error}`
-        )
-      );
-      process.exit(1);
-    }
-  });
-
-// Parse command line arguments
-program.parse();
+program.parse(process.argv);
 
 // If no arguments provided, show help
 if (process.argv.length <= 2) {

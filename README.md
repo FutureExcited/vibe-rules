@@ -5,114 +5,107 @@ A simple utility for managing Cursor rules, Windsurf rules, and other AI prompts
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/vibe-rules.git
-cd vibe-rules
-
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
-
-# Install globally
-npm install -g .
+# Install globally using bun
+bun i -g vibe-rules
 ```
 
 ## Usage
-
-### Initialize directory structure
-
-Before appending rules to your project, you may need to initialize the directory structure:
-
-```bash
-# Initialize for Cursor
-vibe-rules init cursor
-
-# Initialize for Windsurf
-vibe-rules init windsurf
-```
 
 ### Save rules
 
 Save a rule to your local store:
 
 ```bash
-# Save a rule
+# Save a rule with content directly
 vibe-rules save my-rule -c "This is my rule content" -d "A helpful description"
 
-# Save from a file
+# Save a rule from a file
 vibe-rules save my-rule -f path/to/rule-content.txt
 ```
 
 Options:
 
-- `-c, --content <content>`: Rule content
-- `-f, --file <file>`: Load rule content from file
-- `-d, --description <desc>`: Rule description (optional)
+- `-c, --content <content>`: Rule content (required if `-f` is not used)
+- `-f, --file <file>`: Load rule content from file (required if `-c` is not used)
+- `-d, --description <desc>`: Rule description (optional, defaults to rule name)
 
 ### List available rules
 
 ```bash
-# List all rules
+# List all rules stored locally
 vibe-rules list
 ```
 
-### Load a rule
+### Load a rule into an editor configuration (add alias)
 
-Print a rule's content to stdout:
-
-```bash
-# Load a rule
-vibe-rules load my-rule
-```
-
-### Append a rule to a project
-
-Append a rule to your project, specifying which editor it's for:
+Load a saved rule and either create a new rule file (Cursor default) or append it to an existing rules file (Windsurf default, or Cursor with `--append`). This command can also be invoked using the alias `add`.
 
 ```bash
-# Append a rule for Cursor
-vibe-rules append my-rule cursor
+# Create a new rule file for Cursor (default behavior)
+vibe-rules load my-rule cursor
+# Alias: vibe-rules add my-rule cursor
 
-# Append a rule for Windsurf
-vibe-rules append my-rule windsurf
+# Append a rule to the existing .cursorrules file
+vibe-rules load my-rule cursor --append
+# Alias: vibe-rules add my-rule cursor --append
 
-# Append to a specific target path
-vibe-rules append my-rule cursor -t /path/to/target/.cursor/rules/custom-rule.mdc
+# Append a rule for Windsurf (always appends)
+vibe-rules load my-rule windsurf
+# Alias: vibe-rules add my-rule windsurf
+
+# Load into a specific target path (creates file if non-existent, otherwise appends)
+vibe-rules load my-rule cursor -t /path/to/custom/target.mdc
+# Alias: vibe-rules add my-rule cursor -t /path/to/custom/target.mdc
 ```
 
 Options:
 
-- `-t, --target <path>`: Target file path (optional)
+- `-a, --append`: Append to an existing file (e.g., `.cursorrules`) instead of creating a new one. Always true for Windsurf.
+- `-t, --target <path>`: Custom target file path (optional, overrides default locations).
 
 ## File Formats
 
-When appending rules to projects, the correct format is automatically applied based on the editor:
+When loading rules into editor configurations, the correct format is automatically applied based on the editor:
 
 ### Cursor Rules
 
-Cursor rules are formatted as `.mdc` files in the `.cursor/rules/` directory with the following format:
+- **Default (No `--append`)**: Creates a new `.mdc` file in the `.cursor/rules/` directory of your current project, slugifying the rule name.
 
-```
----
-description: Your rule description
-globs: *,**/*
-alwaysApply: true
----
+  ```
+  ---
+  description: Rule description
+  globs: *,**/*
+  alwaysApply: true
+  ---
 
-Your rule content here
-```
+  Rule content here
+  ```
+
+- **With `--append`**: Appends the rule to `.cursorrules` in the current project directory (creates the file if it doesn't exist).
+
+  ```
+  ---
+  description: Rule description
+  globs: *,**/*
+  alwaysApply: true
+  ---
+
+  Rule content here
+  ```
+
+  _(Appended to existing content)_
 
 ### Windsurf Rules
 
-Windsurf rules are formatted with XML-like tags and appended to a `.windsurfrules` file:
+Windsurf rules are formatted with XML-like tags and appended to a `.windsurfrules` file in the project root (creates the file if it doesn't exist):
 
 ```xml
 <rule-name>
-Your rule content here
+Rule content here
 </rule-name>
 ```
+
+_(Appended to existing content)_
 
 ## License
 

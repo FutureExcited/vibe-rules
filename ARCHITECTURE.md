@@ -2,6 +2,8 @@
 
 This document outlines the architecture of the vibe-rules utility - a tool for managing AI prompts for different editors.
 
+**Note:** The tool is intended for global installation via `bun i -g vibe-rules`.
+
 ## Project Structure
 
 ```
@@ -17,7 +19,7 @@ vibe-rules/
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       └── similarity.ts  # Text similarity utilities
-└── examples/              # Example usage
+└── examples/              # Example usage (Potentially outdated)
 ```
 
 ## File Descriptions
@@ -268,54 +270,56 @@ Provides a factory function for getting the appropriate provider.
 
 ### src/cli.ts
 
-Implements the command-line interface for vibe-rules.
+Handles command-line argument parsing and orchestrates actions using `commander`.
 
-#### Command: `save`
-
-- Saves a rule to the local store
-- Arguments:
-  - `name`: Name of the rule
-- Options:
-  - `-c, --content <content>`: Rule content
-  - `-f, --file <file>`: Load rule content from file
-  - `-d, --description <desc>`: Rule description
-
-#### Command: `list`
-
-- Lists all available rules
-- No arguments or options
-
-#### Command: `load`
-
-- Loads a rule into an editor configuration
-- Arguments:
-  - `name`: Name of the rule
-  - `editor`: Target editor (cursor, windsurf)
-- Options:
-  - `-a, --append`: Append to an existing file instead of creating a new rule file
-  - `-t, --target <path>`: Custom target path
-- Behavior:
-  - For Cursor (default): Creates a new rule file in .cursor/rules/ directory with slugified filename
-  - For Cursor (with --append): Appends the rule to .cursorrules file
-  - For Windsurf: Always appends rules to .windsurfrules file
-
-#### Command: `init`
-
-- Initializes directory structure for a specific editor
-- Arguments:
-  - `editor`: Editor to initialize (cursor, windsurf)
+- **Commands:**
+  - `save`: Saves a rule to the common local store (`~/.vibe-rules/rules/<name>.txt`).
+    - Arguments: `<name>`
+    - Options: `-c, --content <content>`, `-f, --file <file>`, `-d, --description <desc>`
+  - `list`: Lists all rules available in the common local store.
+  - `load` (Alias: `add`): Loads a rule from the store and configures it for a specified editor.
+    - Arguments: `<name>`, `<editor>`
+    - Options: `-a, --append` (Append instead of creating new file), `-t, --target <path>` (Custom output path)
+- **Error Handling**: Uses `chalk` for colored output and exits on error.
+- **Dependencies**: `commander`, `fs-extra`, `chalk`, `./types`, `./providers`, `./utils/path`, `./utils/similarity`
 
 ### src/index.ts
 
-Exports all types and utilities for use as a library.
+Exports core functionality and types.
 
-- Exports all types from `./types`
-- Exports all path utilities from `./utils/path`
-- Exports all similarity utilities from `./utils/similarity`
-- Exports all providers from `./providers`
-- Explicitly exports provider implementations:
-  - `CursorRuleProvider`
-  - `WindsurfRuleProvider`
+## Data Flow
+
+1. **User Interaction**: User runs `vibe-rules <command> [options]`.
+2. **CLI Parsing (`cli.ts`)**: `commander` parses arguments and options.
+3. **Action Execution**: The relevant command action is executed.
+   - `save`: Reads content (direct or file), creates `RuleConfig`, writes to common store (`~/.vibe-rules/rules/<name>.txt`).
+   - `list`: Reads the common store directory, lists `.txt` files.
+   - `load`/`add`:
+     - Finds the rule in the common store.
+     - Gets the appropriate `RuleProvider` based on `<editor>`.
+     - Determines the target path (default or custom).
+     - Checks if appending or creating new file.
+     - Calls `provider.generateRuleContent` or `provider.appendFormattedRule`.
+     - Writes/Appends to the target file.
+4. **Provider Logic (`providers/*.ts`)**: Handles editor-specific formatting and file operations.
+5. **Utilities (`utils/*.ts`)**: Provide helper functions for paths and similarity checks.
+
+## Storage
+
+- **Common Rule Store**: `~/.vibe-rules/rules/` - Stores all saved rules as plain `.txt` files, named `<ruleName>.txt`.
+- **Project Configurations**: Rules are loaded into project-specific locations:
+  - Cursor (New File): `.cursor/rules/<slugified-name>.mdc`
+  - Cursor (Append): `.cursorrules`
+  - Windsurf: `.windsurfrules`
+  - Custom: Path specified by `-t` option.
+
+## Key Decisions
+
+- **Common Rule Store**: A central location (`~/.vibe-rules/rules/`) stores rules in a simple format (`.txt`) independent of editor type. This allows rules to be saved once and loaded for different editors.
+- **Providers**: Separate providers handle editor-specific formatting (`.mdc` vs XML tags) and default target paths.
+- **Commander**: Used for robust CLI argument parsing and help generation.
+- **fs-extra**: Provides convenient file system operations.
+- **Similarity Check**: Helps users find rules when they mistype a name during `load`.
 
 ## Build and Publishing
 
