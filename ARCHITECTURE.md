@@ -15,7 +15,8 @@ vibe-rules/
 │   │   ├── cursor-provider.ts  # Cursor editor provider
 │   │   └── windsurf-provider.ts # Windsurf editor provider
 │   └── utils/             # Utility functions
-│       └── path.ts        # Path helpers
+│       ├── path.ts        # Path helpers
+│       └── similarity.ts  # Text similarity utilities
 └── examples/              # Example usage
 ```
 
@@ -50,6 +51,7 @@ Defines the core types and interfaces used throughout the application.
   - `listRules(): Promise<string[]>` - Lists all available rules
   - `appendRule(name: string, targetPath?: string): Promise<boolean>` - Appends a rule to a target file
   - `appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>` - Formats and appends a rule directly
+  - `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string` - Generates formatted rule content with editor-specific formatting
 
 #### `RuleGeneratorOptions`
 
@@ -106,6 +108,42 @@ Provides utility functions for managing file paths.
 - Parameters:
   - `targetPath`: The path to ensure exists
 
+#### `slugifyRuleName(name: string): string`
+
+- Converts a rule name to a valid filename
+- Parameters:
+  - `name`: The rule name to convert
+- Returns: A slug-formatted string safe for filenames
+
+### src/utils/similarity.ts
+
+Provides text similarity utilities for finding related rules based on name similarity.
+
+#### `levenshteinDistance(a: string, b: string): number`
+
+- Calculates the Levenshtein distance between two strings
+- Parameters:
+  - `a`: First string
+  - `b`: Second string
+- Returns: A distance score (lower means more similar)
+
+#### `calculateSimilarity(a: string, b: string): number`
+
+- Calculates similarity score between two strings
+- Parameters:
+  - `a`: First string
+  - `b`: Second string
+- Returns: A similarity score between 0 and 1 (higher means more similar)
+
+#### `findSimilarRules(notFoundName: string, availableRules: string[], limit: number = 5): string[]`
+
+- Finds similar rule names to a given query
+- Parameters:
+  - `notFoundName`: The rule name that wasn't found
+  - `availableRules`: List of available rule names
+  - `limit`: Maximum number of similar rules to return (default: 5)
+- Returns: Array of similar rule names sorted by similarity (most similar first)
+
 ### src/providers/cursor-provider.ts
 
 Implementation of the RuleProvider interface for Cursor editor.
@@ -114,7 +152,7 @@ Implementation of the RuleProvider interface for Cursor editor.
 
 - Implements the RuleProvider interface for Cursor
 
-##### `private generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string`
+##### `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string`
 
 - Generates formatted content with Cursor frontmatter
 - Parameters:
@@ -166,12 +204,20 @@ Implementation of the RuleProvider interface for Windsurf editor.
 
 - Implements the RuleProvider interface for Windsurf
 
-##### `private formatRuleContent(config: RuleConfig): string`
+##### `formatRuleContent(config: RuleConfig): string`
 
 - Formats rule content with XML-like tags
 - Parameters:
   - `config`: Rule configuration
 - Returns: Formatted rule content with XML tags
+
+##### `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string`
+
+- Generates formatted rule content with Windsurf XML tags
+- Parameters:
+  - `config`: Rule configuration
+  - `options`: Optional generation options
+- Returns: Formatted rule content
 
 ##### `saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>`
 
@@ -241,18 +287,17 @@ Implements the command-line interface for vibe-rules.
 
 #### Command: `load`
 
-- Loads and displays a rule's content
+- Loads a rule into an editor configuration
 - Arguments:
-  - `name`: Name of the rule to load
-
-#### Command: `append`
-
-- Appends a rule to a target file
-- Arguments:
-  - `name`: Name of the rule to append
+  - `name`: Name of the rule
   - `editor`: Target editor (cursor, windsurf)
 - Options:
-  - `-t, --target <path>`: Target file path
+  - `-a, --append`: Append to an existing file instead of creating a new rule file
+  - `-t, --target <path>`: Custom target path
+- Behavior:
+  - For Cursor (default): Creates a new rule file in .cursor/rules/ directory with slugified filename
+  - For Cursor (with --append): Appends the rule to .cursorrules file
+  - For Windsurf: Always appends rules to .windsurfrules file
 
 #### Command: `init`
 
@@ -266,44 +311,8 @@ Exports all types and utilities for use as a library.
 
 - Exports all types from `./types`
 - Exports all path utilities from `./utils/path`
+- Exports all similarity utilities from `./utils/similarity`
 - Exports all providers from `./providers`
 - Explicitly exports provider implementations:
   - `CursorRuleProvider`
   - `WindsurfRuleProvider`
-
-### src/utils/similarity.ts
-
-Provides text similarity utilities for finding related rules based on name similarity.
-
-#### `levenshteinDistance(a: string, b: string): number`
-
-- Calculates the Levenshtein distance between two strings
-- Parameters:
-  - `a`: First string
-  - `b`: Second string
-- Returns: A distance score (lower means more similar)
-
-#### `calculateSimilarity(a: string, b: string): number`
-
-- Calculates similarity score between two strings
-- Parameters:
-  - `a`: First string
-  - `b`: Second string
-- Returns: A similarity score between 0 and 1 (higher means more similar)
-
-#### `findSimilarRules(notFoundName: string, availableRules: string[], limit: number = 5): string[]`
-
-- Finds similar rule names to a given query
-- Parameters:
-  - `notFoundName`: The rule name that wasn't found
-  - `availableRules`: List of available rule names
-  - `limit`: Maximum number of similar rules to return (default: 5)
-- Returns: Array of similar rule names sorted by similarity (most similar first)
-
-## Recent Changes
-
-### Text Similarity Matching
-
-Added text similarity matching functionality that activates when a requested rule is not found. The system now suggests similar rules based on Levenshtein distance, providing up to 5 alternatives sorted by relevance.
-
-This feature improves user experience by suggesting possible alternatives when a rule name is mistyped or misremembered, rather than simply returning "not found".

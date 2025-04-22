@@ -10,6 +10,7 @@ import {
   getDefaultTargetPath,
   getCommonRulePath,
   getCommonRulesDir,
+  ensureTargetDir,
 } from "./utils/path";
 import { findSimilarRules } from "./utils/similarity";
 
@@ -105,56 +106,14 @@ program
 // Command to load a rule
 program
   .command("load")
-  .description("Load a rule")
-  .argument("<n>", "Name of the rule")
-  .action(async (name) => {
-    try {
-      const rulePath = getCommonRulePath(name);
-
-      if (!(await fs.pathExists(rulePath))) {
-        console.error(chalk.red(`Rule "${name}" not found`));
-
-        // Get a list of all available rules
-        const rulesDir = getCommonRulesDir();
-        if (await fs.pathExists(rulesDir)) {
-          const files = await fs.readdir(rulesDir);
-          const availableRules = files
-            .filter((file) => file.endsWith(".txt"))
-            .map((file) => path.basename(file, ".txt"));
-
-          if (availableRules.length > 0) {
-            // Find similar rules
-            const similarRules = findSimilarRules(name, availableRules);
-
-            if (similarRules.length > 0) {
-              console.log(chalk.yellow("\nDid you mean one of these rules?"));
-              similarRules.forEach((rule) => console.log(`- ${rule}`));
-            }
-          }
-        }
-
-        process.exit(1);
-      }
-
-      const content = await fs.readFile(rulePath, "utf-8");
-      console.log(content);
-    } catch (error) {
-      console.error(
-        chalk.red(
-          `Error loading rule: ${error instanceof Error ? error.message : error}`
-        )
-      );
-      process.exit(1);
-    }
-  });
-
-// Command to append a rule to a target file
-program
-  .command("append")
-  .description("Append a rule to a target file")
-  .argument("<n>", "Name of the rule")
+  .description("Load a rule into an editor configuration")
+  .argument("<name>", "Name of the rule")
   .argument("<editor>", "Target editor (cursor, windsurf)")
-  .option("-t, --target <path>", "Target file path")
+  .option(
+    "-a, --append",
+    "Append to an existing file instead of creating a new one"
+  )
+  .option("-t, --target <path>", "Custom target path")
   .action(async (name, editor, options) => {
     try {
       const rulePath = getCommonRulePath(name);
@@ -184,28 +143,71 @@ program
         process.exit(1);
       }
 
+      // Read the content
       const content = await fs.readFile(rulePath, "utf-8");
       const ruleType = editor.toLowerCase() as RuleType;
       const provider = getRuleProvider(ruleType);
 
-      const targetPath = options.target || getDefaultTargetPath(ruleType);
+      // Check if append mode is requested for Windsurf (always append for Windsurf)
+      const isAppendMode = options.append || ruleType === RuleType.WINDSURF;
 
+      // Create rule config
       const ruleConfig = {
         name,
         content,
         description: name, // Using name as default description
       };
 
-      // Format the rule according to the target editor and append it
-      await provider.appendFormattedRule(ruleConfig, targetPath);
+      // Process based on editor and mode
+      if (ruleType === RuleType.CURSOR && !isAppendMode) {
+        // Add mode (default) for Cursor - create a new rule file
+        const targetDir =
+          options.target || path.join(process.cwd(), ".cursor", "rules");
+        await fs.ensureDir(targetDir);
 
-      console.log(
-        chalk.green(`Rule "${name}" appended successfully to ${targetPath}`)
-      );
+        const { slugifyRuleName } = await import("./utils/path");
+        const slugifiedName = slugifyRuleName(name);
+        const targetPath = path.join(targetDir, `${slugifiedName}.mdc`);
+
+        // Format and write the rule
+        const formattedContent = provider.generateRuleContent(ruleConfig);
+        await fs.writeFile(targetPath, formattedContent);
+
+        console.log(chalk.green(`Rule "${name}" created at ${targetPath}`));
+      } else {
+        // Append mode for all editors or Windsurf
+        let targetPath: string;
+
+        if (options.target) {
+          targetPath = options.target;
+        } else if (ruleType === RuleType.CURSOR) {
+          targetPath = path.join(process.cwd(), ".cursorrules");
+        } else {
+          // Windsurf
+          targetPath = getDefaultTargetPath(ruleType);
+        }
+
+        // Ensure the target directory exists
+        ensureTargetDir(targetPath);
+
+        // Check if the target file exists, create it if not
+        if (!(await fs.pathExists(targetPath))) {
+          const defaultContent =
+            ruleType === RuleType.CURSOR
+              ? "# Cursor Rules\n\n"
+              : "# Windsurf Rules\n\n";
+          await fs.writeFile(targetPath, defaultContent);
+        }
+
+        // Append the rule
+        await provider.appendFormattedRule(ruleConfig, targetPath);
+
+        console.log(chalk.green(`Rule "${name}" appended to ${targetPath}`));
+      }
     } catch (error) {
       console.error(
         chalk.red(
-          `Error appending rule: ${error instanceof Error ? error.message : error}`
+          `Error loading rule: ${error instanceof Error ? error.message : error}`
         )
       );
       process.exit(1);

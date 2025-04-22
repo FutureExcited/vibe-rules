@@ -59,3 +59,13 @@ export function getDefaultTargetPath(ruleType: RuleType): string {
 export function ensureTargetDir(targetPath: string): void {
   fs.ensureDirSync(path.dirname(targetPath));
 }
+
+/**
+ * Convert a rule name to a filename-safe slug
+ */
+export function slugifyRuleName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}

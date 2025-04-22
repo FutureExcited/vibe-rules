@@ -21,6 +21,16 @@ export class WindsurfRuleProvider implements RuleProvider {
   }
 
   /**
+   * Generates formatted rule content with Windsurf XML tags
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return this.formatRuleContent(config);
+  }
+
+  /**
    * Save a windsurf rule
    */
   async saveRule(

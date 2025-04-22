@@ -16,7 +16,7 @@ export class CursorRuleProvider implements RuleProvider {
   /**
    * Generate cursor rule content with frontmatter
    */
-  private generateRuleContent(
+  generateRuleContent(
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {

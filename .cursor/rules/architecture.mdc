@@ -3,4 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-At the end of each task you need to write all the changes to ARCHITECTURE.md.
+At the end of each task you need to write all changes to ARCHITECTURE.md.
+
+And by write all changes I mean modify the architecture of the entire app. If you've changed a function - modify its params/output or whatever you changed.
+If you've added new file - add it to the ARCHITECTURE.md.

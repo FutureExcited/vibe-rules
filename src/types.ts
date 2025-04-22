@@ -40,6 +40,14 @@ export interface RuleProvider {
    * Formats and appends a rule directly from a RuleConfig object
    */
   appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>;
+
+  /**
+   * Generates formatted rule content with editor-specific formatting
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string;
 }
 
 export interface RuleGeneratorOptions {
