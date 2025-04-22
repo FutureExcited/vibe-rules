@@ -1,6 +1,7 @@
 // Export all types and utilities
 export * from "./types";
 export * from "./utils/path";
+export * from "./utils/similarity";
 export * from "./providers";
 
 // Import providers

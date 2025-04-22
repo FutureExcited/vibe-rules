@@ -11,6 +11,7 @@ import {
   getCommonRulePath,
   getCommonRulesDir,
 } from "./utils/path";
+import { findSimilarRules } from "./utils/similarity";
 
 // Initialize CLI
 const program = new Command();
@@ -105,13 +106,33 @@ program
 program
   .command("load")
   .description("Load a rule")
-  .argument("<name>", "Name of the rule")
+  .argument("<n>", "Name of the rule")
   .action(async (name) => {
     try {
       const rulePath = getCommonRulePath(name);
 
       if (!(await fs.pathExists(rulePath))) {
         console.error(chalk.red(`Rule "${name}" not found`));
+
+        // Get a list of all available rules
+        const rulesDir = getCommonRulesDir();
+        if (await fs.pathExists(rulesDir)) {
+          const files = await fs.readdir(rulesDir);
+          const availableRules = files
+            .filter((file) => file.endsWith(".txt"))
+            .map((file) => path.basename(file, ".txt"));
+
+          if (availableRules.length > 0) {
+            // Find similar rules
+            const similarRules = findSimilarRules(name, availableRules);
+
+            if (similarRules.length > 0) {
+              console.log(chalk.yellow("\nDid you mean one of these rules?"));
+              similarRules.forEach((rule) => console.log(`- ${rule}`));
+            }
+          }
+        }
+
         process.exit(1);
       }
 
@@ -131,7 +152,7 @@ program
 program
   .command("append")
   .description("Append a rule to a target file")
-  .argument("<name>", "Name of the rule")
+  .argument("<n>", "Name of the rule")
   .argument("<editor>", "Target editor (cursor, windsurf)")
   .option("-t, --target <path>", "Target file path")
   .action(async (name, editor, options) => {
@@ -140,6 +161,26 @@ program
 
       if (!(await fs.pathExists(rulePath))) {
         console.error(chalk.red(`Rule "${name}" not found`));
+
+        // Get a list of all available rules
+        const rulesDir = getCommonRulesDir();
+        if (await fs.pathExists(rulesDir)) {
+          const files = await fs.readdir(rulesDir);
+          const availableRules = files
+            .filter((file) => file.endsWith(".txt"))
+            .map((file) => path.basename(file, ".txt"));
+
+          if (availableRules.length > 0) {
+            // Find similar rules
+            const similarRules = findSimilarRules(name, availableRules);
+
+            if (similarRules.length > 0) {
+              console.log(chalk.yellow("\nDid you mean one of these rules?"));
+              similarRules.forEach((rule) => console.log(`- ${rule}`));
+            }
+          }
+        }
+
         process.exit(1);
       }
 
