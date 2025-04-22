@@ -16,17 +16,17 @@ bun i -g vibe-rules
 Save a rule to your local store:
 
 ```bash
-# Save a rule with content directly
-vibe-rules save my-rule -c "This is my rule content" -d "A helpful description"
+# Save a rule from an .mdc file (recommended for Cursor)
+vibe-rules save my-rule -f path/to/my-rule.mdc
 
-# Save a rule from a file
-vibe-rules save my-rule -f path/to/rule-content.txt
+# Add a description later (optional)
+vibe-rules save my-rule -d "A helpful description for my rule"
 ```
 
 Options:
 
-- `-c, --content <content>`: Rule content (required if `-f` is not used)
-- `-f, --file <file>`: Load rule content from file (required if `-c` is not used)
+- `-f, --file <file>`: Load rule content from file (usually `.mdc` or `.md`)
+- `-c, --content <content>`: Rule content as a string (alternative to `-f`)
 - `-d, --description <desc>`: Rule description (optional, defaults to rule name)
 
 ### List available rules

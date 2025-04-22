@@ -19,7 +19,8 @@ vibe-rules/
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       └── similarity.ts  # Text similarity utilities
-└── examples/              # Example usage (Potentially outdated)
+└── README.md              # Project documentation (Updated examples)
+└── ARCHITECTURE.md        # This file
 ```
 
 ## File Descriptions
@@ -357,3 +358,7 @@ The package is built using TypeScript compiler (`tsc`) and published to npm.
     - Increment the version using `npm version <patch|minor|major>`.
     - Run `bun run build`.
     - Run `npm publish`.
+
+## Recent Changes
+
+- **2024-07-26:** Updated `README.md` examples for `vibe-rules save` to be clearer and use `.mdc` files.
