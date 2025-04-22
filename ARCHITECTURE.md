@@ -316,3 +316,40 @@ Exports all types and utilities for use as a library.
 - Explicitly exports provider implementations:
   - `CursorRuleProvider`
   - `WindsurfRuleProvider`
+
+## Build and Publishing
+
+The package is built using TypeScript compiler (`tsc`) and published to npm.
+
+### Build Process
+
+1.  The TypeScript source code resides in the `src/` directory.
+2.  The `tsconfig.json` file configures the TypeScript compiler options. Key settings include:
+    - `target`: `ES2020`
+    - `module`: `commonjs`
+    - `outDir`: `dist` (Compiled JavaScript output directory)
+    - `rootDir`: `src`
+    - `declaration`: `true` (Generates `.d.ts` files)
+    - `skipLibCheck`: `true` (To avoid type checking issues in dependencies)
+3.  The build is triggered using the `build` script in `package.json`: `"build": "tsc"`.
+4.  Run the build using `bun run build`. This compiles the code and outputs it to the `dist/` directory.
+
+### Publishing to npm
+
+1.  **Prerequisites:**
+    - An account on [npmjs.com](https://www.npmjs.com/).
+    - `node` and `npm` installed.
+2.  **Prepare `package.json`:**
+    - Ensure `name`, `version`, `description`, `main`, `bin`, `author`, `license`, `repository`, `bugs`, `homepage` are correctly filled.
+    - The `files` array lists the essential files/directories to be included in the published package (e.g., `["dist", "README.md", "LICENSE"]`).
+3.  **Create `.npmignore`:** This file lists patterns to exclude from the published package (e.g., `src/`, `node_modules/`, `tsconfig.json`, `*.log`).
+4.  **Create `README.md` and `LICENSE`:** Add informative `README.md` and the appropriate `LICENSE` file (e.g., MIT).
+5.  **Build:** Run `bun run build` to ensure the `dist` directory is up-to-date.
+6.  **Login:** Run `npm login` and follow the prompts.
+7.  **(Optional) Dry Run:** Run `npm publish --dry-run` to verify the package contents before publishing.
+8.  **Publish:** Run `npm publish`. Add `--access=public` if it's the first time publishing a public package or if publishing a scoped package publicly.
+9.  **Versioning for Updates:**
+    - Make code changes.
+    - Increment the version using `npm version <patch|minor|major>`.
+    - Run `bun run build`.
+    - Run `npm publish`.

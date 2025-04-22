@@ -6,6 +6,11 @@
   "bin": {
     "vibe-rules": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
@@ -18,8 +23,16 @@
     "ai",
     "prompts"
   ],
-  "author": "",
+  "author": "Artem Murzin <hello@jart.lol>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flowisgreat/vibe-rules.git"
+  },
+  "bugs": {
+    "url": "https://github.com/flowisgreat/vibe-rules/issues"
+  },
+  "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
   "dependencies": {
     "commander": "^11.1.0",
     "fs-extra": "^11.2.0",
