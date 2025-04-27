@@ -15,7 +15,10 @@ vibe-rules/
 │   ├── providers/         # Provider implementations
 │   │   ├── index.ts       # Provider factory
 │   │   ├── cursor-provider.ts  # Cursor editor provider
-│   │   └── windsurf-provider.ts # Windsurf editor provider
+│   │   ├── windsurf-provider.ts # Windsurf editor provider
+│   │   ├── claude-code-provider.ts # Claude Code provider (Added)
+│   │   ├── codex-provider.ts       # Codex provider (Added)
+│   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Added)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       └── similarity.ts  # Text similarity utilities
@@ -43,80 +46,85 @@ Defines the core types and interfaces used throughout the application.
 - Values:
   - `CURSOR`: "cursor" - For Cursor editor
   - `WINDSURF`: "windsurf" - For Windsurf editor
+  - `CLAUDE_CODE`: "claude-code" - For Claude Code IDE (Added)
+  - `CODEX`: "codex" - For Codex IDE (Added)
+  - `CLINERULES`: "clinerules" - For Cline/Roo IDEs (Added)
+  - `ROO`: "roo" - Alias for CLINERULES (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
 
 - Interface that providers must implement
 - Methods:
-  - `saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>` - Saves a rule and returns the file path
-  - `loadRule(name: string): Promise<RuleConfig | null>` - Loads a rule by name
-  - `listRules(): Promise<string[]>` - Lists all available rules
-  - `appendRule(name: string, targetPath?: string): Promise<boolean>` - Appends a rule to a target file
-  - `appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>` - Formats and appends a rule directly
-  - `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string` - Generates formatted rule content with editor-specific formatting
+  - `saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>` - Saves a rule definition (often internally) and returns the path
+  - `loadRule(name: string): Promise<RuleConfig | null>` - Loads a rule definition by name
+  - `listRules(): Promise<string[]>` - Lists all available rule definitions
+  - `appendRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean>` - Applies a rule definition to a target file/directory, considering global/local context
+  - `appendFormattedRule(config: RuleConfig, targetPath: string, isGlobal?: boolean): Promise<boolean>` - Formats and applies a rule definition directly
+  - `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string` - Generates formatted rule content suitable for the specific provider/IDE
 
 #### `RuleGeneratorOptions`
 
-- Interface for optional configuration when generating rules
+- Interface for optional configuration when generating or applying rules
 - Properties:
-  - `description?`: string - Custom description
-  - `isGlobal?`: boolean - Whether the rule should be applied globally (for Cursor)
+  - `description?`: string - Custom description (used by some providers like Cursor)
+  - `isGlobal?`: boolean - Hint for providers supporting global/local paths (e.g., Claude, Codex)
 
 ### src/utils/path.ts
 
-Provides utility functions for managing file paths.
+Provides utility functions for managing file paths related to rules and IDE configurations.
 
 #### `RULES_BASE_DIR`
 
-- Constant storing the base directory for rules (under user's home directory)
+- Constant storing the base directory for vibe-rules internal storage (`~/.vibe-rules`)
+
+#### `CLAUDE_HOME_DIR`, `CODEX_HOME_DIR`
+
+- Constants storing the conventional home directories for Claude (`~/.claude`) and Codex (`~/.codex`)
 
 #### `getCommonRulesDir(): string`
 
-- Gets (and ensures exists) the common directory for storing all rules
-- Returns: The path to the common rules directory
+- Gets (and ensures exists) the directory for storing common rule definitions within `RULES_BASE_DIR`
+- Returns: The path to `~/.vibe-rules/rules`
 
-#### `getRuleTypePath(ruleType: RuleType): string`
+#### `getInternalRuleStoragePath(ruleType: RuleType, ruleName: string): string`
 
-- Gets the path for a specific rule type
-- Parameters:
-  - `ruleType`: The type of rule (from RuleType enum)
-- Returns: The path to the directory for that rule type
-
-#### `getRulePath(ruleType: RuleType, ruleName: string): string`
-
-- Gets the full path for a specific rule
+- Gets the path for storing internal rule _definitions_ based on type.
 - Parameters:
   - `ruleType`: The type of rule
   - `ruleName`: The name of the rule
-- Returns: The full path to the rule file with appropriate extension
+- Returns: Path within `~/.vibe-rules/<ruleType>/<ruleName>.txt`
 
-#### `getCommonRulePath(ruleName: string): string`
+#### `getRulePath(ruleType: RuleType, ruleName: string, isGlobal: boolean = false, projectRoot: string = process.cwd()): string`
 
-- Gets the path for a rule in the common rules directory
+- Gets the _actual_ expected file or directory path where a rule should exist for the target IDE/tool.
 - Parameters:
-  - `ruleName`: The name of the rule
-- Returns: The full path to the rule file
+  - `ruleType`: The type of rule
+  - `ruleName`: The name of the rule (used by some types like Cursor)
+  - `isGlobal`: Flag indicating global context (uses home dir paths for Claude/Codex)
+  - `projectRoot`: The root directory for local project paths
+- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`)
 
-#### `getDefaultTargetPath(ruleType: RuleType): string`
+#### `getDefaultTargetPath(ruleType: RuleType, isGlobalHint: boolean = false): string`
 
-- Gets the default target path for a specific editor
+- Gets the default target directory or file path where rules of a certain type are typically applied (used by commands like `apply` if no target is specified).
 - Parameters:
-  - `ruleType`: The type of editor
-- Returns: The default path where rules for that editor should be stored
+  - `ruleType`: The type of rule/editor
+  - `isGlobalHint`: Hint for global context
+- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`)
 
-#### `ensureTargetDir(targetPath: string): void`
+#### `ensureTargetDir(targetFilePath: string): void`
 
-- Ensures that the directory for a target path exists
+- Ensures that the _parent directory_ for a given file path exists.
 - Parameters:
-  - `targetPath`: The path to ensure exists
+  - `targetFilePath`: The full file path
 
 #### `slugifyRuleName(name: string): string`
 
-- Converts a rule name to a valid filename
+- Converts a rule name to a filename-safe slug.
 - Parameters:
   - `name`: The rule name to convert
-- Returns: A slug-formatted string safe for filenames
+- Returns: A slug-formatted string
 
 ### src/utils/similarity.ts
 
@@ -153,51 +161,11 @@ Implementation of the RuleProvider interface for Cursor editor.
 
 #### `CursorRuleProvider` (class)
 
-- Implements the RuleProvider interface for Cursor
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-##### `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string`
-
-- Generates formatted content with Cursor frontmatter
-- Parameters:
-  - `config`: Rule configuration
-  - `options`: Optional generation options
-- Returns: Formatted rule content with frontmatter
-
-##### `saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>`
-
-- Saves a rule with Cursor formatting
-- Parameters:
-  - `config`: Rule configuration
-  - `options`: Optional generation options
-- Returns: The path where the rule was saved
-
-##### `loadRule(name: string): Promise<RuleConfig | null>`
-
-- Loads a Cursor rule by name, parsing frontmatter
-- Parameters:
-  - `name`: The name of the rule to load
-- Returns: The rule configuration or null if not found
-
-##### `listRules(): Promise<string[]>`
-
-- Lists all Cursor rules in the default directory
-- Returns: Array of rule names
-
-##### `appendRule(name: string, targetPath?: string): Promise<boolean>`
-
-- Appends a Cursor rule to a target file
-- Parameters:
-  - `name`: The name of the rule to append
-  - `targetPath`: Optional custom target path
-- Returns: Boolean indicating success
-
-##### `appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>`
-
-- Formats and appends a rule directly from configuration
-- Parameters:
-  - `config`: Rule configuration
-  - `targetPath`: Target path for the rule
-- Returns: Boolean indicating success
+- Handles Cursor's `.mdc` files with frontmatter.
+- `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`).
+- `appendRule`, `appendFormattedRule` write the formatted `.mdc` file to the target path (typically `./.cursor/rules/`).
 
 ### src/providers/windsurf-provider.ts
 
@@ -205,159 +173,83 @@ Implementation of the RuleProvider interface for Windsurf editor.
 
 #### `WindsurfRuleProvider` (class)
 
-- Implements the RuleProvider interface for Windsurf
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-##### `formatRuleContent(config: RuleConfig): string`
+- Handles Windsurf's single `.windsurfrules` file.
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`).
+- `appendRule`, `appendFormattedRule` append content to the target `.windsurfrules` file.
 
-- Formats rule content with XML-like tags
-- Parameters:
-  - `config`: Rule configuration
-- Returns: Formatted rule content with XML tags
+### src/providers/claude-code-provider.ts (Added)
 
-##### `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string`
+Implementation of the RuleProvider interface for Claude Code IDE.
 
-- Generates formatted rule content with Windsurf XML tags
-- Parameters:
-  - `config`: Rule configuration
-  - `options`: Optional generation options
-- Returns: Formatted rule content
+#### `ClaudeCodeRuleProvider` (class)
 
-##### `saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>`
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-- Saves a rule with Windsurf formatting
-- Parameters:
-  - `config`: Rule configuration
-  - `options`: Optional generation options (not used)
-- Returns: The path where the rule was saved
+- Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
+- `generateRuleContent` returns plain rule content.
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
+- `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target `CLAUDE.md` file. Takes an `isGlobal` flag to determine target path if not specified.
 
-##### `loadRule(name: string): Promise<RuleConfig | null>`
+### src/providers/codex-provider.ts (Added)
 
-- Loads a Windsurf rule by name, extracting content from XML tags
-- Parameters:
-  - `name`: The name of the rule to load
-- Returns: The rule configuration or null if not found
+Implementation of the RuleProvider interface for Codex IDE.
 
-##### `listRules(): Promise<string[]>`
+#### `CodexRuleProvider` (class)
 
-- Lists all Windsurf rules in the default directory
-- Returns: Array of rule names
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-##### `appendRule(name: string, targetPath?: string): Promise<boolean>`
+- Handles Codex's `instructions.md` (global `~/.codex/instructions.md`) or `codex.md` (local `./codex.md`) files.
+- `generateRuleContent` returns plain rule content.
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
+- `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target instruction file. Takes an `isGlobal` flag to determine target path if not specified.
 
-- Appends a Windsurf rule to a target file
-- Parameters:
-  - `name`: The name of the rule to append
-  - `targetPath`: Optional custom target path
-- Returns: Boolean indicating success
+### src/providers/clinerules-provider.ts (Added)
 
-##### `appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>`
+Implementation of the RuleProvider interface for Cline and Roo IDEs.
 
-- Formats and appends a rule directly from configuration
-- Parameters:
-  - `config`: Rule configuration
-  - `targetPath`: Target path for the rule
-- Returns: Boolean indicating success
+#### `ClinerulesRuleProvider` (class)
 
-### src/providers/index.ts
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-Provides a factory function for getting the appropriate provider.
-
-#### `getRuleProvider(ruleType: RuleType): RuleProvider`
-
-- Factory function that returns the appropriate provider based on rule type
-- Parameters:
-  - `ruleType`: The type of rule/editor
-- Returns: An instance of the appropriate provider
+- Handles the `.clinerules` directory structure, specifically creating/updating `.clinerules/vibe-tools.md`. (Supports both `RuleType.CLINERULES` and `RuleType.ROO`).
+- `generateRuleContent` returns plain rule content.
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/clinerules/`).
+- `appendRule`, `appendFormattedRule` use a helper (`setupClinerulesDirectory`) to ensure the directory exists and write/overwrite the `vibe-tools.md` file within it, wrapping content in `<vibe-tools Integration>` tags. Always targets the local project's `.clinerules` directory.
 
 ### src/cli.ts
 
-Handles command-line argument parsing and orchestrates actions using `commander`.
+Parses command-line arguments using `commander` and orchestrates the actions based on user input (e.g., `save`, `list`, `load`/`add`). It uses the `getRuleProvider` factory to interact with the correct provider logic.
 
-- **Commands:**
-  - `save`: Saves a rule to the common local store (`~/.vibe-rules/rules/<name>.txt`).
-    - Arguments: `<name>`
-    - Options: `-c, --content <content>`, `-f, --file <file>`, `-d, --description <desc>`
-  - `list`: Lists all rules available in the common local store.
-  - `load` (Alias: `add`): Loads a rule from the store and configures it for a specified editor.
-    - Arguments: `<name>`, `<editor>`
-    - Options: `-a, --append` (Append instead of creating new file), `-t, --target <path>` (Custom output path)
-- **Error Handling**: Uses `chalk` for colored output and exits on error.
-- **Dependencies**: `commander`, `fs-extra`, `chalk`, `./types`, `./providers`, `./utils/path`, `./utils/similarity`
+- **`save`**: Saves a rule definition (from content or file) to the common internal store (`~/.vibe-rules/rules/<name>.txt`).
+- **`list`**: Lists rules available in the common internal store.
+- **`load`/`add`**: Applies a rule from the common store to a target editor configuration.
+  - Determines the correct `targetPath` based on editor type, `--target` option, and `--global` flag (using `getRulePath`).
+  - Calls the appropriate provider's `appendFormattedRule` method, passing the rule config and the final `targetPath`.
+  - **Note:** The CLI _no longer_ adds default header content (like `# Rules`) when applying rules; formatting and file creation are handled entirely by the provider.
 
 ### src/index.ts
 
-Exports core functionality and types.
+Main entry point for the library, exporting key types and functions if needed for programmatic use (though primarily designed as a CLI tool).
 
-## Data Flow
+## Core Concepts
 
-1. **User Interaction**: User runs `vibe-rules <command> [options]`.
-2. **CLI Parsing (`cli.ts`)**: `commander` parses arguments and options.
-3. **Action Execution**: The relevant command action is executed.
-   - `save`: Reads content (direct or file), creates `RuleConfig`, writes to common store (`~/.vibe-rules/rules/<name>.txt`).
-   - `list`: Reads the common store directory, lists `.txt` files.
-   - `load`/`add`:
-     - Finds the rule in the common store.
-     - Gets the appropriate `RuleProvider` based on `<editor>`.
-     - Determines the target path (default or custom).
-     - Checks if appending or creating new file.
-     - Calls `provider.generateRuleContent` or `provider.appendFormattedRule`.
-     - Writes/Appends to the target file.
-4. **Provider Logic (`providers/*.ts`)**: Handles editor-specific formatting and file operations.
-5. **Utilities (`utils/*.ts`)**: Provide helper functions for paths and similarity checks.
+- **Rule:** A named piece of text content (the prompt or instruction).
+- **RuleType:** An identifier for the target editor/tool (e.g., `CURSOR`, `CLAUDE_CODE`).
+- **RuleProvider:** A class responsible for handling the specifics of saving, loading, listing, and applying rules for a particular `RuleType`. It knows the file structure, formatting (e.g., frontmatter, specific filenames, tag blocks), and locations (global/local) for its target.
+- **Internal Storage:** Rules are stored internally within `~/.vibe-rules/<ruleType>/` as plain text definitions.
+- **Applying Rules:** The `appendRule` and `appendFormattedRule` methods in providers take a rule definition and write it to the _actual_ location expected by the IDE/tool (e.g., `./.cursor/rules/`, `~/.claude/CLAUDE.md`, `./.clinerules/vibe-tools.md`), performing necessary formatting or file structure setup.
 
-## Storage
+## Workflow Example: Applying a Rule
 
-- **Common Rule Store**: `~/.vibe-rules/rules/` - Stores all saved rules as plain `.txt` files, named `<ruleName>.txt`.
-- **Project Configurations**: Rules are loaded into project-specific locations:
-  - Cursor (New File): `.cursor/rules/<slugified-name>.mdc`
-  - Cursor (Append): `.cursorrules`
-  - Windsurf: `.windsurfrules`
-  - Custom: Path specified by `-t` option.
-
-## Key Decisions
-
-- **Common Rule Store**: A central location (`~/.vibe-rules/rules/`) stores rules in a simple format (`.txt`) independent of editor type. This allows rules to be saved once and loaded for different editors.
-- **Providers**: Separate providers handle editor-specific formatting (`.mdc` vs XML tags) and default target paths.
-- **Commander**: Used for robust CLI argument parsing and help generation.
-- **fs-extra**: Provides convenient file system operations.
-- **Similarity Check**: Helps users find rules when they mistype a name during `load`.
-
-## Build and Publishing
-
-The package is built using TypeScript compiler (`tsc`) and published to npm.
-
-### Build Process
-
-1.  The TypeScript source code resides in the `src/` directory.
-2.  The `tsconfig.json` file configures the TypeScript compiler options. Key settings include:
-    - `target`: `ES2020`
-    - `module`: `commonjs`
-    - `outDir`: `dist` (Compiled JavaScript output directory)
-    - `rootDir`: `src`
-    - `declaration`: `true` (Generates `.d.ts` files)
-    - `skipLibCheck`: `true` (To avoid type checking issues in dependencies)
-3.  The build is triggered using the `build` script in `package.json`: `"build": "tsc"`.
-4.  Run the build using `bun run build`. This compiles the code and outputs it to the `dist/` directory.
-
-### Publishing to npm
-
-1.  **Prerequisites:**
-    - An account on [npmjs.com](https://www.npmjs.com/).
-    - `node` and `npm` installed.
-2.  **Prepare `package.json`:**
-    - Ensure `name`, `version`, `description`, `main`, `bin`, `author`, `license`, `repository`, `bugs`, `homepage` are correctly filled.
-    - The `files` array lists the essential files/directories to be included in the published package (e.g., `["dist", "README.md", "LICENSE"]`).
-3.  **Create `.npmignore`:** This file lists patterns to exclude from the published package (e.g., `src/`, `node_modules/`, `tsconfig.json`, `*.log`).
-4.  **Create `README.md` and `LICENSE`:** Add informative `README.md` and the appropriate `LICENSE` file (e.g., MIT).
-5.  **Build:** Run `bun run build` to ensure the `dist` directory is up-to-date.
-6.  **Login:** Run `npm login` and follow the prompts.
-7.  **(Optional) Dry Run:** Run `npm publish --dry-run` to verify the package contents before publishing.
-8.  **Publish:** Run `npm publish`. Add `--access=public` if it's the first time publishing a public package or if publishing a scoped package publicly.
-9.  **Versioning for Updates:**
-    - Make code changes.
-    - Increment the version using `npm version <patch|minor|major>`.
-    - Run `bun run build`.
-    - Run `npm publish`.
+1.  User runs: `vibe-rules apply my-cursor-rule --type cursor --target ./my-project/`
+2.  `cli.ts` parses the command.
+3.  It calls `getRuleProvider(RuleType.CURSOR)` to get `CursorRuleProvider`.
+4.  It calls `provider.appendRule("my-cursor-rule", "./my-project/.cursor/rules/my-cursor-rule.mdc")`. (Target path is constructed or passed).
+5.  `CursorRuleProvider` loads the rule `my-cursor-rule` from internal storage (`~/.vibe-rules/cursor/my-cursor-rule.txt`).
+6.  It generates the content with Cursor frontmatter using `generateRuleContent`.
+7.  It writes the formatted content to the specified target path (`./my-project/.cursor/rules/my-cursor-rule.mdc`).
 
 ## Recent Changes
 

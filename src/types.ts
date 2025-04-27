@@ -12,6 +12,10 @@ export interface RuleConfig {
 export enum RuleType {
   CURSOR = "cursor",
   WINDSURF = "windsurf",
+  CLAUDE_CODE = "claude-code",
+  CODEX = "codex",
+  CLINERULES = "clinerules",
+  ROO = "roo",
   CUSTOM = "custom",
 }
 
