@@ -15,6 +15,35 @@ import {
   slugifyRuleName,
 } from "./utils/path";
 import { findSimilarRules } from "./utils/similarity";
+import { RuleConfigSchema, VibeRulesSchema } from "./schemas";
+
+// Helper function to install/save a single rule
+async function installRule(ruleConfig: RuleConfig): Promise<void> {
+  try {
+    // Validate the rule config using the Zod schema
+    RuleConfigSchema.parse(ruleConfig); // Throws error if invalid
+
+    const commonRulePath = path.join(
+      getCommonRulesDir(),
+      `${ruleConfig.name}.txt`
+    );
+    await fs.ensureDir(path.dirname(commonRulePath));
+    await fs.writeFile(commonRulePath, ruleConfig.content);
+    console.log(
+      chalk.green(
+        `Rule "${ruleConfig.name}" saved successfully to ${commonRulePath}`
+      )
+    );
+  } catch (error) {
+    console.error(
+      chalk.red(
+        `Error saving rule "${ruleConfig.name}": ${error instanceof Error ? error.message : error}`
+      )
+    );
+    // Optionally re-throw or handle differently depending on desired flow
+    // For now, just log and continue if part of a batch install
+  }
+}
 
 // Initialize CLI
 const program = new Command();
@@ -54,16 +83,13 @@ program
         description: options.description,
       };
 
-      // Store the rule in a common location without type distinction
-      const commonRulePath = path.join(getCommonRulesDir(), `${name}.txt`);
-      await fs.ensureDir(path.dirname(commonRulePath));
-      await fs.writeFile(commonRulePath, content);
-
-      console.log(chalk.green(`Rule saved successfully to ${commonRulePath}`));
+      // Use the new installRule function
+      await installRule(ruleConfig);
     } catch (error) {
+      // Catch errors specific to file reading or argument parsing for the save command
       console.error(
         chalk.red(
-          `Error saving rule: ${error instanceof Error ? error.message : error}`
+          `Error during save command: ${error instanceof Error ? error.message : error}`
         )
       );
       process.exit(1);
@@ -203,6 +229,140 @@ program
         )
       );
       process.exit(1);
+    }
+  });
+
+// Command to install rules from NPM packages
+program
+  .command("install")
+  .description("Install rules from an NPM package or all dependencies")
+  .argument("[packageName]", "Optional NPM package name to install rules from")
+  .action(async (packageName) => {
+    const installSinglePackage = async (pkgName: string) => {
+      console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
+      try {
+        // Dynamically import the expected rules module
+        const ruleModulePath = `${pkgName}/llms`;
+        // Use eval to bypass static analysis limitations on dynamic imports if necessary,
+        // but prefer direct dynamic import if environment supports it.
+        // NOTE: Using dynamic import() directly is generally safer and preferred.
+        // const module = await eval(`import('${ruleModulePath}')`);
+        // --- Preferred method: ---
+        const module = await import(ruleModulePath);
+
+        if (!module || !module.default) {
+          console.log(
+            chalk.yellow(
+              `No default export found in ${ruleModulePath}. Skipping.`
+            )
+          );
+          return;
+        }
+
+        // Validate the imported rules (expecting an array of RuleConfig)
+        const validationResult = VibeRulesSchema.safeParse(module.default);
+
+        if (!validationResult.success) {
+          console.error(
+            chalk.red(`Validation failed for rules from ${pkgName}:`),
+            validationResult.error.errors // Log Zod errors for details
+          );
+          console.log(chalk.yellow(`Skipping installation from ${pkgName}.`));
+          return;
+        }
+
+        // Install each valid rule
+        const rulesToInstall = validationResult.data;
+        console.log(
+          chalk.blue(
+            `Found ${rulesToInstall.length} valid rule(s) in ${pkgName}. Installing...`
+          )
+        );
+        for (const rule of rulesToInstall) {
+          await installRule(rule); // Use the refactored install function
+        }
+      } catch (error: any) {
+        if (error.code === "MODULE_NOT_FOUND") {
+          // More specific check for module not found or package not found
+          if (error.message.includes(`Cannot find package '${pkgName}'`)) {
+            console.log(
+              chalk.yellow(
+                `Package ${pkgName} not found or not installed. Skipping.`
+              )
+            );
+          } else if (
+            error.message.includes(`Cannot find module '${pkgName}/llms'`)
+          ) {
+            console.log(
+              chalk.yellow(
+                `Module ${pkgName}/llms not found. Does this package export rules? Skipping.`
+              )
+            );
+          } else {
+            console.log(
+              chalk.yellow(
+                `Could not import rules from ${pkgName}. Skipping. Error: ${error.message}`
+              )
+            );
+          }
+        } else {
+          console.error(
+            chalk.red(
+              `Failed to install rules from ${pkgName}: ${error instanceof Error ? error.message : error}`
+            )
+          );
+        }
+      }
+    };
+
+    if (packageName) {
+      // Install from a specific package
+      await installSinglePackage(packageName);
+    } else {
+      // Install from all dependencies in package.json
+      console.log(
+        chalk.blue("Installing rules from all dependencies in package.json...")
+      );
+      try {
+        const pkgJsonPath = path.join(process.cwd(), "package.json");
+        if (!fs.existsSync(pkgJsonPath)) {
+          console.error(
+            chalk.red("package.json not found in the current directory.")
+          );
+          process.exit(1);
+        }
+        const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
+        const { dependencies = {}, devDependencies = {} } =
+          JSON.parse(pkgJsonContent);
+        const allDeps = [
+          ...Object.keys(dependencies),
+          ...Object.keys(devDependencies),
+        ];
+
+        if (allDeps.length === 0) {
+          console.log(chalk.yellow("No dependencies found in package.json."));
+          return;
+        }
+
+        console.log(
+          chalk.blue(
+            `Found ${allDeps.length} dependencies. Checking for rules...`
+          )
+        );
+
+        for (const depName of allDeps) {
+          await installSinglePackage(depName);
+        }
+
+        console.log(chalk.green("Finished checking all dependencies."));
+      } catch (error) {
+        console.error(
+          chalk.red(
+            `Error processing package.json: ${error instanceof Error ? error.message : error}`
+          )
+        );
+        process.exit(1);
+      }
     }
   });
 

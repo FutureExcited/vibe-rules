@@ -12,6 +12,7 @@ vibe-rules/
 │   ├── cli.ts             # Command-line interface
 │   ├── index.ts           # Main exports
 │   ├── types.ts           # Type definitions
+│   ├── schemas.ts         # Zod schema definitions (Added)
 │   ├── providers/         # Provider implementations
 │   │   ├── index.ts       # Provider factory
 │   │   ├── cursor-provider.ts  # Cursor editor provider
@@ -22,11 +23,53 @@ vibe-rules/
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       └── similarity.ts  # Text similarity utilities
+├── web/                   # Web interface
+│   ├── pages/             # Vue/Nuxt pages
+│   │   └── index.vue      # Landing page
+│   ├── public/            # Public assets
+│   └── nuxt.config.ts     # Nuxt configuration
 └── README.md              # Project documentation (Updated examples)
 └── ARCHITECTURE.md        # This file
 ```
 
 ## File Descriptions
+
+### src/cli.ts
+
+Defines the command-line interface using `commander`.
+
+#### Helper Functions
+
+- `installRule(ruleConfig: RuleConfig): Promise<void>` (Added)
+  - Validates a `RuleConfig` object against `RuleConfigSchema`.
+  - Saves the rule content to the common internal storage (`~/.vibe-rules/rules/<name>.txt`).
+  - Handles errors during validation or saving.
+
+#### Commands
+
+- `save <name> [options]`
+  - Saves a rule to the local store (`~/.vibe-rules/rules/<name>.txt`).
+  - Options: `-c, --content`, `-f, --file`, `-d, --description`.
+  - Uses the `installRule` helper function.
+- `list`
+  - Lists all rules saved in the common local store (`~/.vibe-rules/rules`).
+- `load <name> <editor> [options]` (Alias: `add`)
+  - Applies a saved rule to a specific editor's configuration file.
+  - Loads the rule content from the common store.
+  - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
+  - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
+  - Suggests similar rule names if the requested rule is not found.
+- `install [packageName]` (Added)
+  - Installs rules exported from an NPM package.
+  - If `packageName` is provided:
+    - Dynamically imports `<packageName>/llms`.
+    - Expects the default export to be an array of rule objects.
+    - Validates the imported array against `VibeRulesSchema`.
+    - Saves valid rules using the `installRule` helper.
+    - Handles errors (module not found, validation errors).
+  - If no `packageName` is provided:
+    - Reads `dependencies` and `devDependencies` from `package.json`.
+    - Iterates through each dependency and attempts to install rules as described above.
 
 ### src/types.ts
 
@@ -69,6 +112,20 @@ Defines the core types and interfaces used throughout the application.
 - Properties:
   - `description?`: string - Custom description (used by some providers like Cursor)
   - `isGlobal?`: boolean - Hint for providers supporting global/local paths (e.g., Claude, Codex)
+
+### src/schemas.ts (Added)
+
+Defines Zod schemas for validating rule configurations.
+
+#### `RuleConfigSchema`
+
+- Zod schema corresponding to the `RuleConfig` interface.
+- Validates `name` (non-empty string), `content` (non-empty string), and optional `description` (string).
+
+#### `VibeRulesSchema`
+
+- Zod schema for an array of `RuleConfigSchema`.
+- Used to validate the expected structure of the default export from NPM packages (`<packageName>/llms`).
 
 ### src/utils/path.ts
 
@@ -155,33 +212,37 @@ Provides text similarity utilities for finding related rules based on name simil
   - `limit`: Maximum number of similar rules to return (default: 5)
 - Returns: Array of similar rule names sorted by similarity (most similar first)
 
+### src/providers/index.ts
+
+Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
+
 ### src/providers/cursor-provider.ts
 
-Implementation of the RuleProvider interface for Cursor editor.
+Implementation of the `RuleProvider` interface for Cursor editor.
 
 #### `CursorRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Cursor's `.mdc` files with frontmatter.
-- `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`).
+- `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`). (Note: `saveRule` currently seems unused directly by CLI, saving happens to common store).
 - `appendRule`, `appendFormattedRule` write the formatted `.mdc` file to the target path (typically `./.cursor/rules/`).
 
 ### src/providers/windsurf-provider.ts
 
-Implementation of the RuleProvider interface for Windsurf editor.
+Implementation of the `RuleProvider` interface for Windsurf editor.
 
 #### `WindsurfRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Windsurf's single `.windsurfrules` file.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` append content to the target `.windsurfrules` file.
 
 ### src/providers/claude-code-provider.ts (Added)
 
-Implementation of the RuleProvider interface for Claude Code IDE.
+Implementation of the `RuleProvider` interface for Claude Code IDE.
 
 #### `ClaudeCodeRuleProvider` (class)
 
@@ -189,49 +250,34 @@ Implementation of the RuleProvider interface for Claude Code IDE.
 
 - Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
 - `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target `CLAUDE.md` file. Takes an `isGlobal` flag to determine target path if not specified.
 
 ### src/providers/codex-provider.ts (Added)
 
-Implementation of the RuleProvider interface for Codex IDE.
+Implementation of the `RuleProvider` interface for Codex IDE.
 
 #### `CodexRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-- Handles Codex's `instructions.md` (global `~/.codex/instructions.md`) or `codex.md` (local `./codex.md`) files.
+- Handles Codex's `instructions.md` (global) or `codex.md` (local).
 - `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target instruction file. Takes an `isGlobal` flag to determine target path if not specified.
 
 ### src/providers/clinerules-provider.ts (Added)
 
-Implementation of the RuleProvider interface for Cline and Roo IDEs.
+Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 #### `ClinerulesRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-- Handles the `.clinerules` directory structure, specifically creating/updating `.clinerules/vibe-tools.md`. (Supports both `RuleType.CLINERULES` and `RuleType.ROO`).
+- Handles Cline/Roo's `.clinerules` directory structure (typically `./.clinerules/vibe-tools.md`).
 - `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/clinerules/`).
-- `appendRule`, `appendFormattedRule` use a helper (`setupClinerulesDirectory`) to ensure the directory exists and write/overwrite the `vibe-tools.md` file within it, wrapping content in `<vibe-tools Integration>` tags. Always targets the local project's `.clinerules` directory.
-
-### src/cli.ts
-
-Parses command-line arguments using `commander` and orchestrates the actions based on user input (e.g., `save`, `list`, `load`/`add`). It uses the `getRuleProvider` factory to interact with the correct provider logic.
-
-- **`save`**: Saves a rule definition (from content or file) to the common internal store (`~/.vibe-rules/rules/<name>.txt`).
-- **`list`**: Lists rules available in the common internal store.
-- **`load`/`add`**: Applies a rule from the common store to a target editor configuration.
-  - Determines the correct `targetPath` based on editor type, `--target` option, and `--global` flag (using `getRulePath`).
-  - Calls the appropriate provider's `appendFormattedRule` method, passing the rule config and the final `targetPath`.
-  - **Note:** The CLI _no longer_ adds default header content (like `# Rules`) when applying rules; formatting and file creation are handled entirely by the provider.
-
-### src/index.ts
-
-Main entry point for the library, exporting key types and functions if needed for programmatic use (though primarily designed as a CLI tool).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/clinerules/`). (Note: `saveRule` currently seems unused directly by CLI).
+- `appendRule`, `appendFormattedRule` use a helper (`setupClinerulesDirectory`) to create/update the `vibe-tools.md` file within the target `.clinerules` directory.
 
 ## Core Concepts
 
@@ -254,3 +300,31 @@ Main entry point for the library, exporting key types and functions if needed fo
 ## Recent Changes
 
 - **2024-07-26:** Updated `README.md` examples for `vibe-rules save` to be clearer and use `.mdc` files.
+
+## Web Interface
+
+The web interface is a landing page and marketplace for vibe-rules, built with Nuxt.js and Tailwind CSS.
+
+### web/pages/index.vue
+
+The main landing page for vibe-rules that includes:
+
+- A header with logo placeholder and navigation
+- Hero section with description and call-to-action buttons
+- Feature section highlighting key capabilities (Create, Share, Apply)
+- Simple footer with copyright information
+- Placeholder for 3D vibe-rules text image
+
+The landing page is designed to be simple, developer-focused, and provides a foundation for the rules marketplace, starting with the Alchemy rule.
+
+### web/nuxt.config.ts
+
+Nuxt.js configuration file that defines:
+
+- Compatibility settings
+- Enabled modules (Tailwind CSS, Nuxt Fonts, Pinia)
+- Server-side rendering configuration
+
+### web/tailwind.config.js
+
+Tailwind CSS configuration for styling the web interface.
