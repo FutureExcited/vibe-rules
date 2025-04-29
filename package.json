@@ -11,11 +11,16 @@
     "README.md",
     "LICENSE"
   ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./llms": "./dist/llms/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts"
   },
+  "type": "module",
   "keywords": [
     "cursor",
     "windsurf",
@@ -34,9 +39,11 @@
   },
   "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
   "dependencies": {
+    "chalk": "^4.1.2",
     "commander": "^11.1.0",
-    "fs-extra": "^11.2.0",
-    "chalk": "^4.1.2"
+    "fs-extra": "^11.3.0",
+    "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms",
+    "vibe-tools": "git://github.com/eastlondoner/cursor-tools.git#llms-txt"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",

@@ -4,7 +4,12 @@ import { Command } from "commander";
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
-import { RuleType, RuleConfig } from "./types";
+import {
+  RuleType,
+  RuleConfig,
+  RuleGeneratorOptions,
+  RuleProvider,
+} from "./types";
 import { getRuleProvider } from "./providers";
 import {
   getDefaultTargetPath,
@@ -15,7 +20,12 @@ import {
   slugifyRuleName,
 } from "./utils/path";
 import { findSimilarRules } from "./utils/similarity";
-import { RuleConfigSchema, VibeRulesSchema } from "./schemas";
+import {
+  RuleConfigSchema,
+  VibeRulesSchema,
+  VibePackageRulesSchema,
+  PackageRuleObjectSchema,
+} from "./schemas";
 
 // Helper function to install/save a single rule
 async function installRule(ruleConfig: RuleConfig): Promise<void> {
@@ -207,7 +217,12 @@ program
       // The provider receives the final target path determined by cli
       const success = await provider.appendFormattedRule(
         ruleConfig,
-        finalTargetPath // Pass only config and the final path
+        finalTargetPath,
+        options.global,
+        {
+          description: ruleConfig.description,
+          isGlobal: options.global,
+        }
       );
 
       if (success) {
@@ -235,22 +250,37 @@ program
 // Command to install rules from NPM packages
 program
   .command("install")
-  .description("Install rules from an NPM package or all dependencies")
+  .description(
+    "Install rules from an NPM package or all dependencies directly into an editor configuration"
+  )
+  .argument(
+    "<editor>",
+    "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)"
+  )
   .argument("[packageName]", "Optional NPM package name to install rules from")
-  .action(async (packageName) => {
-    const installSinglePackage = async (pkgName: string) => {
+  .option(
+    "-g, --global",
+    "Apply to global config path if supported (claude-code, codex)",
+    false
+  )
+  .option(
+    "-t, --target <path>",
+    "Custom target path (overrides default and global)"
+  )
+  .action(async (editor, packageName, options) => {
+    const installSinglePackage = async (
+      pkgName: string,
+      editorType: RuleType,
+      provider: RuleProvider,
+      installOptions: { global?: boolean; target?: string }
+    ) => {
       console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
       try {
         // Dynamically import the expected rules module
         const ruleModulePath = `${pkgName}/llms`;
-        // Use eval to bypass static analysis limitations on dynamic imports if necessary,
-        // but prefer direct dynamic import if environment supports it.
-        // NOTE: Using dynamic import() directly is generally safer and preferred.
-        // const module = await eval(`import('${ruleModulePath}')`);
-        // --- Preferred method: ---
         const module = await import(ruleModulePath);
 
-        if (!module || !module.default) {
+        if (!module || typeof module.default === "undefined") {
           console.log(
             chalk.yellow(
               `No default export found in ${ruleModulePath}. Skipping.`
@@ -259,27 +289,94 @@ program
           return;
         }
 
-        // Validate the imported rules (expecting an array of RuleConfig)
-        const validationResult = VibeRulesSchema.safeParse(module.default);
+        let rulesToInstall: RuleConfig[] = [];
 
-        if (!validationResult.success) {
-          console.error(
-            chalk.red(`Validation failed for rules from ${pkgName}:`),
-            validationResult.error.errors // Log Zod errors for details
+        // Handle if default export is a string
+        if (typeof module.default === "string") {
+          console.log(
+            chalk.blue(
+              `Found rule content as string in ${pkgName}. Preparing to install...`
+            )
           );
-          console.log(chalk.yellow(`Skipping installation from ${pkgName}.`));
-          return;
+          const ruleName = slugifyRuleName(pkgName);
+          const ruleContent = module.default;
+          rulesToInstall.push({ name: ruleName, content: ruleContent });
+        }
+        // Handle if default export is an array (existing logic, adapted)
+        else {
+          const validationResult = VibeRulesSchema.safeParse(module.default);
+          if (!validationResult.success) {
+            console.error(
+              chalk.red(`Validation failed for rules from ${pkgName}:`),
+              validationResult.error.errors
+            );
+            console.log(chalk.yellow(`Skipping installation from ${pkgName}.`));
+            return;
+          }
+          rulesToInstall = validationResult.data;
         }
 
-        // Install each valid rule
-        const rulesToInstall = validationResult.data;
-        console.log(
-          chalk.blue(
-            `Found ${rulesToInstall.length} valid rule(s) in ${pkgName}. Installing...`
-          )
-        );
-        for (const rule of rulesToInstall) {
-          await installRule(rule); // Use the refactored install function
+        // Now, install the gathered rules using the provider
+        if (rulesToInstall.length > 0) {
+          console.log(
+            chalk.blue(
+              `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
+            )
+          );
+
+          for (const ruleConfig of rulesToInstall) {
+            try {
+              // Determine the final target path (logic copied from 'load' command)
+              let finalTargetPath: string;
+              if (installOptions.target) {
+                finalTargetPath = installOptions.target; // Explicit target path takes precedence
+              } else {
+                finalTargetPath = getRulePath(
+                  editorType,
+                  ruleConfig.name,
+                  installOptions.global
+                );
+              }
+
+              // Ensure the target directory exists
+              ensureTargetDir(finalTargetPath);
+
+              // Apply the rule using the provider
+              const success = await provider.appendFormattedRule(
+                ruleConfig,
+                finalTargetPath,
+                installOptions.global,
+                {
+                  description: ruleConfig.description,
+                  isGlobal: installOptions.global,
+                }
+              );
+
+              if (success) {
+                console.log(
+                  chalk.green(
+                    `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                  )
+                );
+              } else {
+                console.error(
+                  chalk.red(
+                    `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                  )
+                );
+              }
+            } catch (ruleError) {
+              console.error(
+                chalk.red(
+                  `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${ruleError instanceof Error ? ruleError.message : ruleError}`
+                )
+              );
+            }
+          }
+        } else {
+          console.log(
+            chalk.yellow(`No valid rules found or processed from ${pkgName}.`)
+          );
         }
       } catch (error: any) {
         if (error.code === "MODULE_NOT_FOUND") {
@@ -315,13 +412,30 @@ program
       }
     };
 
+    const editorType = editor.toLowerCase() as RuleType;
+    // Basic validation if editor type is supported (can be enhanced)
+    try {
+      getRuleProvider(editorType); // Will throw error if type is invalid
+    } catch (e) {
+      console.error(chalk.red(`Invalid editor type specified: ${editor}`));
+      // Potentially list valid types here
+      process.exit(1);
+    }
+
     if (packageName) {
       // Install from a specific package
-      await installSinglePackage(packageName);
+      await installSinglePackage(
+        packageName,
+        editorType,
+        getRuleProvider(editorType),
+        options
+      );
     } else {
       // Install from all dependencies in package.json
       console.log(
-        chalk.blue("Installing rules from all dependencies in package.json...")
+        chalk.blue(
+          `Installing rules from all dependencies in package.json for ${editor}...`
+        )
       );
       try {
         const pkgJsonPath = path.join(process.cwd(), "package.json");
@@ -346,12 +460,17 @@ program
 
         console.log(
           chalk.blue(
-            `Found ${allDeps.length} dependencies. Checking for rules...`
+            `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
           )
         );
 
         for (const depName of allDeps) {
-          await installSinglePackage(depName);
+          await installSinglePackage(
+            depName,
+            editorType,
+            getRuleProvider(editorType),
+            options
+          );
         }
 
         console.log(chalk.green("Finished checking all dependencies."));

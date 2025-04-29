@@ -53,8 +53,14 @@ The content is organized as follows:
   rules/
     architecture.mdc
     vibe-tools-test.mdc
+    vibe-tools.mdc
     yo.mdc
+scripts/
 src/
+  llms/
+    rules/
+    index.ts
+    llms.txt
   providers/
     claude-code-provider.ts
     clinerules-provider.ts
@@ -67,245 +73,327 @@ src/
     similarity.ts
   cli.ts
   index.ts
+  schemas.ts
+  text.d.ts
   types.ts
-web/
-  app/
-    pages/
-      index.vue
-    app.vue
-  pages/
-    index.vue
-  server/
-    tsconfig.json
-  .cursorrules
-  .gitignore
-  nuxt.config.ts
-  package.json
-  README.md
-  tailwind.config.js
-  tsconfig.json
 .gitignore
 .npmignore
+.windsurfrules
 ARCHITECTURE.md
 LICENSE
 package.json
 README.md
+TODO.md
 tsconfig.json
+vibe-tools.config.json
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
 
-<file path="web/app/pages/index.vue">
-<template>
-  <div>
-    <h1 class="text-3xl font-bold underline">Hello World</h1>
-  </div>
-</template>
-<script lang="ts" setup>
-</script>
-<style>
-</style>
+<file path="src/llms/index.ts">
+import llms from "./llms.txt";
+export default llms;
 </file>
 
-<file path="web/app/app.vue">
-<template>
-  <div>
-    <NuxtPage />
-  </div>
-</template>
+<file path="src/llms/llms.txt">
+**Purpose:** Saves a rule to the local store (~/.vibe-rules/rules/). This allows you to manage a collection of reusable AI prompts.
+
+**Usage:**
+\`\`\`bash
+vibe-rules save <name> [options]
+\`\`\`
+
+**Arguments:**
+- \`<name>\`: The unique name for the rule.
+
+**Options:**
+- \`-c, --content <content>\`: Provide the rule content directly as a string.
+- \`-f, --file <file>\`: Load the rule content from a specified file (e.g., .mdc or .md). One of --content or --file is required.
+- \`-d, --description <desc>\`: An optional description for the rule.
+`,
+  },
+  {
+    name: "vibe-rules-list",
+    content: `# vibe-rules list
+
+**Purpose:** Lists all rules that have been saved to the common local store (~/.vibe-rules/rules/).
+
+**Usage:**
+\`\`\`bash
+vibe-rules list
+\`\`\`
+
+**Options:**
+(None)
+`,
+  },
+  {
+    name: "vibe-rules-load",
+    content: `# vibe-rules load (or add)
+
+**Purpose:** Applies a previously saved rule to the configuration file(s) of a specific editor or tool. This command formats the rule content correctly for the target editor and places it in the appropriate location.
+
+**Usage:**
+\`\`\`bash
+vibe-rules load <name> <editor> [options]
+vibe-rules add <name> <editor> [options] # Alias
+\`\`\`
+
+**Arguments:**
+- \`<name>\`: The name of the rule to load/apply (must exist in the local store).
+- \`<editor>\`: The target editor or tool type (e.g., cursor, windsurf, claude-code, codex, clinerules, roo).
+
+**Options:**
+- \`-g, --global\`: Apply the rule to the global configuration path if supported by the editor (currently supported for claude-code and codex). Defaults to project-local.
+- \`-t, --target <path>\`: Specify a custom target file path or directory. This option overrides the default and global paths determined by the editor type.
+`,
+  },
+  {
+    name: "vibe-rules-install",
+    content: `# vibe-rules install
+
+**Purpose:** Installs rules that are exported from an NPM package. The tool looks for a default export in a file named 'llms.ts' or similar within the package, expecting an array of rule configurations.
+
+**Usage:**
+\`\`\`bash
+vibe-rules install [packageName]
+\`\`\`
+
+**Arguments:**
+- \`[packageName]\` (Optional): The name of a specific NPM package to install rules from. If omitted, the command attempts to install rules from all dependencies listed in the current project's package.json file.
+
+**Mechanism:**
+- Looks for a module like \`<packageName>/llms\`.
+- Expects the default export to be an array conforming to the VibeRulesSchema (array of { name, content, description? }).
+- Saves each valid rule found into the common local store (~/.vibe-rules/rules/).
+`,
 </file>
 
-<file path="web/pages/index.vue">
-
-</file>
-
-<file path="web/server/tsconfig.json">
-{
-  "extends": "../.nuxt/tsconfig.server.json"
+<file path="src/text.d.ts">
+declare module "*.txt" {
+  const content: string;
+  export default content;
 }
 </file>
 
-<file path="web/.cursorrules">
-This is a Nuxt3 project with auto imports enabled. 
+<file path=".windsurfrules">
+<vibe-tools>
+# Instructions
+Use the following commands to get AI assistance:
 
-Use TailwindCSS for styling, and Pinia for state mangement. For fonts, you can import them natively, as @nuxt/fonts is installed.
+**Direct Model Queries:**
+`vibe-tools ask "<your question>" --provider <provider> --model <model>` - Ask any model from any provider a direct question (e.g., `vibe-tools ask "What is the capital of France?" --provider openai --model o3-mini`). Note that this command is generally less useful than other commands like `repo` or `plan` because it does not include any context from your codebase or repository. In general you should not use the ask command because it does not include any context. The other commands like `web`, `doc`, `repo`, or `plan` are usually better. If you are using it, make sure to include in your question all the information and context that the model might need to answer usefully.
 
-For icons, use lucide-vue-next. And for any package installer commands, use bun/bunx.
+**Ask Command Options:**
+--provider=<provider>: AI provider to use (openai, anthropic, perplexity, gemini, modelbox, openrouter, or xai)
+--model=<model>: Model to use (required for the ask command)
+--reasoning-effort=<low|medium|high>: Control the depth of reasoning for supported models (OpenAI o1/o3-mini models and Claude 3.7 Sonnet). Higher values produce more thorough responses for complex questions.
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context for the question (e.g., `vibe-tools ask "What does this spec require?" --with-doc=https://example.com/spec.pdf`)
 
-Develop the app using component-based development. Make absolutely sure that every single component you make (both UI/UX and functional) you polish to 
-perfection.
+**Implementation Planning:**
+`vibe-tools plan "<query>"` - Generate a focused implementation plan using AI (e.g., `vibe-tools plan "Add user authentication to the login page"`)
+The plan command uses multiple AI models to:
+1. Identify relevant files in your codebase (using Gemini by default)
+2. Extract content from those files
+3. Generate a detailed implementation plan (using OpenAI o3-mini by default)
+
+**Plan Command Options:**
+--fileProvider=<provider>: Provider for file identification (gemini, openai, anthropic, perplexity, modelbox, openrouter, or xai)
+--thinkingProvider=<provider>: Provider for plan generation (gemini, openai, anthropic, perplexity, modelbox, openrouter, or xai)
+--fileModel=<model>: Model to use for file identification
+--thinkingModel=<model>: Model to use for plan generation
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context for both file identification and planning (e.g., `vibe-tools plan "implement feature X following the spec" --with-doc=https://example.com/feature-spec`)
+
+**Web Search:**
+`vibe-tools web "<your question>"` - Get answers from the web using a provider that supports web search (e.g., Perplexity models and Gemini Models either directly or from OpenRouter or ModelBox) (e.g., `vibe-tools web "latest shadcn/ui installation instructions"`)
+Note: web is a smart autonomous agent with access to the internet and an extensive up to date knowledge base. Web is NOT a web search engine. Always ask the agent for what you want using a proper sentence, do not just send it a list of keywords. In your question to web include the context and the goal that you're trying to acheive so that it can help you most effectively.
+when using web for complex queries suggest writing the output to a file somewhere like local-research/<query summary>.md. However if user provides a specific url, you should always use any command with --with-doc instead of web.
+
+**Web Command Options:**
+--provider=<provider>: AI provider to use (perplexity, gemini, modelbox, or openrouter)
+
+**Repository Context:**
+`vibe-tools repo "<your question>" [--subdir=<path>] [--from-github=<username/repo>] [--with-doc=<doc_url>]` - Get context-aware answers about this repository using Google Gemini (e.g., `vibe-tools repo "explain authentication flow"`). Use the optional `--subdir` parameter to analyze a specific subdirectory instead of the entire repository (e.g., `vibe-tools repo "explain the code structure" --subdir=src/components`). Use the optional `--from-github` parameter to analyze a remote GitHub repository without cloning it locally (e.g., `vibe-tools repo "explain the authentication system" --from-github=username/repo-name`). Use the optional `--with-doc` parameter to include content from a URL as additional context (e.g., `vibe-tools repo "implement feature X following the design spec" --with-doc=https://example.com/design-spec`).
+
+**Documentation Generation:**
+`vibe-tools doc [options] [--with-doc=<doc_url>]` - Generate comprehensive documentation for this repository (e.g., `vibe-tools doc --output docs.md`). Can incorporate document context from a URL (e.g., `vibe-tools doc --with-doc=https://example.com/existing-docs`).
+
+**YouTube Video Analysis:**
+`vibe-tools youtube "<youtube-url>" [question] [--type=<summary|transcript|plan|review|custom>]` - Analyze YouTube videos and generate detailed reports (e.g., `vibe-tools youtube "https://youtu.be/43c-Sm5GMbc" --type=summary`)
+Note: The YouTube command requires a `GEMINI_API_KEY` to be set in your environment or .vibe-tools.env file as the GEMINI API is the only interface that supports YouTube analysis.
+
+**GitHub Information:**
+`vibe-tools github pr [number]` - Get the last 10 PRs, or a specific PR by number (e.g., `vibe-tools github pr 123`)
+`vibe-tools github issue [number]` - Get the last 10 issues, or a specific issue by number (e.g., `vibe-tools github issue 456`)
+
+**ClickUp Information:**
+`vibe-tools clickup task <task_id>` - Get detailed information about a ClickUp task including description, comments, status, assignees, and metadata (e.g., `vibe-tools clickup task "task_id"`)
+
+**Model Context Protocol (MCP) Commands:**
+Use the following commands to interact with MCP servers and their specialized tools:
+`vibe-tools mcp search "<query>"` - Search the MCP Marketplace for available servers that match your needs (e.g., `vibe-tools mcp search "git repository management"`)
+`vibe-tools mcp run "<query>"` - Execute MCP server tools using natural language queries (e.g., `vibe-tools mcp run "list files in the current directory" --provider=openrouter`). The query must include sufficient information for vibe-tools to determine which server to use, provide plenty of context.
+
+The `search` command helps you discover servers in the MCP Marketplace based on their capabilities and your requirements. The `run` command automatically selects and executes appropriate tools from these servers based on your natural language queries. If you want to use a specific server include the server name in your query. E.g. `vibe-tools mcp run "using the mcp-server-sqlite list files in directory --provider=openrouter"`
+
+**Notes on MCP Commands:**
+- MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` to be set in your environment
+- By default the `mcp` command uses Anthropic, but takes a --provider argument that can be set to 'anthropic' or 'openrouter'
+- Results are streamed in real-time for immediate feedback
+- Tool calls are automatically cached to prevent redundant operations
+- Often the MCP server will not be able to run because environment variables are not set. If this happens ask the user to add the missing environment variables to the cursor tools env file at ~/.vibe-tools/.env
+
+**Stagehand Browser Automation:**
+`vibe-tools browser open <url> [options]` - Open a URL and capture page content, console logs, and network activity (e.g., `vibe-tools browser open "https://example.com" --html`)
+`vibe-tools browser act "<instruction>" --url=<url | 'current'> [options]` - Execute actions on a webpage using natural language instructions (e.g., `vibe-tools browser act "Click Login" --url=https://example.com`)
+`vibe-tools browser observe "<instruction>" --url=<url> [options]` - Observe interactive elements on a webpage and suggest possible actions (e.g., `vibe-tools browser observe "interactive elements" --url=https://example.com`)
+`vibe-tools browser extract "<instruction>" --url=<url> [options]` - Extract data from a webpage based on natural language instructions (e.g., `vibe-tools browser extract "product names" --url=https://example.com/products`)
+
+**Notes on Browser Commands:**
+- All browser commands are stateless unless --connect-to is used to connect to a long-lived interactive session. In disconnected mode each command starts with a fresh browser instance and closes it when done.
+- When using `--connect-to`, special URL values are supported:
+  - `current`: Use the existing page without reloading
+  - `reload-current`: Use the existing page and refresh it (useful in development)
+  - If working interactively with a user you should always use --url=current unless you specifically want to navigate to a different page. Setting the url to anything else will cause a page refresh loosing current state.
+- Multi step workflows involving state or combining multiple actions are supported in the `act` command using the pipe (|) separator (e.g., `vibe-tools browser act "Click Login | Type 'user@example.com' into email | Click Submit" --url=https://example.com`)
+- Video recording is available for all browser commands using the `--video=<directory>` option. This will save a video of the entire browser interaction at 1280x720 resolution. The video file will be saved in the specified directory with a timestamp.
+- DO NOT ask browser act to "wait" for anything, the wait command is currently disabled in Stagehand.
+
+**Tool Recommendations:**
+- `vibe-tools web` is best for general web information not specific to the repository. Generally call this without additional arguments.
+- `vibe-tools repo` is ideal for repository-specific questions, planning, code review and debugging. E.g. `vibe-tools repo "Review recent changes to command error handling looking for mistakes, omissions and improvements"`. Generally call this without additional arguments.
+- `vibe-tools plan` is ideal for planning tasks. E.g. `vibe-tools plan "Adding authentication with social login using Google and Github"`. Generally call this without additional arguments.
+- `vibe-tools doc` generates documentation for local or remote repositories.
+- `vibe-tools youtube` analyzes YouTube videos to generate summaries, transcripts, implementation plans, or custom analyses
+- `vibe-tools browser` is useful for testing and debugging web apps and uses Stagehand
+- `vibe-tools mcp` enables interaction with specialized tools through MCP servers (e.g., for Git operations, file system tasks, or custom tools)
+- When implementing features based on documentation, specifications, or any external content, always use the `--with-doc=<url>` flag instead of built-in web search. For example: `vibe-tools plan "Implement login page according to specs" --with-doc=https://example.com/specs.pdf` or `vibe-tools repo "How should I implement this feature?" --with-doc=https://example.com/feature-spec.md`.
+
+- When a user provides a specific URL for documentation or reference material, always use the `--with-doc=<url>` flag with that URL rather than attempting to search for or summarize the content independently. This ensures the exact document is used as context.
+
+**Running Commands:**
+1. Use `vibe-tools <command>` to execute commands (make sure vibe-tools is installed globally using npm install -g vibe-tools so that it is in your PATH)
+
+**General Command Options (Supported by all commands):**
+--provider=<provider>: AI provider to use (openai, anthropic, perplexity, gemini, openrouter, modelbox, or xai). If provider is not specified, the default provider for that task will be used.
+--model=<model name>: Specify an alternative AI model to use. If model is not specified, the provider's default model for that task will be used.
+--max-tokens=<number>: Control response length
+--save-to=<file path>: Save command output to a file (in *addition* to displaying it)
+--debug: Show detailed logs and error information
+
+**Repository Command Options:**
+--provider=<provider>: AI provider to use (gemini, openai, openrouter, perplexity, modelbox, anthropic, or xai)
+--model=<model>: Model to use for repository analysis
+--max-tokens=<number>: Maximum tokens for response
+--from-github=<GitHub username>/<repository name>[@<branch>]: Analyze a remote GitHub repository without cloning it locally
+--subdir=<path>: Analyze a specific subdirectory instead of the entire repository
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context
+
+**Documentation Command Options:**
+--from-github=<GitHub username>/<repository name>[@<branch>]: Generate documentation for a remote GitHub repository
+--provider=<provider>: AI provider to use (gemini, openai, openrouter, perplexity, modelbox, anthropic, or xai)
+--model=<model>: Model to use for documentation generation
+--max-tokens=<number>: Maximum tokens for response
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context
+
+**YouTube Command Options:**
+--type=<summary|transcript|plan|review|custom>: Type of analysis to perform (default: summary)
+
+**GitHub Command Options:**
+--from-github=<GitHub username>/<repository name>[@<branch>]: Access PRs/issues from a specific GitHub repository
+
+**Browser Command Options (for 'open', 'act', 'observe', 'extract'):**
+--console: Capture browser console logs (enabled by default, use --no-console to disable)
+--html: Capture page HTML content (disabled by default)
+--network: Capture network activity (enabled by default, use --no-network to disable)
+--screenshot=<file path>: Save a screenshot of the page
+--timeout=<milliseconds>: Set navigation timeout (default: 120000ms for Stagehand operations, 30000ms for navigation)
+--viewport=<width>x<height>: Set viewport size (e.g., 1280x720). When using --connect-to, viewport is only changed if this option is explicitly provided
+--headless: Run browser in headless mode (default: true)
+--no-headless: Show browser UI (non-headless mode) for debugging
+--connect-to=<port>: Connect to existing Chrome instance. Special values: 'current' (use existing page), 'reload-current' (refresh existing page)
+--wait=<time:duration or selector:css-selector>: Wait after page load (e.g., 'time:5s', 'selector:#element-id')
+--video=<directory>: Save a video recording (1280x720 resolution, timestamped subdirectory). Not available when using --connect-to
+--url=<url>: Required for `act`, `observe`, and `extract` commands. Url to navigate to before the main command or one of the special values 'current' (to stay on the current page without navigating or reloading) or 'reload-current' (to reload the current page)
+--evaluate=<string>: JavaScript code to execute in the browser before the main command
+
+**Nicknames**
+Users can ask for these tools using nicknames
+Gemini is a nickname for vibe-tools repo
+Perplexity is a nickname for vibe-tools web
+Stagehand is a nickname for vibe-tools browser
+If people say "ask Gemini" or "ask Perplexity" or "ask Stagehand" they mean to use the `vibe-tools` command with the `repo`, `web`, or `browser` commands respectively.
+
+**Xcode Commands:**
+`vibe-tools xcode build [buildPath=<path>] [destination=<destination>]` - Build Xcode project and report errors.
+**Build Command Options:**
+--buildPath=<path>: (Optional) Specifies a custom directory for derived build data. Defaults to ./.build/DerivedData.
+--destination=<destination>: (Optional) Specifies the destination for building the app (e.g., 'platform=iOS Simulator,name=iPhone 16 Pro'). Defaults to 'platform=iOS Simulator,name=iPhone 16 Pro'.
+
+`vibe-tools xcode run [destination=<destination>]` - Build and run the Xcode project on a simulator.
+**Run Command Options:**
+--destination=<destination>: (Optional) Specifies the destination simulator (e.g., 'platform=iOS Simulator,name=iPhone 16 Pro'). Defaults to 'platform=iOS Simulator,name=iPhone 16 Pro'.
+
+`vibe-tools xcode lint` - Run static analysis on the Xcode project to find and fix issues.
+
+**Additional Notes:**
+- For detailed information, see `node_modules/vibe-tools/README.md` (if installed locally).
+- Configuration is in `vibe-tools.config.json` (or `~/.vibe-tools/config.json`).
+- API keys are loaded from `.vibe-tools.env` (or `~/.vibe-tools/.env`).
+- ClickUp commands require a `CLICKUP_API_TOKEN` to be set in your `.vibe-tools.env` file.
+- Available models depend on your configured provider (OpenAI, Anthropic, xAI, etc.) in `vibe-tools.config.json`.
+- repo has a limit of 2M tokens of context. The context can be reduced by filtering out files in a .repomixignore file.
+- problems running browser commands may be because playwright is not installed. Recommend installing playwright globally.
+- MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`
+- **Remember:** You're part of a team of superhuman expert AIs. Work together to solve complex problems.
+- **Repomix Configuration:** You can customize which files are included/excluded during repository analysis by creating a `repomix.config.json` file in your project root. This file will be automatically detected by `repo`, `plan`, and `doc` commands.
+
+</vibe-tools>
+
+<yo!>
+---
+description: 
+globs: 
+alwaysApply: true
+---
+If you need my input to answer a question or when you finish a task and want to know what to do next you must send me a yo using the yo-mcp MCP tool.
+
+In the yo you MUST provide ONLY a very short message (think like an email subject line) for why you need my attention / input.
+
+Then reply with your update / question to the normal chat.
+
+</yo!>
 </file>
 
-<file path="web/.gitignore">
-# Nuxt dev/build outputs
-.output
-.data
-.nuxt
-.nitro
-.cache
-dist
-
-# Node dependencies
-node_modules
-
-# Logs
-logs
-*.log
-
-# Misc
-.DS_Store
-.fleet
-.idea
-
-# Local env files
-.env
-.env.*
-!.env.example
-
-bun.lockb
+<file path="TODO.md">
+For cursor add manual header for autoapply
+export vibe-rules llms.txt
+proprely handle array with object structure - support for globs
+llms.txt same way as sitemap.xml/sitemap_index.xml
 </file>
 
-<file path="web/nuxt.config.ts">
-// https://nuxt.com/docs/api/configuration/nuxt-config
-export default defineNuxtConfig({
-  compatibilityDate: "2025-03-11",
-  devtools: { enabled: true },
-  modules: ["@nuxtjs/tailwindcss", "@nuxt/fonts", "@pinia/nuxt"],
-  future: {
-    compatibilityVersion: 4,
-  },
-  ssr: true,
-  pages: true,
-});
-</file>
-
-<file path="web/package.json">
+<file path="vibe-tools.config.json">
 {
-  "name": "nuxt-app",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
-    "setup": "bash setup.sh"
+  "web": {
+    "provider": "perplexity",
+    "model": "sonar-pro"
   },
-  "dependencies": {
-    "@nuxt/fonts": "0.11.0",
-    "@nuxt/kit": "^3.16.2",
-    "@nuxtjs/tailwindcss": "^6.13.2",
-    "@pinia/nuxt": "0.11.0",
-    "consola": "^3.4.2",
-    "lucide-vue-next": "^0.479.0",
-    "nuxt": "^3.16.2",
-    "pinia": "^3.0.2",
-    "vue": "latest",
-    "vue-router": "latest"
+  "plan": {
+    "fileProvider": "anthropic",
+    "thinkingProvider": "anthropic",
+    "fileModel": "claude-3-7-sonnet",
+    "thinkingModel": "claude-3-7-sonnet"
   },
-  "devDependencies": {
-    "@nuxt/eslint-config": "^1.3.0",
-    "eslint": "^9.25.1",
-    "prettier": "3.5.3"
-  }
-}
-</file>
-
-<file path="web/README.md">
-# Nuxt Minimal Starter
-
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
-
-## Setup
-
-Make sure to install dependencies:
-
-```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-</file>
-
-<file path="web/tailwind.config.js">
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [],
-  theme: {
-    extend: {},
+  "repo": {
+    "provider": "gemini",
+    "model": "gemini-2.5-flash-preview-04-17"
   },
-  plugins: [],
-}
-</file>
-
-<file path="web/tsconfig.json">
-{
-  // https://nuxt.com/docs/guide/concepts/typescript
-  "extends": "./.nuxt/tsconfig.json"
+  "doc": {
+    "provider": "gemini",
+    "model": "gemini-2.5-pro-preview-03-25"
+  },
+  "ide": "cursor"
 }
 </file>
 
@@ -1034,6 +1122,20 @@ export function findSimilarRules(
 }
 </file>
 
+<file path="src/schemas.ts">
+import { z } from "zod";
+export const RuleConfigSchema = z.object({
+  name: z.string().min(1, "Rule name cannot be empty"),
+  content: z.string().min(1, "Rule content cannot be empty"),
+  description: z.string().optional(),
+  // Add other fields from RuleConfig if they exist and need validation
+});
+// We might also need a schema for an array of rules if a package exports multiple
+export const VibeRulesSchema = z.array(RuleConfigSchema);
+// Type helper if needed elsewhere
+export type RuleConfig = z.infer<typeof RuleConfigSchema>;
+</file>
+
 <file path=".gitignore">
 # Node.js
 node_modules/
@@ -1115,6 +1217,181 @@ And by write all changes I mean modify the architecture of the entire app. If yo
 If you've added new file - add it to the ARCHITECTURE.md.
 </file>
 
+<file path=".cursor/rules/vibe-tools.mdc">
+---
+description: Rule for vibe-tools
+globs: *,**/*
+---# Instructions
+Use the following commands to get AI assistance:
+
+**Direct Model Queries:**
+`vibe-tools ask "<your question>" --provider <provider> --model <model>` - Ask any model from any provider a direct question (e.g., `vibe-tools ask "What is the capital of France?" --provider openai --model o3-mini`). Note that this command is generally less useful than other commands like `repo` or `plan` because it does not include any context from your codebase or repository. In general you should not use the ask command because it does not include any context. The other commands like `web`, `doc`, `repo`, or `plan` are usually better. If you are using it, make sure to include in your question all the information and context that the model might need to answer usefully.
+
+**Ask Command Options:**
+--provider=<provider>: AI provider to use (openai, anthropic, perplexity, gemini, modelbox, openrouter, or xai)
+--model=<model>: Model to use (required for the ask command)
+--reasoning-effort=<low|medium|high>: Control the depth of reasoning for supported models (OpenAI o1/o3-mini models and Claude 3.7 Sonnet). Higher values produce more thorough responses for complex questions.
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context for the question (e.g., `vibe-tools ask "What does this spec require?" --with-doc=https://example.com/spec.pdf`)
+
+**Implementation Planning:**
+`vibe-tools plan "<query>"` - Generate a focused implementation plan using AI (e.g., `vibe-tools plan "Add user authentication to the login page"`)
+The plan command uses multiple AI models to:
+1. Identify relevant files in your codebase (using Gemini by default)
+2. Extract content from those files
+3. Generate a detailed implementation plan (using OpenAI o3-mini by default)
+
+**Plan Command Options:**
+--fileProvider=<provider>: Provider for file identification (gemini, openai, anthropic, perplexity, modelbox, openrouter, or xai)
+--thinkingProvider=<provider>: Provider for plan generation (gemini, openai, anthropic, perplexity, modelbox, openrouter, or xai)
+--fileModel=<model>: Model to use for file identification
+--thinkingModel=<model>: Model to use for plan generation
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context for both file identification and planning (e.g., `vibe-tools plan "implement feature X following the spec" --with-doc=https://example.com/feature-spec`)
+
+**Web Search:**
+`vibe-tools web "<your question>"` - Get answers from the web using a provider that supports web search (e.g., Perplexity models and Gemini Models either directly or from OpenRouter or ModelBox) (e.g., `vibe-tools web "latest shadcn/ui installation instructions"`)
+Note: web is a smart autonomous agent with access to the internet and an extensive up to date knowledge base. Web is NOT a web search engine. Always ask the agent for what you want using a proper sentence, do not just send it a list of keywords. In your question to web include the context and the goal that you're trying to acheive so that it can help you most effectively.
+when using web for complex queries suggest writing the output to a file somewhere like local-research/<query summary>.md. However if user provides a specific url, you should always use any command with --with-doc instead of web.
+
+**Web Command Options:**
+--provider=<provider>: AI provider to use (perplexity, gemini, modelbox, or openrouter)
+
+**Repository Context:**
+`vibe-tools repo "<your question>" [--subdir=<path>] [--from-github=<username/repo>] [--with-doc=<doc_url>]` - Get context-aware answers about this repository using Google Gemini (e.g., `vibe-tools repo "explain authentication flow"`). Use the optional `--subdir` parameter to analyze a specific subdirectory instead of the entire repository (e.g., `vibe-tools repo "explain the code structure" --subdir=src/components`). Use the optional `--from-github` parameter to analyze a remote GitHub repository without cloning it locally (e.g., `vibe-tools repo "explain the authentication system" --from-github=username/repo-name`). Use the optional `--with-doc` parameter to include content from a URL as additional context (e.g., `vibe-tools repo "implement feature X following the design spec" --with-doc=https://example.com/design-spec`).
+
+**Documentation Generation:**
+`vibe-tools doc [options] [--with-doc=<doc_url>]` - Generate comprehensive documentation for this repository (e.g., `vibe-tools doc --output docs.md`). Can incorporate document context from a URL (e.g., `vibe-tools doc --with-doc=https://example.com/existing-docs`).
+
+**YouTube Video Analysis:**
+`vibe-tools youtube "<youtube-url>" [question] [--type=<summary|transcript|plan|review|custom>]` - Analyze YouTube videos and generate detailed reports (e.g., `vibe-tools youtube "https://youtu.be/43c-Sm5GMbc" --type=summary`)
+Note: The YouTube command requires a `GEMINI_API_KEY` to be set in your environment or .vibe-tools.env file as the GEMINI API is the only interface that supports YouTube analysis.
+
+**GitHub Information:**
+`vibe-tools github pr [number]` - Get the last 10 PRs, or a specific PR by number (e.g., `vibe-tools github pr 123`)
+`vibe-tools github issue [number]` - Get the last 10 issues, or a specific issue by number (e.g., `vibe-tools github issue 456`)
+
+**ClickUp Information:**
+`vibe-tools clickup task <task_id>` - Get detailed information about a ClickUp task including description, comments, status, assignees, and metadata (e.g., `vibe-tools clickup task "task_id"`)
+
+**Model Context Protocol (MCP) Commands:**
+Use the following commands to interact with MCP servers and their specialized tools:
+`vibe-tools mcp search "<query>"` - Search the MCP Marketplace for available servers that match your needs (e.g., `vibe-tools mcp search "git repository management"`)
+`vibe-tools mcp run "<query>"` - Execute MCP server tools using natural language queries (e.g., `vibe-tools mcp run "list files in the current directory" --provider=openrouter`). The query must include sufficient information for vibe-tools to determine which server to use, provide plenty of context.
+
+The `search` command helps you discover servers in the MCP Marketplace based on their capabilities and your requirements. The `run` command automatically selects and executes appropriate tools from these servers based on your natural language queries. If you want to use a specific server include the server name in your query. E.g. `vibe-tools mcp run "using the mcp-server-sqlite list files in directory --provider=openrouter"`
+
+**Notes on MCP Commands:**
+- MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` to be set in your environment
+- By default the `mcp` command uses Anthropic, but takes a --provider argument that can be set to 'anthropic' or 'openrouter'
+- Results are streamed in real-time for immediate feedback
+- Tool calls are automatically cached to prevent redundant operations
+- Often the MCP server will not be able to run because environment variables are not set. If this happens ask the user to add the missing environment variables to the cursor tools env file at ~/.vibe-tools/.env
+
+**Stagehand Browser Automation:**
+`vibe-tools browser open <url> [options]` - Open a URL and capture page content, console logs, and network activity (e.g., `vibe-tools browser open "https://example.com" --html`)
+`vibe-tools browser act "<instruction>" --url=<url | 'current'> [options]` - Execute actions on a webpage using natural language instructions (e.g., `vibe-tools browser act "Click Login" --url=https://example.com`)
+`vibe-tools browser observe "<instruction>" --url=<url> [options]` - Observe interactive elements on a webpage and suggest possible actions (e.g., `vibe-tools browser observe "interactive elements" --url=https://example.com`)
+`vibe-tools browser extract "<instruction>" --url=<url> [options]` - Extract data from a webpage based on natural language instructions (e.g., `vibe-tools browser extract "product names" --url=https://example.com/products`)
+
+**Notes on Browser Commands:**
+- All browser commands are stateless unless --connect-to is used to connect to a long-lived interactive session. In disconnected mode each command starts with a fresh browser instance and closes it when done.
+- When using `--connect-to`, special URL values are supported:
+  - `current`: Use the existing page without reloading
+  - `reload-current`: Use the existing page and refresh it (useful in development)
+  - If working interactively with a user you should always use --url=current unless you specifically want to navigate to a different page. Setting the url to anything else will cause a page refresh loosing current state.
+- Multi step workflows involving state or combining multiple actions are supported in the `act` command using the pipe (|) separator (e.g., `vibe-tools browser act "Click Login | Type 'user@example.com' into email | Click Submit" --url=https://example.com`)
+- Video recording is available for all browser commands using the `--video=<directory>` option. This will save a video of the entire browser interaction at 1280x720 resolution. The video file will be saved in the specified directory with a timestamp.
+- DO NOT ask browser act to "wait" for anything, the wait command is currently disabled in Stagehand.
+
+**Tool Recommendations:**
+- `vibe-tools web` is best for general web information not specific to the repository. Generally call this without additional arguments.
+- `vibe-tools repo` is ideal for repository-specific questions, planning, code review and debugging. E.g. `vibe-tools repo "Review recent changes to command error handling looking for mistakes, omissions and improvements"`. Generally call this without additional arguments.
+- `vibe-tools plan` is ideal for planning tasks. E.g. `vibe-tools plan "Adding authentication with social login using Google and Github"`. Generally call this without additional arguments.
+- `vibe-tools doc` generates documentation for local or remote repositories.
+- `vibe-tools youtube` analyzes YouTube videos to generate summaries, transcripts, implementation plans, or custom analyses
+- `vibe-tools browser` is useful for testing and debugging web apps and uses Stagehand
+- `vibe-tools mcp` enables interaction with specialized tools through MCP servers (e.g., for Git operations, file system tasks, or custom tools)
+- When implementing features based on documentation, specifications, or any external content, always use the `--with-doc=<url>` flag instead of built-in web search. For example: `vibe-tools plan "Implement login page according to specs" --with-doc=https://example.com/specs.pdf` or `vibe-tools repo "How should I implement this feature?" --with-doc=https://example.com/feature-spec.md`.
+
+- When a user provides a specific URL for documentation or reference material, always use the `--with-doc=<url>` flag with that URL rather than attempting to search for or summarize the content independently. This ensures the exact document is used as context.
+
+**Running Commands:**
+1. Use `vibe-tools <command>` to execute commands (make sure vibe-tools is installed globally using npm install -g vibe-tools so that it is in your PATH)
+
+**General Command Options (Supported by all commands):**
+--provider=<provider>: AI provider to use (openai, anthropic, perplexity, gemini, openrouter, modelbox, or xai). If provider is not specified, the default provider for that task will be used.
+--model=<model name>: Specify an alternative AI model to use. If model is not specified, the provider's default model for that task will be used.
+--max-tokens=<number>: Control response length
+--save-to=<file path>: Save command output to a file (in *addition* to displaying it)
+--debug: Show detailed logs and error information
+
+**Repository Command Options:**
+--provider=<provider>: AI provider to use (gemini, openai, openrouter, perplexity, modelbox, anthropic, or xai)
+--model=<model>: Model to use for repository analysis
+--max-tokens=<number>: Maximum tokens for response
+--from-github=<GitHub username>/<repository name>[@<branch>]: Analyze a remote GitHub repository without cloning it locally
+--subdir=<path>: Analyze a specific subdirectory instead of the entire repository
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context
+
+**Documentation Command Options:**
+--from-github=<GitHub username>/<repository name>[@<branch>]: Generate documentation for a remote GitHub repository
+--provider=<provider>: AI provider to use (gemini, openai, openrouter, perplexity, modelbox, anthropic, or xai)
+--model=<model>: Model to use for documentation generation
+--max-tokens=<number>: Maximum tokens for response
+--with-doc=<doc_url>: Fetch content from a document URL and include it as context
+
+**YouTube Command Options:**
+--type=<summary|transcript|plan|review|custom>: Type of analysis to perform (default: summary)
+
+**GitHub Command Options:**
+--from-github=<GitHub username>/<repository name>[@<branch>]: Access PRs/issues from a specific GitHub repository
+
+**Browser Command Options (for 'open', 'act', 'observe', 'extract'):**
+--console: Capture browser console logs (enabled by default, use --no-console to disable)
+--html: Capture page HTML content (disabled by default)
+--network: Capture network activity (enabled by default, use --no-network to disable)
+--screenshot=<file path>: Save a screenshot of the page
+--timeout=<milliseconds>: Set navigation timeout (default: 120000ms for Stagehand operations, 30000ms for navigation)
+--viewport=<width>x<height>: Set viewport size (e.g., 1280x720). When using --connect-to, viewport is only changed if this option is explicitly provided
+--headless: Run browser in headless mode (default: true)
+--no-headless: Show browser UI (non-headless mode) for debugging
+--connect-to=<port>: Connect to existing Chrome instance. Special values: 'current' (use existing page), 'reload-current' (refresh existing page)
+--wait=<time:duration or selector:css-selector>: Wait after page load (e.g., 'time:5s', 'selector:#element-id')
+--video=<directory>: Save a video recording (1280x720 resolution, timestamped subdirectory). Not available when using --connect-to
+--url=<url>: Required for `act`, `observe`, and `extract` commands. Url to navigate to before the main command or one of the special values 'current' (to stay on the current page without navigating or reloading) or 'reload-current' (to reload the current page)
+--evaluate=<string>: JavaScript code to execute in the browser before the main command
+
+**Nicknames**
+Users can ask for these tools using nicknames
+Gemini is a nickname for vibe-tools repo
+Perplexity is a nickname for vibe-tools web
+Stagehand is a nickname for vibe-tools browser
+If people say "ask Gemini" or "ask Perplexity" or "ask Stagehand" they mean to use the `vibe-tools` command with the `repo`, `web`, or `browser` commands respectively.
+
+**Xcode Commands:**
+`vibe-tools xcode build [buildPath=<path>] [destination=<destination>]` - Build Xcode project and report errors.
+**Build Command Options:**
+--buildPath=<path>: (Optional) Specifies a custom directory for derived build data. Defaults to ./.build/DerivedData.
+--destination=<destination>: (Optional) Specifies the destination for building the app (e.g., 'platform=iOS Simulator,name=iPhone 16 Pro'). Defaults to 'platform=iOS Simulator,name=iPhone 16 Pro'.
+
+`vibe-tools xcode run [destination=<destination>]` - Build and run the Xcode project on a simulator.
+**Run Command Options:**
+--destination=<destination>: (Optional) Specifies the destination simulator (e.g., 'platform=iOS Simulator,name=iPhone 16 Pro'). Defaults to 'platform=iOS Simulator,name=iPhone 16 Pro'.
+
+`vibe-tools xcode lint` - Run static analysis on the Xcode project to find and fix issues.
+
+**Additional Notes:**
+- For detailed information, see `node_modules/vibe-tools/README.md` (if installed locally).
+- Configuration is in `vibe-tools.config.json` (or `~/.vibe-tools/config.json`).
+- API keys are loaded from `.vibe-tools.env` (or `~/.vibe-tools/.env`).
+- ClickUp commands require a `CLICKUP_API_TOKEN` to be set in your `.vibe-tools.env` file.
+- Available models depend on your configured provider (OpenAI, Anthropic, xAI, etc.) in `vibe-tools.config.json`.
+- repo has a limit of 2M tokens of context. The context can be reduced by filtering out files in a .repomixignore file.
+- problems running browser commands may be because playwright is not installed. Recommend installing playwright globally.
+- MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`
+- **Remember:** You're part of a team of superhuman expert AIs. Work together to solve complex problems.
+- **Repomix Configuration:** You can customize which files are included/excluded during repository analysis by creating a `repomix.config.json` file in your project root. This file will be automatically detected by `repo`, `plan`, and `doc` commands.
+</file>
+
 <file path="src/providers/cursor-provider.ts">
 import fs from "fs-extra";
 import path from "path";
@@ -1129,6 +1406,7 @@ import {
   getDefaultTargetPath,
   ensureTargetDir,
 } from "../utils/path";
+import YAML from "yaml";
 export class CursorRuleProvider implements RuleProvider {
   /**
    * Generate cursor rule content with frontmatter
@@ -1137,20 +1415,21 @@ export class CursorRuleProvider implements RuleProvider {
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {
-    const description =
-      options?.description || config.description || `Rule for ${config.name}`;
-    const isGlobal = options?.isGlobal ?? false;
-    const frontmatter = [
-      "---",
-      `description: ${description}`,
-      `globs: *,**/*`,
-      isGlobal ? "alwaysApply: true" : "",
-      "---",
-      "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    return `${frontmatter}${config.content}`;
+    const frontmatter: Record<string, any> = {};
+    if (options?.description ?? config.description) {
+      frontmatter.description = options?.description ?? config.description;
+    }
+    if (options?.globs) {
+      frontmatter.globs = options.globs;
+    }
+    if (options?.alwaysApply !== undefined) {
+      frontmatter.alwaysApply = options.alwaysApply;
+    }
+    const frontmatterString =
+      Object.keys(frontmatter).length > 0
+        ? `---\n${YAML.stringify(frontmatter)}---\n`
+        : "";
+    return `${frontmatterString}${config.content}`;
   }
   /**
    * Save a cursor rule
@@ -1205,35 +1484,41 @@ export class CursorRuleProvider implements RuleProvider {
   /**
    * Append a cursor rule to a target file
    */
-  async appendRule(name: string, targetPath?: string): Promise<boolean> {
-    const rule = await this.loadRule(name);
-    if (!rule) {
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal Cursor storage.`);
       return false;
     }
-    const destPath =
-      targetPath ||
-      path.join(getDefaultTargetPath(RuleType.CURSOR), `${name}.mdc`);
-    ensureTargetDir(destPath);
-    // For cursor, we typically create a new file
-    await fs.writeFile(destPath, this.generateRuleContent(rule));
-    return true;
+    const finalTargetPath =
+      targetPath || getRulePath(RuleType.CURSOR, name, isGlobal);
+    return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal);
   }
   /**
    * Format and append a rule directly from a RuleConfig object
    */
   async appendFormattedRule(
     config: RuleConfig,
-    targetPath: string
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const destPath =
-      targetPath ||
-      path.join(getDefaultTargetPath(RuleType.CURSOR), `${config.name}.mdc`);
-    ensureTargetDir(destPath);
-    // Create formatted content with frontmatter
-    const content = this.generateRuleContent(config);
-    // For cursor, create a new file
-    await fs.writeFile(destPath, content);
-    return true;
+    try {
+      const formattedContent = this.generateRuleContent(config, options);
+      ensureTargetDir(targetPath);
+      await fs.writeFile(targetPath, formattedContent, "utf-8");
+      return true;
+    } catch (error) {
+      console.error(
+        `Error applying Cursor rule "${config.name}" to ${targetPath}:`,
+        error
+      );
+      return false;
+    }
   }
 }
 </file>
@@ -1422,7 +1707,7 @@ import path from "path";
 import os from "os";
 import fs from "fs-extra";
 import { RuleType } from "../types";
-cd// Base directory for storing internal rule definitions
+// Base directory for storing internal rule definitions
 export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
 // Home directories for specific IDEs/Tools
 export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
@@ -1583,7 +1868,12 @@ export interface RuleProvider {
   /**
    * Formats and appends a rule directly from a RuleConfig object
    */
-  appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>;
+  appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean>;
   /**
    * Generates formatted rule content with editor-specific formatting
    */
@@ -1595,6 +1885,8 @@ export interface RuleProvider {
 export interface RuleGeneratorOptions {
   description?: string;
   isGlobal?: boolean;
+  alwaysApply?: boolean;
+  globs?: string | string[];
   // Additional options for specific rule types
 }
 </file>
@@ -1613,11 +1905,16 @@ export interface RuleGeneratorOptions {
     "README.md",
     "LICENSE"
   ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./llms": "./dist/llms/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts"
   },
+  "type": "module",
   "keywords": [
     "cursor",
     "windsurf",
@@ -1636,9 +1933,11 @@ export interface RuleGeneratorOptions {
   },
   "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
   "dependencies": {
+    "chalk": "^4.1.2",
     "commander": "^11.1.0",
-    "fs-extra": "^11.2.0",
-    "chalk": "^4.1.2"
+    "fs-extra": "^11.3.0",
+    "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms",
+    "vibe-tools": "git://github.com/eastlondoner/cursor-tools.git#llms-txt"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -1770,7 +2069,12 @@ import { Command } from "commander";
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
-import { RuleType, RuleConfig } from "./types";
+import {
+  RuleType,
+  RuleConfig,
+  RuleGeneratorOptions,
+  RuleProvider,
+} from "./types";
 import { getRuleProvider } from "./providers";
 import {
   getDefaultTargetPath,
@@ -1781,6 +2085,38 @@ import {
   slugifyRuleName,
 } from "./utils/path";
 import { findSimilarRules } from "./utils/similarity";
+import {
+  RuleConfigSchema,
+  VibeRulesSchema,
+  VibePackageRulesSchema,
+  PackageRuleObjectSchema,
+} from "./schemas";
+// Helper function to install/save a single rule
+async function installRule(ruleConfig: RuleConfig): Promise<void> {
+  try {
+    // Validate the rule config using the Zod schema
+    RuleConfigSchema.parse(ruleConfig); // Throws error if invalid
+    const commonRulePath = path.join(
+      getCommonRulesDir(),
+      `${ruleConfig.name}.txt`
+    );
+    await fs.ensureDir(path.dirname(commonRulePath));
+    await fs.writeFile(commonRulePath, ruleConfig.content);
+    console.log(
+      chalk.green(
+        `Rule "${ruleConfig.name}" saved successfully to ${commonRulePath}`
+      )
+    );
+  } catch (error) {
+    console.error(
+      chalk.red(
+        `Error saving rule "${ruleConfig.name}": ${error instanceof Error ? error.message : error}`
+      )
+    );
+    // Optionally re-throw or handle differently depending on desired flow
+    // For now, just log and continue if part of a batch install
+  }
+}
 // Initialize CLI
 const program = new Command();
 program
@@ -1815,15 +2151,13 @@ program
         content,
         description: options.description,
       };
-      // Store the rule in a common location without type distinction
-      const commonRulePath = path.join(getCommonRulesDir(), `${name}.txt`);
-      await fs.ensureDir(path.dirname(commonRulePath));
-      await fs.writeFile(commonRulePath, content);
-      console.log(chalk.green(`Rule saved successfully to ${commonRulePath}`));
+      // Use the new installRule function
+      await installRule(ruleConfig);
     } catch (error) {
+      // Catch errors specific to file reading or argument parsing for the save command
       console.error(
         chalk.red(
-          `Error saving rule: ${error instanceof Error ? error.message : error}`
+          `Error during save command: ${error instanceof Error ? error.message : error}`
         )
       );
       process.exit(1);
@@ -1927,7 +2261,12 @@ program
       // The provider receives the final target path determined by cli
       const success = await provider.appendFormattedRule(
         ruleConfig,
-        finalTargetPath // Pass only config and the final path
+        finalTargetPath,
+        options.global,
+        {
+          description: ruleConfig.description,
+          isGlobal: options.global,
+        }
       );
       if (success) {
         console.log(
@@ -1948,6 +2287,229 @@ program
         )
       );
       process.exit(1);
+    }
+  });
+// Command to install rules from NPM packages
+program
+  .command("install")
+  .description(
+    "Install rules from an NPM package or all dependencies directly into an editor configuration"
+  )
+  .argument(
+    "<editor>",
+    "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)"
+  )
+  .argument("[packageName]", "Optional NPM package name to install rules from")
+  .option(
+    "-g, --global",
+    "Apply to global config path if supported (claude-code, codex)",
+    false
+  )
+  .option(
+    "-t, --target <path>",
+    "Custom target path (overrides default and global)"
+  )
+  .action(async (editor, packageName, options) => {
+    const installSinglePackage = async (
+      pkgName: string,
+      editorType: RuleType,
+      provider: RuleProvider,
+      installOptions: { global?: boolean; target?: string }
+    ) => {
+      console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
+      try {
+        // Dynamically import the expected rules module
+        const ruleModulePath = `${pkgName}/llms`;
+        const module = await import(ruleModulePath);
+        if (!module || typeof module.default === "undefined") {
+          console.log(
+            chalk.yellow(
+              `No default export found in ${ruleModulePath}. Skipping.`
+            )
+          );
+          return;
+        }
+        let rulesToInstall: RuleConfig[] = [];
+        // Handle if default export is a string
+        if (typeof module.default === "string") {
+          console.log(
+            chalk.blue(
+              `Found rule content as string in ${pkgName}. Preparing to install...`
+            )
+          );
+          const ruleName = slugifyRuleName(pkgName);
+          const ruleContent = module.default;
+          rulesToInstall.push({ name: ruleName, content: ruleContent });
+        }
+        // Handle if default export is an array (existing logic, adapted)
+        else {
+          const validationResult = VibeRulesSchema.safeParse(module.default);
+          if (!validationResult.success) {
+            console.error(
+              chalk.red(`Validation failed for rules from ${pkgName}:`),
+              validationResult.error.errors
+            );
+            console.log(chalk.yellow(`Skipping installation from ${pkgName}.`));
+            return;
+          }
+          rulesToInstall = validationResult.data;
+        }
+        // Now, install the gathered rules using the provider
+        if (rulesToInstall.length > 0) {
+          console.log(
+            chalk.blue(
+              `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
+            )
+          );
+          for (const ruleConfig of rulesToInstall) {
+            try {
+              // Determine the final target path (logic copied from 'load' command)
+              let finalTargetPath: string;
+              if (installOptions.target) {
+                finalTargetPath = installOptions.target; // Explicit target path takes precedence
+              } else {
+                finalTargetPath = getRulePath(
+                  editorType,
+                  ruleConfig.name,
+                  installOptions.global
+                );
+              }
+              // Ensure the target directory exists
+              ensureTargetDir(finalTargetPath);
+              // Apply the rule using the provider
+              const success = await provider.appendFormattedRule(
+                ruleConfig,
+                finalTargetPath,
+                installOptions.global,
+                {
+                  description: ruleConfig.description,
+                  isGlobal: installOptions.global,
+                }
+              );
+              if (success) {
+                console.log(
+                  chalk.green(
+                    `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                  )
+                );
+              } else {
+                console.error(
+                  chalk.red(
+                    `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                  )
+                );
+              }
+            } catch (ruleError) {
+              console.error(
+                chalk.red(
+                  `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${ruleError instanceof Error ? ruleError.message : ruleError}`
+                )
+              );
+            }
+          }
+        } else {
+          console.log(
+            chalk.yellow(`No valid rules found or processed from ${pkgName}.`)
+          );
+        }
+      } catch (error: any) {
+        if (error.code === "MODULE_NOT_FOUND") {
+          // More specific check for module not found or package not found
+          if (error.message.includes(`Cannot find package '${pkgName}'`)) {
+            console.log(
+              chalk.yellow(
+                `Package ${pkgName} not found or not installed. Skipping.`
+              )
+            );
+          } else if (
+            error.message.includes(`Cannot find module '${pkgName}/llms'`)
+          ) {
+            console.log(
+              chalk.yellow(
+                `Module ${pkgName}/llms not found. Does this package export rules? Skipping.`
+              )
+            );
+          } else {
+            console.log(
+              chalk.yellow(
+                `Could not import rules from ${pkgName}. Skipping. Error: ${error.message}`
+              )
+            );
+          }
+        } else {
+          console.error(
+            chalk.red(
+              `Failed to install rules from ${pkgName}: ${error instanceof Error ? error.message : error}`
+            )
+          );
+        }
+      }
+    };
+    const editorType = editor.toLowerCase() as RuleType;
+    // Basic validation if editor type is supported (can be enhanced)
+    try {
+      getRuleProvider(editorType); // Will throw error if type is invalid
+    } catch (e) {
+      console.error(chalk.red(`Invalid editor type specified: ${editor}`));
+      // Potentially list valid types here
+      process.exit(1);
+    }
+    if (packageName) {
+      // Install from a specific package
+      await installSinglePackage(
+        packageName,
+        editorType,
+        getRuleProvider(editorType),
+        options
+      );
+    } else {
+      // Install from all dependencies in package.json
+      console.log(
+        chalk.blue(
+          `Installing rules from all dependencies in package.json for ${editor}...`
+        )
+      );
+      try {
+        const pkgJsonPath = path.join(process.cwd(), "package.json");
+        if (!fs.existsSync(pkgJsonPath)) {
+          console.error(
+            chalk.red("package.json not found in the current directory.")
+          );
+          process.exit(1);
+        }
+        const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
+        const { dependencies = {}, devDependencies = {} } =
+          JSON.parse(pkgJsonContent);
+        const allDeps = [
+          ...Object.keys(dependencies),
+          ...Object.keys(devDependencies),
+        ];
+        if (allDeps.length === 0) {
+          console.log(chalk.yellow("No dependencies found in package.json."));
+          return;
+        }
+        console.log(
+          chalk.blue(
+            `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
+          )
+        );
+        for (const depName of allDeps) {
+          await installSinglePackage(
+            depName,
+            editorType,
+            getRuleProvider(editorType),
+            options
+          );
+        }
+        console.log(chalk.green("Finished checking all dependencies."));
+      } catch (error) {
+        console.error(
+          chalk.red(
+            `Error processing package.json: ${error instanceof Error ? error.message : error}`
+          )
+        );
+        process.exit(1);
+      }
     }
   });
 program.parse(process.argv);
@@ -1972,6 +2534,7 @@ vibe-rules/
 │   ├── cli.ts             # Command-line interface
 │   ├── index.ts           # Main exports
 │   ├── types.ts           # Type definitions
+│   ├── schemas.ts         # Zod schema definitions (Added)
 │   ├── providers/         # Provider implementations
 │   │   ├── index.ts       # Provider factory
 │   │   ├── cursor-provider.ts  # Cursor editor provider
@@ -1982,11 +2545,62 @@ vibe-rules/
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       └── similarity.ts  # Text similarity utilities
+├── web/                   # Web interface
+│   ├── pages/             # Vue/Nuxt pages
+│   │   └── index.vue      # Landing page
+│   ├── public/            # Public assets
+│   └── nuxt.config.ts     # Nuxt configuration
 └── README.md              # Project documentation (Updated examples)
 └── ARCHITECTURE.md        # This file
 ```
 
 ## File Descriptions
+
+### src/cli.ts
+
+Defines the command-line interface using `commander`.
+
+#### Helper Functions
+
+- `installRule(ruleConfig: RuleConfig): Promise<void>` (Added)
+  - Validates a `RuleConfig` object against `RuleConfigSchema`.
+  - Saves the rule content to the common internal storage (`~/.vibe-rules/rules/<name>.txt`).
+  - Handles errors during validation or saving.
+
+#### Commands
+
+- `save <name> [options]`
+  - Saves a rule to the local store (`~/.vibe-rules/rules/<name>.txt`).
+  - Options: `-c, --content`, `-f, --file`, `-d, --description`.
+  - Uses the `installRule` helper function.
+- `list`
+  - Lists all rules saved in the common local store (`~/.vibe-rules/rules`).
+- `load <name> <editor> [options]` (Alias: `add`)
+  - Applies a saved rule to a specific editor's configuration file.
+  - Loads the rule content from the common store.
+  - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
+  - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
+  - Suggests similar rule names if the requested rule is not found.
+- `install <editor> [packageName] [options]` (Updated)
+  - Installs rules exported from an NPM package directly into an editor configuration.
+  - Arguments:
+    - `<editor>`: Target editor type (mandatory).
+    - `[packageName]`: Specific package to install from (optional, defaults to all deps).
+  - Options:
+    - `-g, --global`: Apply to global config path (similar to `load`).
+    - `-t, --target <path>`: Custom target path (similar to `load`).
+  - Behavior:
+    - Determines the package(s) to process (specific one or all dependencies).
+    - For each package, dynamically imports `<packageName>/llms`.
+    - Checks the default export:
+      - If it's a **string**: Creates a single `RuleConfig` using the package name and content.
+      - If it's an **array**: Validates against `VibeRulesSchema` and uses the valid `RuleConfig` objects.
+      - If neither or invalid: Skips the package.
+    - For each valid `RuleConfig` obtained:
+      - Gets the appropriate `RuleProvider` for the specified `<editor>`.
+      - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
+      - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
+    - Does **not** save rules to the common local store (`~/.vibe-rules/rules`).
 
 ### src/types.ts
 
@@ -2029,6 +2643,43 @@ Defines the core types and interfaces used throughout the application.
 - Properties:
   - `description?`: string - Custom description (used by some providers like Cursor)
   - `isGlobal?`: boolean - Hint for providers supporting global/local paths (e.g., Claude, Codex)
+
+### src/schemas.ts (Added)
+
+Defines Zod schemas for validating rule configurations.
+
+#### `RuleConfigSchema`
+
+- Zod schema corresponding to the `RuleConfig` interface.
+- Validates `name` (non-empty string), `content` (non-empty string), and optional `description` (string).
+- Used by the `save` command and potentially internally.
+
+#### `PackageRuleObjectSchema` (Added)
+
+- Zod schema for the flexible rule object structure found in `package/llms` exports.
+- Validates:
+  - `name`: string (non-empty)
+  - `rule`: string (non-empty) - Note: uses `rule` field for content.
+  - `description?`: string
+  - `alwaysApply?`: boolean - Cursor-specific metadata.
+  - `globs?`: string | string[] - Cursor-specific metadata.
+
+#### `PackageRuleItemSchema` (Added)
+
+- Zod schema representing a single item in the `package/llms` array export.
+- It's a union of:
+  - `z.string().min(1)`: A simple rule string.
+  - `PackageRuleObjectSchema`: The flexible rule object.
+
+#### `VibePackageRulesSchema` (Added)
+
+- Zod schema for the entire default export of `package/llms` when it's an array.
+- Defined as `z.array(PackageRuleItemSchema)`.
+- Used by the `install` command to validate package exports.
+
+#### `VibeRulesSchema`
+
+- Original Zod schema for an array of basic `RuleConfigSchema`. Kept for potential other uses but **not** the primary schema for the `install` command anymore.
 
 ### src/utils/path.ts
 
@@ -2115,9 +2766,13 @@ Provides text similarity utilities for finding related rules based on name simil
   - `limit`: Maximum number of similar rules to return (default: 5)
 - Returns: Array of similar rule names sorted by similarity (most similar first)
 
+### src/providers/index.ts
+
+Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
+
 ### src/providers/cursor-provider.ts
 
-Implementation of the RuleProvider interface for Cursor editor.
+Implementation of the `RuleProvider` interface for Cursor editor.
 
 #### `CursorRuleProvider` (class)
 
@@ -2125,23 +2780,30 @@ Implementation of the RuleProvider interface for Cursor editor.
 
 - Handles Cursor's `.mdc` files with frontmatter.
 - `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`).
-- `appendRule`, `appendFormattedRule` write the formatted `.mdc` file to the target path (typically `./.cursor/rules/`).
+- **`generateRuleContent` (Updated):**
+  - Now accepts `RuleGeneratorOptions` (which includes optional `alwaysApply` and `globs`).
+  - If `alwaysApply` or `globs` are present in the options, they are included in the generated YAML frontmatter.
+  - Uses `options.description` preferentially over `config.description` if provided.
+- `appendRule` loads a rule from internal storage and calls `appendFormattedRule`. Note that rules loaded this way might not have the dynamic `alwaysApply`/`globs` metadata unless it was also saved (currently it isn't).
+- **`appendFormattedRule` (Updated):**
+  - Now accepts `RuleGeneratorOptions`.
+  - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install` command processing).
 
 ### src/providers/windsurf-provider.ts
 
-Implementation of the RuleProvider interface for Windsurf editor.
+Implementation of the `RuleProvider` interface for Windsurf editor.
 
 #### `WindsurfRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Windsurf's single `.windsurfrules` file.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` append content to the target `.windsurfrules` file.
 
 ### src/providers/claude-code-provider.ts (Added)
 
-Implementation of the RuleProvider interface for Claude Code IDE.
+Implementation of the `RuleProvider` interface for Claude Code IDE.
 
 #### `ClaudeCodeRuleProvider` (class)
 
@@ -2149,49 +2811,34 @@ Implementation of the RuleProvider interface for Claude Code IDE.
 
 - Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
 - `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target `CLAUDE.md` file. Takes an `isGlobal` flag to determine target path if not specified.
 
 ### src/providers/codex-provider.ts (Added)
 
-Implementation of the RuleProvider interface for Codex IDE.
+Implementation of the `RuleProvider` interface for Codex IDE.
 
 #### `CodexRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-- Handles Codex's `instructions.md` (global `~/.codex/instructions.md`) or `codex.md` (local `./codex.md`) files.
+- Handles Codex's `instructions.md` (global) or `codex.md` (local).
 - `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target instruction file. Takes an `isGlobal` flag to determine target path if not specified.
 
 ### src/providers/clinerules-provider.ts (Added)
 
-Implementation of the RuleProvider interface for Cline and Roo IDEs.
+Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 #### `ClinerulesRuleProvider` (class)
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-- Handles the `.clinerules` directory structure, specifically creating/updating `.clinerules/vibe-tools.md`. (Supports both `RuleType.CLINERULES` and `RuleType.ROO`).
+- Handles Cline/Roo's `.clinerules` directory structure (typically `./.clinerules/vibe-tools.md`).
 - `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/clinerules/`).
-- `appendRule`, `appendFormattedRule` use a helper (`setupClinerulesDirectory`) to ensure the directory exists and write/overwrite the `vibe-tools.md` file within it, wrapping content in `<vibe-tools Integration>` tags. Always targets the local project's `.clinerules` directory.
-
-### src/cli.ts
-
-Parses command-line arguments using `commander` and orchestrates the actions based on user input (e.g., `save`, `list`, `load`/`add`). It uses the `getRuleProvider` factory to interact with the correct provider logic.
-
-- **`save`**: Saves a rule definition (from content or file) to the common internal store (`~/.vibe-rules/rules/<name>.txt`).
-- **`list`**: Lists rules available in the common internal store.
-- **`load`/`add`**: Applies a rule from the common store to a target editor configuration.
-  - Determines the correct `targetPath` based on editor type, `--target` option, and `--global` flag (using `getRulePath`).
-  - Calls the appropriate provider's `appendFormattedRule` method, passing the rule config and the final `targetPath`.
-  - **Note:** The CLI _no longer_ adds default header content (like `# Rules`) when applying rules; formatting and file creation are handled entirely by the provider.
-
-### src/index.ts
-
-Main entry point for the library, exporting key types and functions if needed for programmatic use (though primarily designed as a CLI tool).
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/clinerules/`). (Note: `saveRule` currently seems unused directly by CLI).
+- `appendRule`, `appendFormattedRule` use a helper (`setupClinerulesDirectory`) to create/update the `vibe-tools.md` file within the target `.clinerules` directory.
 
 ## Core Concepts
 
@@ -2201,7 +2848,7 @@ Main entry point for the library, exporting key types and functions if needed fo
 - **Internal Storage:** Rules are stored internally within `~/.vibe-rules/<ruleType>/` as plain text definitions.
 - **Applying Rules:** The `appendRule` and `appendFormattedRule` methods in providers take a rule definition and write it to the _actual_ location expected by the IDE/tool (e.g., `./.cursor/rules/`, `~/.claude/CLAUDE.md`, `./.clinerules/vibe-tools.md`), performing necessary formatting or file structure setup.
 
-## Workflow Example: Applying a Rule
+## Workflow Example: Applying a Rule (via `load`)
 
 1.  User runs: `vibe-rules apply my-cursor-rule --type cursor --target ./my-project/`
 2.  `cli.ts` parses the command.
@@ -2211,9 +2858,63 @@ Main entry point for the library, exporting key types and functions if needed fo
 6.  It generates the content with Cursor frontmatter using `generateRuleContent`.
 7.  It writes the formatted content to the specified target path (`./my-project/.cursor/rules/my-cursor-rule.mdc`).
 
+## Workflow Example: Installing Rules from a Package (via `install`) (Updated)
+
+1.  User runs: `vibe-rules install cursor my-rule-package`
+2.  `cli.ts` parses the command.
+3.  It determines the package(s) to process (`my-rule-package`).
+4.  For the package, it dynamically imports `my-rule-package/llms`.
+5.  It checks the default export:
+    - If **string**: Treats it as `[{ name: "my-rule-package-0", content: "...", alwaysApply: true }]` (for Cursor).
+    - If **array**: Validates it against `VibePackageRulesSchema`. Items can be strings or objects.
+6.  It iterates through the validated/processed rule items:
+    - If **string item**: Creates `RuleConfig` (e.g., `name: "my-rule-package-1"`, `content: "..."`). Sets `alwaysApply: true` in `RuleGeneratorOptions` for Cursor.
+    - If **object item**: Creates `RuleConfig` (mapping `item.rule` to `content`). Extracts `item.alwaysApply` and `item.globs` into `RuleGeneratorOptions` for Cursor. Uses `item.description` if present.
+7.  For each rule:
+    - Gets the `CursorRuleProvider`.
+    - Determines the target path using `getRulePath` (e.g., `./.cursor/rules/my-rule-package-0.mdc`).
+    - Calls `provider.appendFormattedRule(ruleConfig, targetPath, isGlobal, generatorOptions)`.
+8.  `CursorRuleProvider.appendFormattedRule` calls `generateRuleContent(ruleConfig, generatorOptions)`.
+9.  `generateRuleContent` uses `generatorOptions` (`alwaysApply`, `globs`, `description`) to create the correct YAML frontmatter.
+10. The formatted content is written to the target `.mdc` file.
+
 ## Recent Changes
 
+- **(Current Date):** Enhanced `install` command:
+  - Added support for `package/llms` exporting arrays containing mixed strings and objects.
+  - Rule objects can now use `rule` field for content and include `alwaysApply` and `globs` fields.
+  - Simple string rules in arrays are auto-named (`<package-name>-<index>`) and default to `alwaysApply: true` for Cursor.
+  - Updated `CursorRuleProvider` to generate frontmatter based on `alwaysApply` and `globs` passed via `RuleGeneratorOptions`.
+  - Added new Zod schemas (`PackageRuleObjectSchema`, `PackageRuleItemSchema`, `VibePackageRulesSchema`) for validation.
 - **2024-07-26:** Updated `README.md` examples for `vibe-rules save` to be clearer and use `.mdc` files.
+
+## Web Interface
+
+The web interface is a landing page and marketplace for vibe-rules, built with Nuxt.js and Tailwind CSS.
+
+### web/pages/index.vue
+
+The main landing page for vibe-rules that includes:
+
+- A header with logo placeholder and navigation
+- Hero section with description and call-to-action buttons
+- Feature section highlighting key capabilities (Create, Share, Apply)
+- Simple footer with copyright information
+- Placeholder for 3D vibe-rules text image
+
+The landing page is designed to be simple, developer-focused, and provides a foundation for the rules marketplace, starting with the Alchemy rule.
+
+### web/nuxt.config.ts
+
+Nuxt.js configuration file that defines:
+
+- Compatibility settings
+- Enabled modules (Tailwind CSS, Nuxt Fonts, Pinia)
+- Server-side rendering configuration
+
+### web/tailwind.config.js
+
+Tailwind CSS configuration for styling the web interface.
 </file>
 
 </files>

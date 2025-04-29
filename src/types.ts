@@ -43,7 +43,12 @@ export interface RuleProvider {
   /**
    * Formats and appends a rule directly from a RuleConfig object
    */
-  appendFormattedRule(config: RuleConfig, targetPath: string): Promise<boolean>;
+  appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean>;
 
   /**
    * Generates formatted rule content with editor-specific formatting
@@ -57,5 +62,7 @@ export interface RuleProvider {
 export interface RuleGeneratorOptions {
   description?: string;
   isGlobal?: boolean;
+  alwaysApply?: boolean;
+  globs?: string | string[];
   // Additional options for specific rule types
 }

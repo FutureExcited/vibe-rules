@@ -11,6 +11,7 @@ import {
   getDefaultTargetPath,
   ensureTargetDir,
 } from "../utils/path";
+import YAML from "yaml";
 
 export class CursorRuleProvider implements RuleProvider {
   /**
@@ -20,22 +21,23 @@ export class CursorRuleProvider implements RuleProvider {
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {
-    const description =
-      options?.description || config.description || `Rule for ${config.name}`;
-    const isGlobal = options?.isGlobal ?? false;
+    const frontmatter: Record<string, any> = {};
+    if (options?.description ?? config.description) {
+      frontmatter.description = options?.description ?? config.description;
+    }
+    if (options?.globs) {
+      frontmatter.globs = options.globs;
+    }
+    if (options?.alwaysApply !== undefined) {
+      frontmatter.alwaysApply = options.alwaysApply;
+    }
 
-    const frontmatter = [
-      "---",
-      `description: ${description}`,
-      `globs: *,**/*`,
-      isGlobal ? "alwaysApply: true" : "",
-      "---",
-      "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const frontmatterString =
+      Object.keys(frontmatter).length > 0
+        ? `---\n${YAML.stringify(frontmatter)}---\n`
+        : "";
 
-    return `${frontmatter}${config.content}`;
+    return `${frontmatterString}${config.content}`;
   }
 
   /**
@@ -102,22 +104,19 @@ export class CursorRuleProvider implements RuleProvider {
   /**
    * Append a cursor rule to a target file
    */
-  async appendRule(name: string, targetPath?: string): Promise<boolean> {
-    const rule = await this.loadRule(name);
-
-    if (!rule) {
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal Cursor storage.`);
       return false;
     }
-
-    const destPath =
-      targetPath ||
-      path.join(getDefaultTargetPath(RuleType.CURSOR), `${name}.mdc`);
-    ensureTargetDir(destPath);
-
-    // For cursor, we typically create a new file
-    await fs.writeFile(destPath, this.generateRuleContent(rule));
-
-    return true;
+    const finalTargetPath =
+      targetPath || getRulePath(RuleType.CURSOR, name, isGlobal);
+    return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal);
   }
 
   /**
@@ -125,19 +124,21 @@ export class CursorRuleProvider implements RuleProvider {
    */
   async appendFormattedRule(
     config: RuleConfig,
-    targetPath: string
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const destPath =
-      targetPath ||
-      path.join(getDefaultTargetPath(RuleType.CURSOR), `${config.name}.mdc`);
-    ensureTargetDir(destPath);
-
-    // Create formatted content with frontmatter
-    const content = this.generateRuleContent(config);
-
-    // For cursor, create a new file
-    await fs.writeFile(destPath, content);
-
-    return true;
+    try {
+      const formattedContent = this.generateRuleContent(config, options);
+      ensureTargetDir(targetPath);
+      await fs.writeFile(targetPath, formattedContent, "utf-8");
+      return true;
+    } catch (error) {
+      console.error(
+        `Error applying Cursor rule "${config.name}" to ${targetPath}:`,
+        error
+      );
+      return false;
+    }
   }
 }

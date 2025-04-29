@@ -59,17 +59,26 @@ Defines the command-line interface using `commander`.
   - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
   - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
   - Suggests similar rule names if the requested rule is not found.
-- `install [packageName]` (Added)
-  - Installs rules exported from an NPM package.
-  - If `packageName` is provided:
-    - Dynamically imports `<packageName>/llms`.
-    - Expects the default export to be an array of rule objects.
-    - Validates the imported array against `VibeRulesSchema`.
-    - Saves valid rules using the `installRule` helper.
-    - Handles errors (module not found, validation errors).
-  - If no `packageName` is provided:
-    - Reads `dependencies` and `devDependencies` from `package.json`.
-    - Iterates through each dependency and attempts to install rules as described above.
+- `install <editor> [packageName] [options]` (Updated)
+  - Installs rules exported from an NPM package directly into an editor configuration.
+  - Arguments:
+    - `<editor>`: Target editor type (mandatory).
+    - `[packageName]`: Specific package to install from (optional, defaults to all deps).
+  - Options:
+    - `-g, --global`: Apply to global config path (similar to `load`).
+    - `-t, --target <path>`: Custom target path (similar to `load`).
+  - Behavior:
+    - Determines the package(s) to process (specific one or all dependencies).
+    - For each package, dynamically imports `<packageName>/llms`.
+    - Checks the default export:
+      - If it's a **string**: Creates a single `RuleConfig` using the package name and content.
+      - If it's an **array**: Validates against `VibeRulesSchema` and uses the valid `RuleConfig` objects.
+      - If neither or invalid: Skips the package.
+    - For each valid `RuleConfig` obtained:
+      - Gets the appropriate `RuleProvider` for the specified `<editor>`.
+      - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
+      - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
+    - Does **not** save rules to the common local store (`~/.vibe-rules/rules`).
 
 ### src/types.ts
 
@@ -121,11 +130,34 @@ Defines Zod schemas for validating rule configurations.
 
 - Zod schema corresponding to the `RuleConfig` interface.
 - Validates `name` (non-empty string), `content` (non-empty string), and optional `description` (string).
+- Used by the `save` command and potentially internally.
+
+#### `PackageRuleObjectSchema` (Added)
+
+- Zod schema for the flexible rule object structure found in `package/llms` exports.
+- Validates:
+  - `name`: string (non-empty)
+  - `rule`: string (non-empty) - Note: uses `rule` field for content.
+  - `description?`: string
+  - `alwaysApply?`: boolean - Cursor-specific metadata.
+  - `globs?`: string | string[] - Cursor-specific metadata.
+
+#### `PackageRuleItemSchema` (Added)
+
+- Zod schema representing a single item in the `package/llms` array export.
+- It's a union of:
+  - `z.string().min(1)`: A simple rule string.
+  - `PackageRuleObjectSchema`: The flexible rule object.
+
+#### `VibePackageRulesSchema` (Added)
+
+- Zod schema for the entire default export of `package/llms` when it's an array.
+- Defined as `z.array(PackageRuleItemSchema)`.
+- Used by the `install` command to validate package exports.
 
 #### `VibeRulesSchema`
 
-- Zod schema for an array of `RuleConfigSchema`.
-- Used to validate the expected structure of the default export from NPM packages (`<packageName>/llms`).
+- Original Zod schema for an array of basic `RuleConfigSchema`. Kept for potential other uses but **not** the primary schema for the `install` command anymore.
 
 ### src/utils/path.ts
 
@@ -225,8 +257,15 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Cursor's `.mdc` files with frontmatter.
-- `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`). (Note: `saveRule` currently seems unused directly by CLI, saving happens to common store).
-- `appendRule`, `appendFormattedRule` write the formatted `.mdc` file to the target path (typically `./.cursor/rules/`).
+- `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`).
+- **`generateRuleContent` (Updated):**
+  - Now accepts `RuleGeneratorOptions` (which includes optional `alwaysApply` and `globs`).
+  - If `alwaysApply` or `globs` are present in the options, they are included in the generated YAML frontmatter.
+  - Uses `options.description` preferentially over `config.description` if provided.
+- `appendRule` loads a rule from internal storage and calls `appendFormattedRule`. Note that rules loaded this way might not have the dynamic `alwaysApply`/`globs` metadata unless it was also saved (currently it isn't).
+- **`appendFormattedRule` (Updated):**
+  - Now accepts `RuleGeneratorOptions`.
+  - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install` command processing).
 
 ### src/providers/windsurf-provider.ts
 
@@ -279,6 +318,17 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/clinerules/`). (Note: `saveRule` currently seems unused directly by CLI).
 - `appendRule`, `appendFormattedRule` use a helper (`setupClinerulesDirectory`) to create/update the `vibe-tools.md` file within the target `.clinerules` directory.
 
+### src/llms/index.ts (Updated)
+
+- Previously exported content from `llms.txt`.
+- **Now exports a default array of `PackageRuleItem` objects** directly.
+- This array contains rules specific to the `vibe-rules` repository itself, intended for use with `vibe-rules install`.
+- Includes rules for provider implementation and CLI command development, **plus the original CLI documentation from `llms.txt`**, all set to `alwaysApply: true` with relevant globs.
+
+### src/llms/llms.txt (Content Merged)
+
+- This file's content has been copied into `src/llms/index.ts` as a rule object. The file itself might be removed or kept for historical purposes but is no longer directly imported for the `llms` export.
+
 ## Core Concepts
 
 - **Rule:** A named piece of text content (the prompt or instruction).
@@ -287,7 +337,7 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 - **Internal Storage:** Rules are stored internally within `~/.vibe-rules/<ruleType>/` as plain text definitions.
 - **Applying Rules:** The `appendRule` and `appendFormattedRule` methods in providers take a rule definition and write it to the _actual_ location expected by the IDE/tool (e.g., `./.cursor/rules/`, `~/.claude/CLAUDE.md`, `./.clinerules/vibe-tools.md`), performing necessary formatting or file structure setup.
 
-## Workflow Example: Applying a Rule
+## Workflow Example: Applying a Rule (via `load`)
 
 1.  User runs: `vibe-rules apply my-cursor-rule --type cursor --target ./my-project/`
 2.  `cli.ts` parses the command.
@@ -297,8 +347,35 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 6.  It generates the content with Cursor frontmatter using `generateRuleContent`.
 7.  It writes the formatted content to the specified target path (`./my-project/.cursor/rules/my-cursor-rule.mdc`).
 
+## Workflow Example: Installing Rules from a Package (via `install`) (Updated)
+
+1.  User runs: `vibe-rules install cursor my-rule-package`
+2.  `cli.ts` parses the command.
+3.  It determines the package(s) to process (`my-rule-package`).
+4.  For the package, it dynamically imports `my-rule-package/llms`.
+5.  It checks the default export:
+    - If **string**: Treats it as `[{ name: "my-rule-package-0", content: "...", alwaysApply: true }]` (for Cursor).
+    - If **array**: Validates it against `VibePackageRulesSchema`. Items can be strings or objects.
+6.  It iterates through the validated/processed rule items:
+    - If **string item**: Creates `RuleConfig` (e.g., `name: "my-rule-package-1"`, `content: "..."`). Sets `alwaysApply: true` in `RuleGeneratorOptions` for Cursor.
+    - If **object item**: Creates `RuleConfig` (mapping `item.rule` to `content`). Extracts `item.alwaysApply` and `item.globs` into `RuleGeneratorOptions` for Cursor. Uses `item.description` if present.
+7.  For each rule:
+    - Gets the `CursorRuleProvider`.
+    - Determines the target path using `getRulePath` (e.g., `./.cursor/rules/my-rule-package-0.mdc`).
+    - Calls `provider.appendFormattedRule(ruleConfig, targetPath, isGlobal, generatorOptions)`.
+8.  `CursorRuleProvider.appendFormattedRule` calls `generateRuleContent(ruleConfig, generatorOptions)`.
+9.  `generateRuleContent` uses `generatorOptions` (`alwaysApply`, `globs`, `description`) to create the correct YAML frontmatter.
+10. The formatted content is written to the target `.mdc` file.
+
 ## Recent Changes
 
+- **(Current Date):** Merged `llms.txt` content into `src/llms/index.ts` export.
+  - Added the CLI documentation from `llms.txt` as a third rule object in the `llms` export array.
+  - Fixed type import issue in `src/llms/index.ts` (using `PackageRuleItem` type instead of schema).
+- **(Previous Date):** Added direct export of rules for `vibe-rules` repo itself from `src/llms/index.ts`.
+  - Modified `src/llms/index.ts` to export an array of rule objects instead of importing from `llms.txt`.
+  - Added rules related to provider implementation and CLI commands.
+  - Ensured necessary schemas (`PackageRuleObjectSchema`, `PackageRuleItemSchema`, `VibePackageRulesSchema`) are correctly defined and exported in `src/schemas.ts`.
 - **2024-07-26:** Updated `README.md` examples for `vibe-rules save` to be clearer and use `.mdc` files.
 
 ## Web Interface
