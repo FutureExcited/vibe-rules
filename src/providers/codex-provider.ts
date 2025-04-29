@@ -11,36 +11,7 @@ import {
   ensureTargetDir,
   getInternalRuleStoragePath,
 } from "../utils/path";
-
-// Helper function to update or add vibe-tools section in rules files
-// Reused from claude-code-provider - consider moving to a shared util if used more.
-async function updateRulesSection(
-  filePath: string,
-  rulesContent: string
-): Promise<void> {
-  ensureTargetDir(filePath);
-  let existingContent = "";
-  if (await fs.pathExists(filePath)) {
-    existingContent = await fs.readFile(filePath, "utf-8");
-  }
-  existingContent = existingContent.replace(/\r\n/g, "\n");
-  const rulesTemplate = rulesContent.replace(/\r\n/g, "\n").trim();
-  const startTag = "<vibe-tools Integration>";
-  const endTag = "</vibe-tools Integration>";
-  const startIndex = existingContent.indexOf(startTag);
-  const endIndex = existingContent.indexOf(endTag);
-  let newContent: string;
-  if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-    const before = existingContent.slice(0, startIndex);
-    const after = existingContent.slice(endIndex + endTag.length);
-    newContent =
-      `${before.trim()}\n\n${startTag}\n${rulesTemplate}\n${endTag}\n\n${after.trim()}`.trim();
-  } else {
-    newContent =
-      `${existingContent.trim()}\n\n${startTag}\n${rulesTemplate}\n${endTag}`.trim();
-  }
-  await fs.writeFile(filePath, newContent + "\n");
-}
+import chalk from "chalk";
 
 export class CodexRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CODEX;
@@ -101,7 +72,8 @@ export class CodexRuleProvider implements RuleProvider {
   async appendRule(
     name: string,
     targetPath?: string,
-    isGlobal: boolean = false
+    isGlobal: boolean = false,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const rule = await this.loadRule(name);
     if (!rule) {
@@ -112,42 +84,73 @@ export class CodexRuleProvider implements RuleProvider {
     const destinationPath =
       targetPath || getRulePath(this.ruleType, name, isGlobal);
 
-    try {
-      const contentToAppend = this.generateRuleContent(rule);
-      await updateRulesSection(destinationPath, contentToAppend);
-      console.log(
-        `Successfully updated ${this.ruleType} rules in: ${destinationPath}`
-      );
-      return true;
-    } catch (error) {
-      console.error(
-        `Error updating ${this.ruleType} rules in ${destinationPath}:`,
-        error
-      );
-      return false;
-    }
+    return this.appendFormattedRule(rule, destinationPath, isGlobal, options);
   }
 
   /**
-   * Formats and applies a rule directly from a RuleConfig object.
+   * Formats and applies a rule directly from a RuleConfig object using XML-like tags.
+   * If a rule with the same name (tag) already exists, its content is updated.
    */
   async appendFormattedRule(
     config: RuleConfig,
     targetPath: string,
-    isGlobal: boolean = false
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const destinationPath = targetPath;
-    try {
-      const contentToAppend = this.generateRuleContent(config);
-      await updateRulesSection(destinationPath, contentToAppend);
+    ensureTargetDir(destinationPath);
+
+    const ruleContent = this.generateRuleContent(config, options);
+    const startTag = `<${config.name}>`;
+    const endTag = `</${config.name}>`;
+    const newBlock = `${startTag}\n${ruleContent}\n${endTag}`;
+
+    let fileContent = "";
+    if (await fs.pathExists(destinationPath)) {
+      fileContent = await fs.readFile(destinationPath, "utf-8");
+    }
+
+    const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(
+      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
+      "m"
+    );
+
+    let updatedContent: string;
+    const match = fileContent.match(regex);
+
+    if (match) {
       console.log(
-        `Successfully applied formatted ${this.ruleType} rule to: ${destinationPath}`
+        chalk.blue(`Updating existing rule block for "${config.name}" in ${destinationPath}...`)
       );
+      updatedContent = fileContent.replace(regex, newBlock);
+    } else {
+      console.log(
+        chalk.blue(`Appending new rule block for "${config.name}" to ${destinationPath}...`)
+      );
+
+      const integrationStartTag = "<vibe-tools Integration>";
+      const integrationEndTag = "</vibe-tools Integration>";
+      const startIndex = fileContent.indexOf(integrationStartTag);
+      const endIndex = fileContent.indexOf(integrationEndTag);
+
+      if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+        const insertionPoint = endIndex;
+        const before = fileContent.slice(0, insertionPoint);
+        const after = fileContent.slice(insertionPoint);
+        updatedContent = `${before.trimEnd()}\n\n${newBlock}\n\n${after.trimStart()}`;
+      } else {
+        const separator = fileContent.trim().length > 0 ? "\n\n" : "";
+        updatedContent = fileContent + separator + newBlock;
+      }
+    }
+
+    try {
+      await fs.writeFile(destinationPath, updatedContent.trim() + "\n");
       return true;
     } catch (error) {
       console.error(
-        `Error applying formatted ${this.ruleType} rule to ${destinationPath}:`,
-        error
+        chalk.red(`Error writing updated rules to ${destinationPath}: ${error}`)
       );
       return false;
     }

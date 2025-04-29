@@ -9,15 +9,18 @@ export interface RuleConfig {
   // Additional properties can be added as needed
 }
 
-export enum RuleType {
-  CURSOR = "cursor",
-  WINDSURF = "windsurf",
-  CLAUDE_CODE = "claude-code",
-  CODEX = "codex",
-  CLINERULES = "clinerules",
-  ROO = "roo",
-  CUSTOM = "custom",
-}
+export const RuleType = {
+  CURSOR: "cursor",
+  WINDSURF: "windsurf",
+  CLAUDE_CODE: "claude-code",
+  CODEX: "codex",
+  CLINERULES: "clinerules",
+  ROO: "roo",
+  CUSTOM: "custom",
+} as const;
+
+export type RuleTypeArray = typeof RuleType[keyof typeof RuleType][];
+export type RuleType = typeof RuleType[keyof typeof RuleType];
 
 export interface RuleProvider {
   /**

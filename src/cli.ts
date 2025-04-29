@@ -9,6 +9,7 @@ import {
   RuleConfig,
   RuleGeneratorOptions,
   RuleProvider,
+  RuleTypeArray,
 } from "./types";
 import { getRuleProvider } from "./providers";
 import {
@@ -67,107 +68,108 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
 async function clearExistingRules(
   pkgName: string,
   editorType: RuleType,
-  options: { global?: boolean; target?: string }
+  options: { global?: boolean; }
 ): Promise<void> {
   debugLog(
-    `Clearing existing rules for package "${pkgName}" and editor "${editorType}"...`
+    `Clearing existing rules for package "${pkgName}" and editor "${editorType}" with options ${JSON.stringify(options)}...`
   );
   let targetDir: string;
-  let potentialTargetFile: string | undefined; // Store the potential single file path
-  const singleFileProviders: RuleType[] = [
+  const singleFileProviders: RuleTypeArray = [
     RuleType.WINDSURF,
     RuleType.CLAUDE_CODE,
     RuleType.CODEX,
   ];
   let isSingleFileProvider = singleFileProviders.includes(editorType);
 
-  if (options.target) {
-    // If target is explicitly provided, check if it's a directory or file
-    try {
-      // Check if path exists first
-      if (await fs.pathExists(options.target)) {
-        const stats = await fs.stat(options.target);
-        if (stats.isDirectory()) {
-          targetDir = options.target;
-          // If the target dir matches a known single-file dir, still treat as single file
-          const defaultSingleFilePath = isSingleFileProvider
-            ? getDefaultTargetPath(editorType, options.global)
-            : undefined;
-          if (
-            defaultSingleFilePath &&
-            path.dirname(defaultSingleFilePath) === targetDir
-          ) {
-            potentialTargetFile = defaultSingleFilePath;
-          } else {
-            isSingleFileProvider = false; // Explicit directory target overrides default single file assumption
-          }
-        } else {
-          targetDir = path.dirname(options.target);
-          potentialTargetFile = options.target; // User specified the file
-          isSingleFileProvider = true; // Explicit target file implies single file mode
-        }
+  // Get default path from provider logic
+  const defaultPath = getDefaultTargetPath(editorType, options.global);
+  try {
+    // Check if path exists first
+    if (await fs.pathExists(defaultPath)) {
+      const stats = await fs.stat(defaultPath);
+      if (stats.isDirectory()) {
+        targetDir = defaultPath;
       } else {
-        // Target doesn't exist. Assume it's a file path based on typical usage.
-        targetDir = path.dirname(options.target);
-        potentialTargetFile = options.target;
-        isSingleFileProvider = true; // Assume single file mode
-      }
-    } catch (error: any) {
-      console.error(
-        chalk.red(
-          `Error checking target path ${options.target}: ${error.message}`
-        )
-      );
-      return; // Cannot determine target directory
-    }
-  } else {
-    // Get default path from provider logic
-    const defaultPath = getDefaultTargetPath(editorType, options.global);
-    try {
-      // Check if path exists first
-      if (await fs.pathExists(defaultPath)) {
-        const stats = await fs.stat(defaultPath);
-        if (stats.isDirectory()) {
-          targetDir = defaultPath;
-          isSingleFileProvider = false; // Default path is directory, not single file mode by default
-        } else {
-          targetDir = path.dirname(defaultPath);
-          potentialTargetFile = defaultPath; // Default path is a file
-          isSingleFileProvider = true; // Set based on default path being a file
-        }
-      } else {
-        // Default path doesn't exist. Infer from editor type.
         targetDir = path.dirname(defaultPath);
-        if (singleFileProviders.includes(editorType)) {
-          // Check the explicit list
-          potentialTargetFile = defaultPath;
-          isSingleFileProvider = true;
-        } else {
-          isSingleFileProvider = false;
-        }
       }
-    } catch (error: any) {
-      console.error(
-        chalk.red(
-          `Error checking default path ${defaultPath}: ${error.message}`
-        )
-      );
-      return; // Cannot determine target directory
+    } else {
+      // Default path doesn't exist. Create it.
+      await fs.ensureDir(defaultPath);
+      targetDir = defaultPath;
     }
+  } catch (error: any) {
+    console.error(
+      chalk.red(
+        `Error checking default path ${defaultPath}: ${error.message}`
+      )
+    );
+    return; // Cannot determine target directory
   }
 
   debugLog(
-    `Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider}. Potential Target File: ${potentialTargetFile || "N/A"}`
+    `Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider} for ${editorType}.`
   );
 
-  // If it's a known single file provider, we don't delete individual files by prefix.
+  // If it's a known single file provider, remove matching XML blocks instead of deleting files
   if (isSingleFileProvider) {
-    console.log(
-      chalk.yellow(
-        `Skipping rule file deletion for editor "${editorType}" as it uses a single configuration file (${potentialTargetFile || "inferred"}). Existing rules from "${pkgName}" within this file will be appended, not cleared automatically by this function.`
-      )
-    );
-    return;
+    const potentialTargetFile = getRulePath(editorType, "", options.global);
+    if (!await fs.pathExists(potentialTargetFile)) {
+      debugLog(
+        `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
+      );
+      return;
+    }
+    if (!potentialTargetFile) {
+      debugLog(
+        `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
+      );
+      return;
+    }
+    try {
+      if (!(await fs.pathExists(potentialTargetFile))) {
+        debugLog(
+          `Target file ${potentialTargetFile} does not exist. No rules to clear.`
+        );
+        return;
+      }
+
+      const content = await fs.readFile(potentialTargetFile, "utf-8");
+      // Regex to match <pkgName_ruleName ...>...</pkgName_ruleName> blocks
+      // It captures the tag name (pkgName_ruleName) in group 1 to ensure start and end tags match.
+      // It handles potential attributes in the opening tag.
+      // 's' flag allows '.' to match newlines. 'g' flag finds all matches.
+      const removalRegex = new RegExp(
+        `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\s*\n?`,
+        "gs"
+      );
+
+      let removedCount = 0;
+      const newContent = content.replace(removalRegex, (match) => {
+        removedCount++;
+        debugLog(`Removing block matching pattern: ${match.substring(0, 100)}...`); // Log beginning of removed block
+        return ""; // Replace with empty string
+      });
+
+      if (removedCount > 0) {
+        await fs.writeFile(potentialTargetFile, newContent, "utf-8");
+        console.log(
+          chalk.blue(
+            `Removed ${removedCount} existing rule block(s) matching prefix "${pkgName}_" from ${potentialTargetFile}.`
+          )
+        );
+      } else {
+        debugLog(
+          `No rule blocks found with prefix "${pkgName}_" in ${potentialTargetFile}.`
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        chalk.red(
+          `Error clearing rule blocks from ${potentialTargetFile}: ${error.message}`
+        )
+      );
+    }
+    return; // Stop here for single file providers
   }
 
   // Proceed with deleting files by prefix only for multi-file providers (like Cursor, Clinerules)
@@ -180,7 +182,7 @@ async function clearExistingRules(
     }
 
     const files = await fs.readdir(targetDir);
-    const prefix = `${pkgName}-`; // Using raw package name prefix as requested
+    const prefix = `${pkgName}_`;
     let deletedCount = 0;
 
     debugLog(
@@ -491,8 +493,8 @@ program
           );
           let ruleName = slugifyRuleName(pkgName); // Start with slugified name
           // Ensure the name starts with the package name prefix
-          if (!ruleName.startsWith(`${pkgName}-`)) {
-            ruleName = `${pkgName}-${ruleName}`;
+          if (!ruleName.startsWith(`${pkgName}_`)) {
+            ruleName = `${pkgName}_${ruleName}`;
           }
           const ruleContent = defaultExport;
           rulesToInstall.push({ name: ruleName, content: ruleContent });
@@ -516,7 +518,7 @@ program
           for (const [index, item] of items.entries()) {
             if (typeof item === "string") {
               // Handle string item - name already includes pkgName-index via slugify
-              const ruleName = slugifyRuleName(`${pkgName}-${index}`);
+              const ruleName = slugifyRuleName(`${pkgName}_${index}`);
               rulesToInstall.push({
                 name: ruleName,
                 content: item,
@@ -526,8 +528,8 @@ program
               // Handle object item - map 'rule' to 'content'
               let ruleName = item.name;
               // Ensure the name starts with the package name prefix
-              if (!ruleName.startsWith(`${pkgName}-`)) {
-                ruleName = `${pkgName}-${ruleName}`;
+              if (!ruleName.startsWith(`${pkgName}_`)) {
+                ruleName = `${pkgName}_${ruleName}`;
               }
               rulesToInstall.push({
                 name: ruleName, // Use potentially prefixed name

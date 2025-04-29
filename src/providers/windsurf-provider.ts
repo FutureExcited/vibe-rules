@@ -11,6 +11,7 @@ import {
   getDefaultTargetPath,
   ensureTargetDir,
 } from "../utils/path";
+import chalk from "chalk";
 
 export class WindsurfRuleProvider implements RuleProvider {
   /**
@@ -112,26 +113,58 @@ export class WindsurfRuleProvider implements RuleProvider {
   }
 
   /**
-   * Format and append a rule directly from a RuleConfig object
+   * Format and append a rule directly from a RuleConfig object.
+   * If a rule with the same name (tag) already exists, its content is updated.
    */
   async appendFormattedRule(
     config: RuleConfig,
-    targetPath: string
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const destPath = targetPath || getDefaultTargetPath(RuleType.WINDSURF);
+    const destPath = targetPath;
     ensureTargetDir(destPath);
 
-    // Format the content with XML tags
-    const formattedRule = this.formatRuleContent(config);
+    const ruleContent = this.generateRuleContent(config, options);
+    const startTag = `<${config.name}>`;
+    const endTag = `</${config.name}>`;
+    const newBlock = `${startTag}\n${config.content}\n${endTag}`;
 
+    let fileContent = "";
     if (await fs.pathExists(destPath)) {
-      // Append to existing file
-      await fs.appendFile(destPath, `\n\n${formattedRule}`);
-    } else {
-      // Create new file
-      await fs.writeFile(destPath, formattedRule);
+      fileContent = await fs.readFile(destPath, "utf-8");
     }
 
-    return true;
+    const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(
+      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
+      "m"
+    );
+
+    let updatedContent: string;
+    const match = fileContent.match(regex);
+
+    if (match) {
+      console.log(
+        chalk.blue(`Updating existing rule block for "${config.name}" in ${destPath}...`)
+      );
+      updatedContent = fileContent.replace(regex, newBlock);
+    } else {
+      console.log(
+        chalk.blue(`Appending new rule block for "${config.name}" to ${destPath}...`)
+      );
+      const separator = fileContent.trim().length > 0 ? "\n\n" : "";
+      updatedContent = fileContent + separator + newBlock;
+    }
+
+    try {
+      await fs.writeFile(destPath, updatedContent.trim() + "\n");
+      return true;
+    } catch (error) {
+      console.error(
+        chalk.red(`Error writing updated rules to ${destPath}: ${error}`)
+      );
+      return false;
+    }
   }
 }

@@ -50,8 +50,13 @@ Defines the command-line interface using `commander`.
 - `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean; target?: string }): Promise<void>` (Added)
   - Clears previously installed rule files associated with a specific NPM package before installing new ones.
   - Determines the target directory based on `editorType` and `options`.
-  - Skips deletion for single-file providers (e.g., Windsurf, Claude Code, Codex).
-  - For multi-file providers (e.g., Cursor, Clinerules), deletes files in the target directory whose names start with `${pkgName}-`.
+  - **Behavior for Single-File Providers** (e.g., Windsurf, Claude Code, Codex):
+    - Reads the determined single target file (e.g., `.windsurfrules`, `CLAUDE.md`).
+    - Removes any XML-like blocks within the file where the tag name starts with the package prefix (e.g., finds and removes `<pkgName_rule1>...</pkgName_rule1>`, `<pkgName_anotherRule>...</pkgName_anotherRule>`).
+    - Writes the modified content back to the file.
+    - Does *not* delete the file itself.
+  - **Behavior for Multi-File Providers** (e.g., Cursor, Clinerules):
+    - Deletes files within the target directory whose names start with `${pkgName}_`.
 
 #### Commands
 
@@ -79,7 +84,7 @@ Defines the command-line interface using `commander`.
   - Behavior:
     - Determines the package(s) to process (specific one or all dependencies).
     - For each package, dynamically imports `<packageName>/llms`.
-      - **Cleanup:** Calls `clearExistingRules` to remove rule files potentially installed previously from the same package (only affects multi-file providers like Cursor).
+      - **Cleanup:** Calls `clearExistingRules` to remove rule files potentially installed previously from the same package (for multi-file providers like Cursor) or to remove corresponding XML blocks (for single-file providers).
       - **Module Loading:** Uses `require('module').createRequire` based on the CWD first for CommonJS compatibility. If that fails with `ERR_REQUIRE_ESM`, it falls back to using dynamic `import()` to support ES Modules.
     - Checks the default export:
       - If it's a **string**: Creates a single `RuleConfig` using the package name and content.
@@ -290,7 +295,12 @@ Implementation of the `RuleProvider` interface for Windsurf editor.
 
 - Handles Windsurf's single `.windsurfrules` file.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`). (Note: `saveRule` currently seems unused directly by CLI).
-- `appendRule`, `appendFormattedRule` append content to the target `.windsurfrules` file.
+- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Updated):**
+  - Reads the target `.windsurfrules` file.
+  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
+  - If found, replaces the content within the tags.
+  - If not found, appends the new tagged block to the end of the file.
 
 ### src/providers/claude-code-provider.ts (Added)
 
@@ -301,9 +311,14 @@ Implementation of the `RuleProvider` interface for Claude Code IDE.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
-- `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`). (Note: `saveRule` currently seems unused directly by CLI).
-- `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target `CLAUDE.md` file. Takes an `isGlobal` flag to determine target path if not specified.
+- `generateRuleContent` returns plain rule content suitable for insertion.
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
+- **`appendRule` (Updated):** Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Updated):**
+  - Reads the target `CLAUDE.md` file.
+  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
+  - If found, replaces the content within the tags.
+  - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
 
 ### src/providers/codex-provider.ts (Added)
 
@@ -314,9 +329,14 @@ Implementation of the `RuleProvider` interface for Codex IDE.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Codex's `instructions.md` (global) or `codex.md` (local).
-- `generateRuleContent` returns plain rule content.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`). (Note: `saveRule` currently seems unused directly by CLI).
-- `appendRule`, `appendFormattedRule` use a helper (`updateRulesSection`) to find/update the `<vibe-tools Integration>` block within the target instruction file. Takes an `isGlobal` flag to determine target path if not specified.
+- `generateRuleContent` returns plain rule content suitable for insertion.
+- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
+- **`appendRule` (Updated):** Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Updated):**
+  - Reads the target `instructions.md` or `codex.md` file.
+  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
+  - If found, replaces the content within the tags.
+  - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
 
 ### src/providers/clinerules-provider.ts (Added)
 
