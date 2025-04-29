@@ -305,9 +305,8 @@ program
         }
         // Handle if default export is an array (existing logic, adapted)
         else {
-          const validationResult = VibePackageRulesSchema.safeParse(
-            defaultExport
-          );
+          const validationResult =
+            VibePackageRulesSchema.safeParse(defaultExport);
           if (!validationResult.success) {
             console.error(
               chalk.red(`Validation failed for rules from ${pkgName}:`),
@@ -542,8 +541,71 @@ if (process.argv.length <= 2) {
   program.help();
 }
 async function importModuleFromCwd(ruleModulePath: string) {
-  let module = await eval(`require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`);
+  console.log(
+    chalk.dim(`[Debug] Attempting to import module: ${ruleModulePath}`)
+  );
+  let module: any;
+  try {
+    // Attempt 1: Use createRequire for CommonJS compatibility
+    console.log(chalk.dim(`[Debug] Trying require for ${ruleModulePath}...`));
+    module = await eval(
+      // Use eval to construct the require call dynamically based on CWD
+      // This allows importing modules relative to the project running vibe-rules
+      `require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`
+    );
+    console.log(chalk.dim(`[Debug] Successfully imported using require.`));
+  } catch (error: any) {
+    // Check if the error is specifically because we tried to require an ES module
+    if (error.code === "ERR_REQUIRE_ESM") {
+      console.log(
+        chalk.dim(
+          `[Debug] Require failed (ERR_REQUIRE_ESM). Falling back to dynamic import()...`
+        )
+      );
+      try {
+        // Attempt 2: Use dynamic import() for ES Modules
+        // Construct the file path more reliably for dynamic import
+        const absolutePath = require.resolve(ruleModulePath, {
+          paths: [process.cwd()],
+        });
+        console.log(
+          chalk.dim(`[Debug] Resolved path for import(): ${absolutePath}`)
+        );
+        // Use pathToFileURL to ensure correct format for import() esp on Windows
+        const fileUrl = require("url").pathToFileURL(absolutePath).href;
+        console.log(
+          chalk.dim(`[Debug] Trying dynamic import('${fileUrl}')...`)
+        );
+        module = await eval(`import('${fileUrl}')`);
+        console.log(
+          chalk.dim(`[Debug] Successfully imported using dynamic import().`)
+        );
+      } catch (importError: any) {
+        console.error(
+          chalk.red(
+            `[Debug] Dynamic import() failed for ${ruleModulePath}: ${importError.message}`
+          )
+        );
+        // Re-throw the *import* error if dynamic import also fails
+        throw importError;
+      }
+    } else {
+      // If it's a different error (e.g., module truly not found), re-throw it
+      console.error(
+        chalk.red(
+          `[Debug] Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
+        )
+      );
+      throw error;
+    }
+  }
 
+  // Extract the default export if it exists, otherwise use the whole module
   const defaultExport = module?.default || module;
+  console.log(
+    chalk.dim(`[Debug] Module imported. Type: ${typeof defaultExport}`)
+  );
+  // Avoid logging potentially large module content by default
+  // console.log(chalk.dim(`[Debug] Module content (keys): ${Object.keys(defaultExport || {}).join(', ')}`));
   return defaultExport;
 }

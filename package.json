@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -38,10 +38,11 @@
   },
   "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
   "dependencies": {
+    "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.3.0",
-    "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms",
+    "vibe-rules": ".",
     "vibe-tools": "git://github.com/eastlondoner/cursor-tools.git#llms-txt"
   },
   "devDependencies": {

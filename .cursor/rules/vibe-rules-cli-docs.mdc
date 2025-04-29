@@ -1,7 +1,7 @@
 ---
 description: Documentation for the vibe-rules CLI commands (save, list, load, install).
 globs:
-  - "**/*"
+  - **/*
 alwaysApply: true
 ---
 

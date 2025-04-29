@@ -4,6 +4,7 @@
     "": {
       "name": "vibe-rules",
       "dependencies": {
+        "vibe-rules": ".",
         "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms",
         "chalk": "^4.1.2",
         "commander": "^11.1.0",
@@ -631,6 +632,8 @@
 
     "version-range": ["version-range@4.14.0", "", {}, "sha512-gjb0ARm9qlcBAonU4zPwkl9ecKkas+tC2CGwFfptTCWWIVTWY1YUbT2zZKsOAF1jR/tNxxyLwwG0cb42XlYcTg=="],
 
+    "vibe-rules": ["vibe-rules@file:", { "dependencies": { "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms", "chalk": "^4.1.2", "commander": "^11.1.0", "fs-extra": "^11.3.0", "vibe-tools": "git://github.com/eastlondoner/cursor-tools.git#llms-txt" }, "devDependencies": { "@types/fs-extra": "^11.0.4", "@types/node": "^20.10.4", "ts-node": "^10.9.1", "typescript": "^5.3.3" }, "bin": { "vibe-rules": "dist/cli.js" } }],
+
     "vibe-tools": ["vibe-tools@github:eastlondoner/cursor-tools#9a59d54", { "dependencies": { "@anthropic-ai/sdk": "^0.40.0", "@browserbasehq/stagehand": "^2.1.0", "@modelcontextprotocol/sdk": "^1.10.2", "@types/glob": "^8.1.0", "consola": "^3.4.2", "dotenv": "16.5.0", "eventsource-client": "1.1.3", "fast-glob": "^3.3.3", "glob": "^11.0.2", "google-auth-library": "^9.15.1", "openai": "^4.96.0", "p-queue": "^8.1.0", "playwright": "1.50.1", "playwright-core": "1.50.1", "punycode": "^2.3.1", "repomix": "0.3.3", "zod": "3.24.3" }, "bin": { "vibe-tools": "dist/index.mjs" } }, "eastlondoner-cursor-tools-9a59d54"],
 
     "web-streams-polyfill": ["web-streams-polyfill@4.0.0-beta.3", "", {}, "sha512-QW95TCTaHmsYfHDybGMwO5IJIM93I/6vTRk+daHTWFPhwh+C8Cg7j7XyKrwrj8Ib6vYXe0ocYNrmzY4xAAN6ug=="],
@@ -692,6 +695,10 @@
     "string-width-cjs/strip-ansi": ["strip-ansi@6.0.1", "", { "dependencies": { "ansi-regex": "^5.0.1" } }, "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A=="],
 
     "strip-ansi-cjs/ansi-regex": ["ansi-regex@5.0.1", "", {}, "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="],
+
+    "vibe-rules/alchemy": ["alchemy-mono@github:sam-goodwin/alchemy#b116ab4", {}, "sam-goodwin-alchemy-b116ab4"],
+
+    "vibe-rules/vibe-tools": ["vibe-tools@github:eastlondoner/cursor-tools#5a9141e", { "dependencies": { "@anthropic-ai/sdk": "^0.40.0", "@browserbasehq/stagehand": "^2.1.0", "@modelcontextprotocol/sdk": "^1.10.2", "@types/glob": "^8.1.0", "consola": "^3.4.2", "dotenv": "16.5.0", "eventsource-client": "1.1.3", "fast-glob": "^3.3.3", "glob": "^11.0.2", "google-auth-library": "^9.15.1", "openai": "^4.96.0", "p-queue": "^8.1.0", "playwright": "1.50.1", "playwright-core": "1.50.1", "punycode": "^2.3.1", "repomix": "0.3.3", "zod": "3.24.3" }, "bin": { "vibe-tools": "dist/index.mjs" } }, "eastlondoner-cursor-tools-5a9141e"],
 
     "wrap-ansi/ansi-styles": ["ansi-styles@6.2.1", "", {}, "sha512-bN798gFfQX+viw3R7yrGWRqnrN2oRkEkUjjl4JNn4E8GxxbjtG3FbrEIIY3l8/hrwUwIeCZvi4QuOTP4MErVug=="],
 
