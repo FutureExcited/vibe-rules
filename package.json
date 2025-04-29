@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -20,7 +20,6 @@
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts"
   },
-  "type": "module",
   "keywords": [
     "cursor",
     "windsurf",
