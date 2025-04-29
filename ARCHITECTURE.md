@@ -13,6 +13,9 @@ vibe-rules/
 │   ├── index.ts           # Main exports
 │   ├── types.ts           # Type definitions
 │   ├── schemas.ts         # Zod schema definitions (Added)
+│   ├── llms/              # Rule definitions for package export (Added)
+│   │   ├── index.ts       # Public rule export (intentionally empty)
+│   │   └── internal.ts    # Internal rule definitions (not exported)
 │   ├── providers/         # Provider implementations
 │   │   ├── index.ts       # Provider factory
 │   │   ├── cursor-provider.ts  # Cursor editor provider
@@ -320,3 +323,15 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 #### `ClinerulesRuleProvider` (class)
 
 ##### Methods: `
+
+### src/llms/internal.ts (Added)
+
+- Contains the definition and default export of the `vibeRulesRepoRules` array.
+- These rules are intended for internal use within the `vibe-rules` project itself (e.g., for developers contributing to the tool).
+- This file is **not** part of the package's public API exposed via the `exports` field in `package.json`.
+
+### src/llms/index.ts (Added)
+
+- Provides the module resolved by the `vibe-rules/llms` export path defined in `package.json`.
+- Intentionally exports an empty array (`export default [];`).
+- This ensures that when other packages use the `vibe-rules install` command or directly import `vibe-rules/llms`, they do not receive the internal rules defined in `internal.ts`. Packages wishing to export rules for installation should create their own `llms.ts` (or similar) file with a default export.
