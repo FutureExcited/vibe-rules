@@ -38,7 +38,6 @@
   },
   "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
   "dependencies": {
-    "alchemy": "git://github.com/sam-goodwin/alchemy.git#sam/llms",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.3.0",

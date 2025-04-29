@@ -44,6 +44,11 @@ Defines the command-line interface using `commander`.
   - Validates a `RuleConfig` object against `RuleConfigSchema`.
   - Saves the rule content to the common internal storage (`~/.vibe-rules/rules/<name>.txt`).
   - Handles errors during validation or saving.
+- `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean; target?: string }): Promise<void>` (Added)
+  - Clears previously installed rule files associated with a specific NPM package before installing new ones.
+  - Determines the target directory based on `editorType` and `options`.
+  - Skips deletion for single-file providers (e.g., Windsurf, Claude Code, Codex).
+  - For multi-file providers (e.g., Cursor, Clinerules), deletes files in the target directory whose names start with `${pkgName}-`.
 
 #### Commands
 
@@ -70,11 +75,13 @@ Defines the command-line interface using `commander`.
   - Behavior:
     - Determines the package(s) to process (specific one or all dependencies).
     - For each package, dynamically imports `<packageName>/llms`.
+      - **Cleanup:** Calls `clearExistingRules` to remove rule files potentially installed previously from the same package (only affects multi-file providers like Cursor).
       - **Module Loading:** Uses `require('module').createRequire` based on the CWD first for CommonJS compatibility. If that fails with `ERR_REQUIRE_ESM`, it falls back to using dynamic `import()` to support ES Modules.
     - Checks the default export:
       - If it's a **string**: Creates a single `RuleConfig` using the package name and content.
       - If it's an **array**: Validates against `VibePackageRulesSchema` (using `PackageRuleItemSchema` for flexibility) and uses the valid rule definitions (mapping `rule` to `content` if necessary).
     - For each valid `RuleConfig` obtained:
+      - **Name Prefixing:** Ensures the `name` property of the `RuleConfig` starts with `${pkgName}-`. If the original name (from an object export or derived from the package name) doesn't have this prefix, it's added.
       - Gets the appropriate `RuleProvider` for the specified `<editor>`.
       - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
       - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
@@ -312,7 +319,4 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 #### `ClinerulesRuleProvider` (class)
 
-##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
-
-- Handles Cline/Roo's `.clinerules` directory structure (typically `./.clinerules/vibe-tools.md`).
-- `
+##### Methods: `

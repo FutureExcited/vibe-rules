@@ -55,6 +55,127 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
   }
 }
 
+// Helper function to clear existing rules installed from a package
+async function clearExistingRules(
+    pkgName: string,
+    editorType: RuleType,
+    options: { global?: boolean; target?: string }
+): Promise<void> {
+    console.log(chalk.dim(`[Debug] Clearing existing rules for package "${pkgName}" and editor "${editorType}"...`));
+    let targetDir: string;
+    let potentialTargetFile: string | undefined; // Store the potential single file path
+    const singleFileProviders: RuleType[] = [
+        RuleType.WINDSURF,
+        RuleType.CLAUDE_CODE,
+        RuleType.CODEX
+    ];
+    let isSingleFileProvider = singleFileProviders.includes(editorType);
+
+    if (options.target) {
+        // If target is explicitly provided, check if it's a directory or file
+        try {
+            // Check if path exists first
+            if (await fs.pathExists(options.target)) {
+                const stats = await fs.stat(options.target);
+                if (stats.isDirectory()) {
+                    targetDir = options.target;
+                    // If the target dir matches a known single-file dir, still treat as single file
+                    const defaultSingleFilePath = isSingleFileProvider ? getDefaultTargetPath(editorType, options.global) : undefined;
+                    if (defaultSingleFilePath && path.dirname(defaultSingleFilePath) === targetDir) {
+                       potentialTargetFile = defaultSingleFilePath;
+                    } else {
+                       isSingleFileProvider = false; // Explicit directory target overrides default single file assumption
+                    }
+                } else {
+                    targetDir = path.dirname(options.target);
+                    potentialTargetFile = options.target; // User specified the file
+                    isSingleFileProvider = true; // Explicit target file implies single file mode
+                }
+            } else {
+                 // Target doesn't exist. Assume it's a file path based on typical usage.
+                 targetDir = path.dirname(options.target);
+                 potentialTargetFile = options.target;
+                 isSingleFileProvider = true; // Assume single file mode
+            }
+        } catch (error: any) {
+           console.error(chalk.red(`Error checking target path ${options.target}: ${error.message}`));
+           return; // Cannot determine target directory
+        }
+    } else {
+        // Get default path from provider logic
+        const defaultPath = getDefaultTargetPath(editorType, options.global);
+         try {
+             // Check if path exists first
+             if (await fs.pathExists(defaultPath)) {
+                const stats = await fs.stat(defaultPath);
+                 if (stats.isDirectory()) {
+                    targetDir = defaultPath;
+                    isSingleFileProvider = false; // Default path is directory, not single file mode by default
+                 } else {
+                    targetDir = path.dirname(defaultPath);
+                    potentialTargetFile = defaultPath; // Default path is a file
+                    isSingleFileProvider = true; // Set based on default path being a file
+                 }
+             } else {
+                // Default path doesn't exist. Infer from editor type.
+                targetDir = path.dirname(defaultPath);
+                if (singleFileProviders.includes(editorType)) { // Check the explicit list
+                    potentialTargetFile = defaultPath;
+                    isSingleFileProvider = true;
+                } else {
+                   isSingleFileProvider = false;
+                }
+             }
+        } catch (error: any) {
+             console.error(chalk.red(`Error checking default path ${defaultPath}: ${error.message}`));
+             return; // Cannot determine target directory
+        }
+    }
+
+     console.log(chalk.dim(`[Debug] Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider}. Potential Target File: ${potentialTargetFile || 'N/A'}`));
+
+    // If it's a known single file provider, we don't delete individual files by prefix.
+    if (isSingleFileProvider) {
+         console.log(chalk.yellow(`Skipping rule file deletion for editor "${editorType}" as it uses a single configuration file (${potentialTargetFile || 'inferred'}). Existing rules from "${pkgName}" within this file will be appended, not cleared automatically by this function.`));
+         return;
+    }
+
+    // Proceed with deleting files by prefix only for multi-file providers (like Cursor, Clinerules)
+    try {
+        if (!(await fs.pathExists(targetDir))) {
+            console.log(chalk.dim(`[Debug] Target directory ${targetDir} does not exist. No rules to clear.`));
+            return;
+        }
+
+        const files = await fs.readdir(targetDir);
+        const prefix = `${pkgName}-`; // Using raw package name prefix as requested
+        let deletedCount = 0;
+
+        console.log(chalk.dim(`[Debug] Scanning ${targetDir} for files starting with prefix "${prefix}"...`));
+
+        for (const file of files) {
+            // Consider adding file extension check based on editorType if needed for robustness
+            if (file.startsWith(prefix)) {
+                const filePath = path.join(targetDir, file);
+                try {
+                    await fs.remove(filePath);
+                    console.log(chalk.grey(`Deleted existing rule file: ${filePath}`));
+                    deletedCount++;
+                } catch (deleteError: any) {
+                    console.error(chalk.red(`Failed to delete rule file ${filePath}: ${deleteError.message}`));
+                }
+            }
+        }
+         if (deletedCount > 0) {
+             console.log(chalk.blue(`Cleared ${deletedCount} existing rule file(s) matching prefix "${prefix}" in ${targetDir}.`));
+         } else {
+             console.log(chalk.dim(`[Debug] No rule files found with prefix "${prefix}" in ${targetDir}.`));
+         }
+    } catch (error: any) {
+        console.error(chalk.red(`Error clearing existing rules in ${targetDir}: ${error.message}`));
+    }
+}
+
 // Initialize CLI
 const program = new Command();
 
@@ -268,6 +389,17 @@ program
     "Custom target path (overrides default and global)"
   )
   .action(async (editor, packageName, options) => {
+    const editorType = editor.toLowerCase() as RuleType;
+    let provider: RuleProvider; // Define provider here
+
+    try {
+      provider = getRuleProvider(editorType); // Get provider once
+    } catch (e) {
+      console.error(chalk.red(`Invalid editor type specified: ${editor}`));
+      // Potentially list valid types here
+      process.exit(1);
+    }
+
     const installSinglePackage = async (
       pkgName: string,
       editorType: RuleType,
@@ -290,6 +422,8 @@ program
           return;
         }
 
+        await clearExistingRules(pkgName, editorType, options);
+
         let rulesToInstall: RuleConfig[] = [];
 
         // Handle if default export is a string
@@ -299,7 +433,11 @@ program
               `Found rule content as string in ${pkgName}. Preparing to install...`
             )
           );
-          const ruleName = slugifyRuleName(pkgName);
+          let ruleName = slugifyRuleName(pkgName); // Start with slugified name
+          // Ensure the name starts with the package name prefix
+          if (!ruleName.startsWith(`${pkgName}-`)) {
+            ruleName = `${pkgName}-${ruleName}`;
+          }
           const ruleContent = defaultExport;
           rulesToInstall.push({ name: ruleName, content: ruleContent });
         }
@@ -318,12 +456,11 @@ program
 
           // Process the validated items
           const items = validationResult.data;
-          for (const item of items) {
+          
+          for (const [index, item] of items.entries()) {
             if (typeof item === "string") {
-              // Handle string item
-              const ruleName = slugifyRuleName(
-                `${pkgName}-${Math.floor(Math.random() * 1000)}`
-              );
+              // Handle string item - name already includes pkgName-index via slugify
+              const ruleName = slugifyRuleName(`${pkgName}-${index}`);
               rulesToInstall.push({
                 name: ruleName,
                 content: item,
@@ -331,8 +468,13 @@ program
               });
             } else {
               // Handle object item - map 'rule' to 'content'
+              let ruleName = item.name;
+              // Ensure the name starts with the package name prefix
+              if (!ruleName.startsWith(`${pkgName}-`)) {
+                ruleName = `${pkgName}-${ruleName}`;
+              }
               rulesToInstall.push({
-                name: item.name,
+                name: ruleName, // Use potentially prefixed name
                 content: item.rule, // Map rule to content
                 description: item.description,
               });
@@ -461,22 +603,12 @@ program
       }
     };
 
-    const editorType = editor.toLowerCase() as RuleType;
-    // Basic validation if editor type is supported (can be enhanced)
-    try {
-      getRuleProvider(editorType); // Will throw error if type is invalid
-    } catch (e) {
-      console.error(chalk.red(`Invalid editor type specified: ${editor}`));
-      // Potentially list valid types here
-      process.exit(1);
-    }
-
     if (packageName) {
       // Install from a specific package
       await installSinglePackage(
         packageName,
         editorType,
-        getRuleProvider(editorType),
+        provider,
         options
       );
     } else {
@@ -517,7 +649,7 @@ program
           await installSinglePackage(
             depName,
             editorType,
-            getRuleProvider(editorType),
+            provider,
             options
           );
         }

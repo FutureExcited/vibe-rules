@@ -1,7 +1,7 @@
 /**
  * Rule type definitions for the vibe-rules utility
  */
-
+export type * from "./schemas";
 export interface RuleConfig {
   name: string;
   content: string;
@@ -66,3 +66,5 @@ export interface RuleGeneratorOptions {
   globs?: string | string[];
   // Additional options for specific rule types
 }
+
+
