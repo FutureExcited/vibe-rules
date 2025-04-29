@@ -64,7 +64,6 @@ export interface RuleGeneratorOptions {
   isGlobal?: boolean;
   alwaysApply?: boolean;
   globs?: string | string[];
+  debug?: boolean;
   // Additional options for specific rule types
 }
-
-

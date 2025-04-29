@@ -1,6 +1,0 @@
----
-globs:
-  - src/cli.ts
-alwaysApply: true
----
-When adding new CLI commands or modifying existing ones in `src/cli.ts`, ensure comprehensive argument parsing using `commander`, validation using Zod schemas from `src/schemas.ts` (if applicable), clear user feedback using `chalk`, and robust error handling for file operations and external calls.

@@ -75,6 +75,7 @@ Defines the command-line interface using `commander`.
   - Options:
     - `-g, --global`: Apply to global config path (similar to `load`).
     - `-t, --target <path>`: Custom target path (similar to `load`).
+    - `--debug`: Enable verbose debug logging for the install process.
   - Behavior:
     - Determines the package(s) to process (specific one or all dependencies).
     - For each package, dynamically imports `<packageName>/llms`.
@@ -89,6 +90,7 @@ Defines the command-line interface using `commander`.
       - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
       - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
     - Does **not** save rules to the common local store (`~/.vibe-rules/rules`).
+    - **Error Handling:** Common errors like a package not being found or not exporting rules (`<pkg>/llms`) are handled gracefully. These are logged as debug messages if `--debug` is enabled, otherwise they are skipped silently to avoid excessive output when checking many dependencies.
 
 ### src/types.ts
 
@@ -334,4 +336,4 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 - Provides the module resolved by the `vibe-rules/llms` export path defined in `package.json`.
 - Intentionally exports an empty array (`export default [];`).
-- This ensures that when other packages use the `vibe-rules install` command or directly import `vibe-rules/llms`, they do not receive the internal rules defined in `internal.ts`. Packages wishing to export rules for installation should create their own `llms.ts` (or similar) file with a default export.
+- This ensures that when other packages use the `vibe-rules install`

@@ -27,6 +27,14 @@ import {
   PackageRuleObjectSchema,
 } from "./schemas";
 
+// Simple debug logger
+let isDebugEnabled = false;
+const debugLog = (message: string, ...optionalParams: any[]) => {
+  if (isDebugEnabled) {
+    console.log(chalk.dim(`[Debug] ${message}`), ...optionalParams);
+  }
+};
+
 // Helper function to install/save a single rule
 async function installRule(ruleConfig: RuleConfig): Promise<void> {
   try {
@@ -57,123 +65,161 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
 
 // Helper function to clear existing rules installed from a package
 async function clearExistingRules(
-    pkgName: string,
-    editorType: RuleType,
-    options: { global?: boolean; target?: string }
+  pkgName: string,
+  editorType: RuleType,
+  options: { global?: boolean; target?: string }
 ): Promise<void> {
-    console.log(chalk.dim(`[Debug] Clearing existing rules for package "${pkgName}" and editor "${editorType}"...`));
-    let targetDir: string;
-    let potentialTargetFile: string | undefined; // Store the potential single file path
-    const singleFileProviders: RuleType[] = [
-        RuleType.WINDSURF,
-        RuleType.CLAUDE_CODE,
-        RuleType.CODEX
-    ];
-    let isSingleFileProvider = singleFileProviders.includes(editorType);
+  debugLog(
+    `Clearing existing rules for package "${pkgName}" and editor "${editorType}"...`
+  );
+  let targetDir: string;
+  let potentialTargetFile: string | undefined; // Store the potential single file path
+  const singleFileProviders: RuleType[] = [
+    RuleType.WINDSURF,
+    RuleType.CLAUDE_CODE,
+    RuleType.CODEX,
+  ];
+  let isSingleFileProvider = singleFileProviders.includes(editorType);
 
-    if (options.target) {
-        // If target is explicitly provided, check if it's a directory or file
-        try {
-            // Check if path exists first
-            if (await fs.pathExists(options.target)) {
-                const stats = await fs.stat(options.target);
-                if (stats.isDirectory()) {
-                    targetDir = options.target;
-                    // If the target dir matches a known single-file dir, still treat as single file
-                    const defaultSingleFilePath = isSingleFileProvider ? getDefaultTargetPath(editorType, options.global) : undefined;
-                    if (defaultSingleFilePath && path.dirname(defaultSingleFilePath) === targetDir) {
-                       potentialTargetFile = defaultSingleFilePath;
-                    } else {
-                       isSingleFileProvider = false; // Explicit directory target overrides default single file assumption
-                    }
-                } else {
-                    targetDir = path.dirname(options.target);
-                    potentialTargetFile = options.target; // User specified the file
-                    isSingleFileProvider = true; // Explicit target file implies single file mode
-                }
-            } else {
-                 // Target doesn't exist. Assume it's a file path based on typical usage.
-                 targetDir = path.dirname(options.target);
-                 potentialTargetFile = options.target;
-                 isSingleFileProvider = true; // Assume single file mode
-            }
-        } catch (error: any) {
-           console.error(chalk.red(`Error checking target path ${options.target}: ${error.message}`));
-           return; // Cannot determine target directory
-        }
-    } else {
-        // Get default path from provider logic
-        const defaultPath = getDefaultTargetPath(editorType, options.global);
-         try {
-             // Check if path exists first
-             if (await fs.pathExists(defaultPath)) {
-                const stats = await fs.stat(defaultPath);
-                 if (stats.isDirectory()) {
-                    targetDir = defaultPath;
-                    isSingleFileProvider = false; // Default path is directory, not single file mode by default
-                 } else {
-                    targetDir = path.dirname(defaultPath);
-                    potentialTargetFile = defaultPath; // Default path is a file
-                    isSingleFileProvider = true; // Set based on default path being a file
-                 }
-             } else {
-                // Default path doesn't exist. Infer from editor type.
-                targetDir = path.dirname(defaultPath);
-                if (singleFileProviders.includes(editorType)) { // Check the explicit list
-                    potentialTargetFile = defaultPath;
-                    isSingleFileProvider = true;
-                } else {
-                   isSingleFileProvider = false;
-                }
-             }
-        } catch (error: any) {
-             console.error(chalk.red(`Error checking default path ${defaultPath}: ${error.message}`));
-             return; // Cannot determine target directory
-        }
-    }
-
-     console.log(chalk.dim(`[Debug] Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider}. Potential Target File: ${potentialTargetFile || 'N/A'}`));
-
-    // If it's a known single file provider, we don't delete individual files by prefix.
-    if (isSingleFileProvider) {
-         console.log(chalk.yellow(`Skipping rule file deletion for editor "${editorType}" as it uses a single configuration file (${potentialTargetFile || 'inferred'}). Existing rules from "${pkgName}" within this file will be appended, not cleared automatically by this function.`));
-         return;
-    }
-
-    // Proceed with deleting files by prefix only for multi-file providers (like Cursor, Clinerules)
+  if (options.target) {
+    // If target is explicitly provided, check if it's a directory or file
     try {
-        if (!(await fs.pathExists(targetDir))) {
-            console.log(chalk.dim(`[Debug] Target directory ${targetDir} does not exist. No rules to clear.`));
-            return;
+      // Check if path exists first
+      if (await fs.pathExists(options.target)) {
+        const stats = await fs.stat(options.target);
+        if (stats.isDirectory()) {
+          targetDir = options.target;
+          // If the target dir matches a known single-file dir, still treat as single file
+          const defaultSingleFilePath = isSingleFileProvider
+            ? getDefaultTargetPath(editorType, options.global)
+            : undefined;
+          if (
+            defaultSingleFilePath &&
+            path.dirname(defaultSingleFilePath) === targetDir
+          ) {
+            potentialTargetFile = defaultSingleFilePath;
+          } else {
+            isSingleFileProvider = false; // Explicit directory target overrides default single file assumption
+          }
+        } else {
+          targetDir = path.dirname(options.target);
+          potentialTargetFile = options.target; // User specified the file
+          isSingleFileProvider = true; // Explicit target file implies single file mode
         }
-
-        const files = await fs.readdir(targetDir);
-        const prefix = `${pkgName}-`; // Using raw package name prefix as requested
-        let deletedCount = 0;
-
-        console.log(chalk.dim(`[Debug] Scanning ${targetDir} for files starting with prefix "${prefix}"...`));
-
-        for (const file of files) {
-            // Consider adding file extension check based on editorType if needed for robustness
-            if (file.startsWith(prefix)) {
-                const filePath = path.join(targetDir, file);
-                try {
-                    await fs.remove(filePath);
-                    console.log(chalk.grey(`Deleted existing rule file: ${filePath}`));
-                    deletedCount++;
-                } catch (deleteError: any) {
-                    console.error(chalk.red(`Failed to delete rule file ${filePath}: ${deleteError.message}`));
-                }
-            }
-        }
-         if (deletedCount > 0) {
-             console.log(chalk.blue(`Cleared ${deletedCount} existing rule file(s) matching prefix "${prefix}" in ${targetDir}.`));
-         } else {
-             console.log(chalk.dim(`[Debug] No rule files found with prefix "${prefix}" in ${targetDir}.`));
-         }
+      } else {
+        // Target doesn't exist. Assume it's a file path based on typical usage.
+        targetDir = path.dirname(options.target);
+        potentialTargetFile = options.target;
+        isSingleFileProvider = true; // Assume single file mode
+      }
     } catch (error: any) {
-        console.error(chalk.red(`Error clearing existing rules in ${targetDir}: ${error.message}`));
+      console.error(
+        chalk.red(
+          `Error checking target path ${options.target}: ${error.message}`
+        )
+      );
+      return; // Cannot determine target directory
     }
+  } else {
+    // Get default path from provider logic
+    const defaultPath = getDefaultTargetPath(editorType, options.global);
+    try {
+      // Check if path exists first
+      if (await fs.pathExists(defaultPath)) {
+        const stats = await fs.stat(defaultPath);
+        if (stats.isDirectory()) {
+          targetDir = defaultPath;
+          isSingleFileProvider = false; // Default path is directory, not single file mode by default
+        } else {
+          targetDir = path.dirname(defaultPath);
+          potentialTargetFile = defaultPath; // Default path is a file
+          isSingleFileProvider = true; // Set based on default path being a file
+        }
+      } else {
+        // Default path doesn't exist. Infer from editor type.
+        targetDir = path.dirname(defaultPath);
+        if (singleFileProviders.includes(editorType)) {
+          // Check the explicit list
+          potentialTargetFile = defaultPath;
+          isSingleFileProvider = true;
+        } else {
+          isSingleFileProvider = false;
+        }
+      }
+    } catch (error: any) {
+      console.error(
+        chalk.red(
+          `Error checking default path ${defaultPath}: ${error.message}`
+        )
+      );
+      return; // Cannot determine target directory
+    }
+  }
+
+  debugLog(
+    `Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider}. Potential Target File: ${potentialTargetFile || "N/A"}`
+  );
+
+  // If it's a known single file provider, we don't delete individual files by prefix.
+  if (isSingleFileProvider) {
+    console.log(
+      chalk.yellow(
+        `Skipping rule file deletion for editor "${editorType}" as it uses a single configuration file (${potentialTargetFile || "inferred"}). Existing rules from "${pkgName}" within this file will be appended, not cleared automatically by this function.`
+      )
+    );
+    return;
+  }
+
+  // Proceed with deleting files by prefix only for multi-file providers (like Cursor, Clinerules)
+  try {
+    if (!(await fs.pathExists(targetDir))) {
+      debugLog(
+        `Target directory ${targetDir} does not exist. No rules to clear.`
+      );
+      return;
+    }
+
+    const files = await fs.readdir(targetDir);
+    const prefix = `${pkgName}-`; // Using raw package name prefix as requested
+    let deletedCount = 0;
+
+    debugLog(
+      `Scanning ${targetDir} for files starting with prefix "${prefix}"...`
+    );
+
+    for (const file of files) {
+      // Consider adding file extension check based on editorType if needed for robustness
+      if (file.startsWith(prefix)) {
+        const filePath = path.join(targetDir, file);
+        try {
+          await fs.remove(filePath);
+          console.log(chalk.grey(`Deleted existing rule file: ${filePath}`));
+          deletedCount++;
+        } catch (deleteError: any) {
+          console.error(
+            chalk.red(
+              `Failed to delete rule file ${filePath}: ${deleteError.message}`
+            )
+          );
+        }
+      }
+    }
+    if (deletedCount > 0) {
+      console.log(
+        chalk.blue(
+          `Cleared ${deletedCount} existing rule file(s) matching prefix "${prefix}" in ${targetDir}.`
+        )
+      );
+    } else {
+      debugLog(`No rule files found with prefix "${prefix}" in ${targetDir}.`);
+    }
+  } catch (error: any) {
+    console.error(
+      chalk.red(
+        `Error clearing existing rules in ${targetDir}: ${error.message}`
+      )
+    );
+  }
 }
 
 // Initialize CLI
@@ -184,7 +230,14 @@ program
   .description(
     "A utility for managing Cursor rules, Windsurf rules, and other AI prompts"
   )
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--debug", "Enable debug logging", false); // Add global debug option
+
+// Add a hook to capture the global debug option
+program.on("option:debug", () => {
+  isDebugEnabled = program.opts().debug;
+  debugLog("Debug logging enabled.");
+});
 
 // Command to save a rule
 program
@@ -391,6 +444,9 @@ program
   .action(async (editor, packageName, options) => {
     const editorType = editor.toLowerCase() as RuleType;
     let provider: RuleProvider; // Define provider here
+    // isDebugEnabled should be set by the global option hook now
+    // Pass the combined options (command-specific + global) down if needed
+    const combinedOptions = { ...options, debug: isDebugEnabled };
 
     try {
       provider = getRuleProvider(editorType); // Get provider once
@@ -404,7 +460,7 @@ program
       pkgName: string,
       editorType: RuleType,
       provider: RuleProvider,
-      installOptions: { global?: boolean; target?: string }
+      installOptions: { global?: boolean; target?: string; debug?: boolean }
     ) => {
       console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
       try {
@@ -422,7 +478,7 @@ program
           return;
         }
 
-        await clearExistingRules(pkgName, editorType, options);
+        await clearExistingRules(pkgName, editorType, installOptions);
 
         let rulesToInstall: RuleConfig[] = [];
 
@@ -456,7 +512,7 @@ program
 
           // Process the validated items
           const items = validationResult.data;
-          
+
           for (const [index, item] of items.entries()) {
             if (typeof item === "string") {
               // Handle string item - name already includes pkgName-index via slugify
@@ -511,6 +567,7 @@ program
               const generatorOptions: RuleGeneratorOptions = {
                 description: ruleConfig.description,
                 isGlobal: installOptions.global,
+                debug: installOptions.debug,
               };
 
               // Add additional options from the original rules if they exist
@@ -527,6 +584,9 @@ program
                     : null;
 
               if (originalItem && typeof originalItem === "object") {
+                debugLog(
+                  `Found additional metadata for rule ${ruleConfig.name}: ${JSON.stringify(originalItem)}`
+                );
                 if ("alwaysApply" in originalItem) {
                   generatorOptions.alwaysApply = originalItem.alwaysApply;
                 }
@@ -565,35 +625,19 @@ program
             }
           }
         } else {
-          console.log(
-            chalk.yellow(`No valid rules found or processed from ${pkgName}.`)
-          );
+          debugLog(`No valid rules found or processed from ${pkgName}.`);
         }
       } catch (error: any) {
-        if (error.code === "MODULE_NOT_FOUND") {
-          // More specific check for module not found or package not found
-          if (error.message.includes(`Cannot find package '${pkgName}'`)) {
-            console.log(
-              chalk.yellow(
-                `Package ${pkgName} not found or not installed. Skipping.`
-              )
-            );
-          } else if (
-            error.message.includes(`Cannot find module '${pkgName}/llms'`)
-          ) {
-            console.log(
-              chalk.yellow(
-                `Module ${pkgName}/llms not found. Does this package export rules? Skipping.`
-              )
-            );
-          } else {
-            console.log(
-              chalk.yellow(
-                `Could not import rules from ${pkgName}. Skipping. Error: ${error.message}`
-              )
-            );
-          }
+        // Handle common "not found" errors gracefully, only log if debug is enabled
+        if (
+          error.code === "MODULE_NOT_FOUND" ||
+          error.code === "ERR_PACKAGE_PATH_NOT_EXPORTED"
+        ) {
+          debugLog(
+            `Skipping package ${pkgName}: Rules module not found or not exported. Error: ${error.message}`
+          );
         } else {
+          // Log other unexpected errors as errors
           console.error(
             chalk.red(
               `Failed to install rules from ${pkgName}: ${error instanceof Error ? error.message : error}`
@@ -609,7 +653,7 @@ program
         packageName,
         editorType,
         provider,
-        options
+        combinedOptions
       );
     } else {
       // Install from all dependencies in package.json
@@ -650,7 +694,7 @@ program
             depName,
             editorType,
             provider,
-            options
+            combinedOptions
           );
         }
 
@@ -672,27 +716,24 @@ program.parse(process.argv);
 if (process.argv.length <= 2) {
   program.help();
 }
+
 async function importModuleFromCwd(ruleModulePath: string) {
-  console.log(
-    chalk.dim(`[Debug] Attempting to import module: ${ruleModulePath}`)
-  );
+  debugLog(`Attempting to import module: ${ruleModulePath}`);
   let module: any;
   try {
     // Attempt 1: Use createRequire for CommonJS compatibility
-    console.log(chalk.dim(`[Debug] Trying require for ${ruleModulePath}...`));
+    debugLog(`Trying require for ${ruleModulePath}...`);
     module = await eval(
       // Use eval to construct the require call dynamically based on CWD
       // This allows importing modules relative to the project running vibe-rules
       `require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`
     );
-    console.log(chalk.dim(`[Debug] Successfully imported using require.`));
+    debugLog(`Successfully imported using require.`);
   } catch (error: any) {
     // Check if the error is specifically because we tried to require an ES module
     if (error.code === "ERR_REQUIRE_ESM") {
-      console.log(
-        chalk.dim(
-          `[Debug] Require failed (ERR_REQUIRE_ESM). Falling back to dynamic import()...`
-        )
+      debugLog(
+        `Require failed (ERR_REQUIRE_ESM). Falling back to dynamic import()...`
       );
       try {
         // Attempt 2: Use dynamic import() for ES Modules
@@ -700,33 +741,24 @@ async function importModuleFromCwd(ruleModulePath: string) {
         const absolutePath = require.resolve(ruleModulePath, {
           paths: [process.cwd()],
         });
-        console.log(
-          chalk.dim(`[Debug] Resolved path for import(): ${absolutePath}`)
-        );
+        debugLog(`Resolved path for import(): ${absolutePath}`);
         // Use pathToFileURL to ensure correct format for import() esp on Windows
         const fileUrl = require("url").pathToFileURL(absolutePath).href;
-        console.log(
-          chalk.dim(`[Debug] Trying dynamic import('${fileUrl}')...`)
-        );
+        debugLog(`Trying dynamic import('${fileUrl}')...`);
         module = await eval(`import('${fileUrl}')`);
-        console.log(
-          chalk.dim(`[Debug] Successfully imported using dynamic import().`)
-        );
+        debugLog(`Successfully imported using dynamic import().`);
       } catch (importError: any) {
-        console.error(
-          chalk.red(
-            `[Debug] Dynamic import() failed for ${ruleModulePath}: ${importError.message}`
-          )
+        // Log import error only in debug mode, but still throw
+        debugLog(
+          `Dynamic import() failed for ${ruleModulePath}: ${importError.message}`
         );
         // Re-throw the *import* error if dynamic import also fails
         throw importError;
       }
     } else {
-      // If it's a different error (e.g., module truly not found), re-throw it
-      console.error(
-        chalk.red(
-          `[Debug] Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
-        )
+      // Log require error only in debug mode, but still throw
+      debugLog(
+        `Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
       );
       throw error;
     }
@@ -734,9 +766,7 @@ async function importModuleFromCwd(ruleModulePath: string) {
 
   // Extract the default export if it exists, otherwise use the whole module
   const defaultExport = module?.default || module;
-  console.log(
-    chalk.dim(`[Debug] Module imported. Type: ${typeof defaultExport}`)
-  );
+  debugLog(`Module imported. Type: ${typeof defaultExport}`);
   // Avoid logging potentially large module content by default
   // console.log(chalk.dim(`[Debug] Module content (keys): ${Object.keys(defaultExport || {}).join(', ')}`));
   return defaultExport;

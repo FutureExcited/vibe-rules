@@ -1,7 +1,0 @@
----
-globs:
-  - src/providers/*.ts
-  - src/providers/index.ts
-alwaysApply: true
----
-When adding a new RuleProvider implementation in `src/providers/`, ensure it correctly implements all methods defined in the `RuleProvider` interface (`src/types.ts`), handles both global and local paths appropriately using `src/utils/path.ts` utilities, and generates editor-specific formatting correctly.
