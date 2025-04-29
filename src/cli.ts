@@ -304,7 +304,9 @@ program
         }
         // Handle if default export is an array (existing logic, adapted)
         else {
-          const validationResult = VibeRulesSchema.safeParse(module.default);
+          const validationResult = VibePackageRulesSchema.safeParse(
+            module.default
+          );
           if (!validationResult.success) {
             console.error(
               chalk.red(`Validation failed for rules from ${pkgName}:`),
@@ -313,7 +315,29 @@ program
             console.log(chalk.yellow(`Skipping installation from ${pkgName}.`));
             return;
           }
-          rulesToInstall = validationResult.data;
+
+          // Process the validated items
+          const items = validationResult.data;
+          for (const item of items) {
+            if (typeof item === "string") {
+              // Handle string item
+              const ruleName = slugifyRuleName(
+                `${pkgName}-${Math.floor(Math.random() * 1000)}`
+              );
+              rulesToInstall.push({
+                name: ruleName,
+                content: item,
+                description: `Rule from ${pkgName}`,
+              });
+            } else {
+              // Handle object item - map 'rule' to 'content'
+              rulesToInstall.push({
+                name: item.name,
+                content: item.rule, // Map rule to content
+                description: item.description,
+              });
+            }
+          }
         }
 
         // Now, install the gathered rules using the provider
@@ -341,15 +365,40 @@ program
               // Ensure the target directory exists
               ensureTargetDir(finalTargetPath);
 
+              // Find any metadata for this rule from the original module
+              const generatorOptions: RuleGeneratorOptions = {
+                description: ruleConfig.description,
+                isGlobal: installOptions.global,
+              };
+
+              // Add additional options from the original rules if they exist
+              // This handles the case where we processed a rule object with additional metadata
+              const originalItem =
+                typeof module.default === "string"
+                  ? null
+                  : Array.isArray(module.default)
+                    ? module.default.find(
+                        (item: any) =>
+                          typeof item === "object" &&
+                          item.name === ruleConfig.name
+                      )
+                    : null;
+
+              if (originalItem && typeof originalItem === "object") {
+                if ("alwaysApply" in originalItem) {
+                  generatorOptions.alwaysApply = originalItem.alwaysApply;
+                }
+                if ("globs" in originalItem) {
+                  generatorOptions.globs = originalItem.globs;
+                }
+              }
+
               // Apply the rule using the provider
               const success = await provider.appendFormattedRule(
                 ruleConfig,
                 finalTargetPath,
                 installOptions.global,
-                {
-                  description: ruleConfig.description,
-                  isGlobal: installOptions.global,
-                }
+                generatorOptions
               );
 
               if (success) {

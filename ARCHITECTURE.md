@@ -369,14 +369,13 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 ## Recent Changes
 
-- **(Current Date):** Merged `llms.txt` content into `src/llms/index.ts` export.
+- **(Current Date):** Fixed schema validation for package rules installation.
+  - Modified `src/cli.ts` to use `VibePackageRulesSchema` instead of `VibeRulesSchema` for validating package exports.
+  - Added mapping logic to convert `rule` field in package exports to `content` field in `RuleConfig`.
+  - Added support for passing through metadata like `alwaysApply` and `globs` from package rules.
+- **(Previous Date):** Merged `llms.txt` content into `src/llms/index.ts` export.
   - Added the CLI documentation from `llms.txt` as a third rule object in the `llms` export array.
   - Fixed type import issue in `src/llms/index.ts` (using `PackageRuleItem` type instead of schema).
-- **(Previous Date):** Added direct export of rules for `vibe-rules` repo itself from `src/llms/index.ts`.
-  - Modified `src/llms/index.ts` to export an array of rule objects instead of importing from `llms.txt`.
-  - Added rules related to provider implementation and CLI commands.
-  - Ensured necessary schemas (`PackageRuleObjectSchema`, `PackageRuleItemSchema`, `VibePackageRulesSchema`) are correctly defined and exported in `src/schemas.ts`.
-- **2024-07-26:** Updated `README.md` examples for `vibe-rules save` to be clearer and use `.mdc` files.
 
 ## Web Interface
 
