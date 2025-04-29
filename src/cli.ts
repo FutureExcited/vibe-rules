@@ -278,9 +278,10 @@ program
       try {
         // Dynamically import the expected rules module
         const ruleModulePath = `${pkgName}/llms`;
-        const module = await import(ruleModulePath);
+        console.log("Importing module", ruleModulePath);
+        const defaultExport = await importModuleFromCwd(ruleModulePath);
 
-        if (!module || typeof module.default === "undefined") {
+        if (!defaultExport) {
           console.log(
             chalk.yellow(
               `No default export found in ${ruleModulePath}. Skipping.`
@@ -292,20 +293,20 @@ program
         let rulesToInstall: RuleConfig[] = [];
 
         // Handle if default export is a string
-        if (typeof module.default === "string") {
+        if (typeof defaultExport === "string") {
           console.log(
             chalk.blue(
               `Found rule content as string in ${pkgName}. Preparing to install...`
             )
           );
           const ruleName = slugifyRuleName(pkgName);
-          const ruleContent = module.default;
+          const ruleContent = defaultExport;
           rulesToInstall.push({ name: ruleName, content: ruleContent });
         }
         // Handle if default export is an array (existing logic, adapted)
         else {
           const validationResult = VibePackageRulesSchema.safeParse(
-            module.default
+            defaultExport
           );
           if (!validationResult.success) {
             console.error(
@@ -374,10 +375,10 @@ program
               // Add additional options from the original rules if they exist
               // This handles the case where we processed a rule object with additional metadata
               const originalItem =
-                typeof module.default === "string"
+                typeof defaultExport === "string"
                   ? null
-                  : Array.isArray(module.default)
-                    ? module.default.find(
+                  : Array.isArray(defaultExport)
+                    ? defaultExport.find(
                         (item: any) =>
                           typeof item === "object" &&
                           item.name === ruleConfig.name
@@ -539,4 +540,10 @@ program.parse(process.argv);
 // If no arguments provided, show help
 if (process.argv.length <= 2) {
   program.help();
+}
+async function importModuleFromCwd(ruleModulePath: string) {
+  let module = await eval(`require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`);
+
+  const defaultExport = module?.default || module;
+  return defaultExport;
 }
