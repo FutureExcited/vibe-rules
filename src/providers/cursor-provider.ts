@@ -11,7 +11,24 @@ import {
   getDefaultTargetPath,
   ensureTargetDir,
 } from "../utils/path";
-import YAML from "yaml";
+
+// Custom function to format frontmatter simply
+const formatFrontmatter = (fm: Record<string, any>): string => {
+  let result = "";
+  if (fm.description) {
+    result += `description: ${fm.description}\n`;
+  }
+  if (fm.globs && Array.isArray(fm.globs) && fm.globs.length > 0) {
+    result += `globs:\n`;
+    fm.globs.forEach((glob: string) => {
+      result += `  - ${glob}\n`;
+    });
+  }
+  if (fm.alwaysApply !== undefined) {
+    result += `alwaysApply: ${fm.alwaysApply}\n`;
+  }
+  return result;
+};
 
 export class CursorRuleProvider implements RuleProvider {
   /**
@@ -34,7 +51,7 @@ export class CursorRuleProvider implements RuleProvider {
 
     const frontmatterString =
       Object.keys(frontmatter).length > 0
-        ? `---\n${YAML.stringify(frontmatter)}---\n`
+        ? `---\n${formatFrontmatter(frontmatter)}---\n`
         : "";
 
     return `${frontmatterString}${config.content}`;

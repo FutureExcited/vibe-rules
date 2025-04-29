@@ -260,8 +260,9 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`).
 - **`generateRuleContent` (Updated):**
   - Now accepts `RuleGeneratorOptions` (which includes optional `alwaysApply` and `globs`).
-  - If `alwaysApply` or `globs` are present in the options, they are included in the generated YAML frontmatter.
+  - If `alwaysApply` or `globs` are present in the options, they are included in the generated frontmatter.
   - Uses `options.description` preferentially over `config.description` if provided.
+  - Uses a custom internal function to format the frontmatter instead of the `yaml` library.
 - `appendRule` loads a rule from internal storage and calls `appendFormattedRule`. Note that rules loaded this way might not have the dynamic `alwaysApply`/`globs` metadata unless it was also saved (currently it isn't).
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
@@ -364,18 +365,17 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
     - Determines the target path using `getRulePath` (e.g., `./.cursor/rules/my-rule-package-0.mdc`).
     - Calls `provider.appendFormattedRule(ruleConfig, targetPath, isGlobal, generatorOptions)`.
 8.  `CursorRuleProvider.appendFormattedRule` calls `generateRuleContent(ruleConfig, generatorOptions)`.
-9.  `generateRuleContent` uses `generatorOptions` (`alwaysApply`, `globs`, `description`) to create the correct YAML frontmatter.
+9.  `generateRuleContent` uses `generatorOptions` (`alwaysApply`, `globs`, `description`) to create the correct frontmatter using the internal formatter.
 10. The formatted content is written to the target `.mdc` file.
 
 ## Recent Changes
 
-- **(Current Date):** Fixed schema validation for package rules installation.
+- **(Current Date):** Removed `yaml` dependency.
+  - Replaced `YAML.stringify` in `src/providers/cursor-provider.ts` with a custom formatting function for simple frontmatter generation.
+- **(Previous Date):** Fixed schema validation for package rules installation.
   - Modified `src/cli.ts` to use `VibePackageRulesSchema` instead of `VibeRulesSchema` for validating package exports.
   - Added mapping logic to convert `rule` field in package exports to `content` field in `RuleConfig`.
   - Added support for passing through metadata like `alwaysApply` and `globs` from package rules.
-- **(Previous Date):** Merged `llms.txt` content into `src/llms/index.ts` export.
-  - Added the CLI documentation from `llms.txt` as a third rule object in the `llms` export array.
-  - Fixed type import issue in `src/llms/index.ts` (using `PackageRuleItem` type instead of schema).
 
 ## Web Interface
 
