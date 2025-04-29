@@ -127,6 +127,6 @@ export function ensureTargetDir(targetFilePath: string): void {
 export function slugifyRuleName(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^a-z0-9_]+/g, "-")
     .replace(/^-|-$/g, "");
 }
