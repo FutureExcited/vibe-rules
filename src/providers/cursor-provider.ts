@@ -18,16 +18,21 @@ const formatFrontmatter = (fm: Record<string, any>): string => {
   if (fm.description) {
     result += `description: ${fm.description}\n`;
   }
-  if (fm.globs && Array.isArray(fm.globs) && fm.globs.length > 0) {
-    result += `globs:\n`;
-    fm.globs.forEach((glob: string) => {
-      result += `  - ${glob}\n`;
-    });
+  if (fm.globs) {
+    if (fm.debug) {
+      console.log(`[Debug] Formatting globs: ${JSON.stringify(fm.globs)}`);
+    }
+    const globsString = Array.isArray(fm.globs) ? fm.globs.join(",") : fm.globs;
+    if (globsString) {
+      result += `globs: ${globsString}\n`;
+    }
   }
-  if (fm.alwaysApply !== undefined) {
-    result += `alwaysApply: ${fm.alwaysApply}\n`;
+  if (fm.alwaysApply === false) {
+    result += `alwaysApply: false\n`;
+  } else if (fm.alwaysApply === true) {
+    result += `alwaysApply: true\n`;
   }
-  return result;
+  return result.trim();
 };
 
 export class CursorRuleProvider implements RuleProvider {
@@ -48,10 +53,13 @@ export class CursorRuleProvider implements RuleProvider {
     if (options?.alwaysApply !== undefined) {
       frontmatter.alwaysApply = options.alwaysApply;
     }
+    if (options?.debug) {
+      frontmatter.debug = options.debug;
+    }
 
     const frontmatterString =
       Object.keys(frontmatter).length > 0
-        ? `---\n${formatFrontmatter(frontmatter)}---\n`
+        ? `---\n${formatFrontmatter(frontmatter)}\n---\n`
         : "";
 
     return `${frontmatterString}${config.content}`;

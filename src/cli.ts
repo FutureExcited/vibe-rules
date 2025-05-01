@@ -465,10 +465,14 @@ program
       installOptions: { global?: boolean; target?: string; debug?: boolean }
     ) => {
       console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
+
+      // Enable debug mode if requested
+      isDebugEnabled = installOptions.debug || isDebugEnabled;
+
       try {
         // Dynamically import the expected rules module
         const ruleModulePath = `${pkgName}/llms`;
-        console.log("Importing module", ruleModulePath);
+        debugLog(`Importing module ${ruleModulePath}`);
         const defaultExport = await importModuleFromCwd(ruleModulePath);
 
         if (!defaultExport) {
@@ -486,10 +490,8 @@ program
 
         // Handle if default export is a string
         if (typeof defaultExport === "string") {
-          console.log(
-            chalk.blue(
-              `Found rule content as string in ${pkgName}. Preparing to install...`
-            )
+          debugLog(
+            `Found rule content as string in ${pkgName}. Preparing to install...`
           );
           let ruleName = slugifyRuleName(pkgName); // Start with slugified name
           // Ensure the name starts with the package name prefix
@@ -501,6 +503,7 @@ program
         }
         // Handle if default export is an array (existing logic, adapted)
         else {
+          debugLog(`Found array export in ${pkgName}. Validating...`);
           const validationResult =
             VibePackageRulesSchema.safeParse(defaultExport);
           if (!validationResult.success) {
@@ -514,6 +517,7 @@ program
 
           // Process the validated items
           const items = validationResult.data;
+          debugLog(`Found ${items.length} valid items in ${pkgName}`);
 
           for (const [index, item] of items.entries()) {
             if (typeof item === "string") {
@@ -531,6 +535,12 @@ program
               if (!ruleName.startsWith(`${pkgName}_`)) {
                 ruleName = `${pkgName}_${ruleName}`;
               }
+
+              debugLog(`Processing object rule: ${item.name} with properties:
+                alwaysApply: ${item.alwaysApply !== undefined ? item.alwaysApply : "undefined"}
+                globs: ${item.globs ? (Array.isArray(item.globs) ? item.globs.join(",") : item.globs) : "undefined"}
+              `);
+
               rulesToInstall.push({
                 name: ruleName, // Use potentially prefixed name
                 content: item.rule, // Map rule to content
@@ -574,6 +584,16 @@ program
 
               // Add additional options from the original rules if they exist
               // This handles the case where we processed a rule object with additional metadata
+              let originalName = ruleConfig.name;
+              // Remove the package prefix to match against the original item
+              if (originalName.startsWith(`${pkgName}_`)) {
+                originalName = originalName.substring(pkgName.length + 1);
+              }
+
+              debugLog(
+                `Looking for metadata with original name: ${originalName} (from ${ruleConfig.name})`
+              );
+
               const originalItem =
                 typeof defaultExport === "string"
                   ? null
@@ -581,7 +601,8 @@ program
                     ? defaultExport.find(
                         (item: any) =>
                           typeof item === "object" &&
-                          item.name === ruleConfig.name
+                          (item.name === originalName ||
+                            item.name === ruleConfig.name)
                       )
                     : null;
 
@@ -591,30 +612,70 @@ program
                 );
                 if ("alwaysApply" in originalItem) {
                   generatorOptions.alwaysApply = originalItem.alwaysApply;
+                  debugLog(`Setting alwaysApply: ${originalItem.alwaysApply}`);
                 }
                 if ("globs" in originalItem) {
                   generatorOptions.globs = originalItem.globs;
+                  debugLog(
+                    `Setting globs: ${JSON.stringify(originalItem.globs)}`
+                  );
                 }
               }
 
               // Apply the rule using the provider
-              const success = await provider.appendFormattedRule(
-                ruleConfig,
-                finalTargetPath,
-                installOptions.global,
-                generatorOptions
+              debugLog(
+                `Applying rule ${ruleConfig.name} with options: ${JSON.stringify(generatorOptions)}`
               );
 
-              if (success) {
+              if (generatorOptions.globs) {
                 console.log(
-                  chalk.green(
-                    `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                  chalk.blue(
+                    `Rule "${ruleConfig.name}" has globs: ${
+                      Array.isArray(generatorOptions.globs)
+                        ? generatorOptions.globs.join(", ")
+                        : generatorOptions.globs
+                    }`
                   )
                 );
-              } else {
+              }
+
+              if (generatorOptions.alwaysApply !== undefined) {
+                console.log(
+                  chalk.blue(
+                    `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
+                  )
+                );
+              }
+
+              try {
+                const success = await provider.appendFormattedRule(
+                  ruleConfig,
+                  finalTargetPath,
+                  installOptions.global,
+                  generatorOptions
+                );
+
+                if (success) {
+                  console.log(
+                    chalk.green(
+                      `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                    )
+                  );
+                } else {
+                  console.error(
+                    chalk.red(
+                      `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                    )
+                  );
+                }
+              } catch (ruleApplyError) {
                 console.error(
                   chalk.red(
-                    `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                    `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${
+                      ruleApplyError instanceof Error
+                        ? ruleApplyError.message
+                        : ruleApplyError
+                    }`
                   )
                 );
               }

@@ -129,7 +129,7 @@ Defines the core types and interfaces used throughout the application.
   - `saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>` - Saves a rule definition (often internally) and returns the path
   - `loadRule(name: string): Promise<RuleConfig | null>` - Loads a rule definition by name
   - `listRules(): Promise<string[]>` - Lists all available rule definitions
-  - `appendRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean>` - Applies a rule definition to a target file/directory, considering global/local context
+  - `appendRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean>` - Loads a rule definition and applies it to a target file/directory, considering global/local context
   - `appendFormattedRule(config: RuleConfig, targetPath: string, isGlobal?: boolean): Promise<boolean>` - Formats and applies a rule definition directly
   - `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string` - Generates formatted rule content suitable for the specific provider/IDE
 
@@ -139,6 +139,8 @@ Defines the core types and interfaces used throughout the application.
 - Properties:
   - `description?`: string - Custom description (used by some providers like Cursor)
   - `isGlobal?`: boolean - Hint for providers supporting global/local paths (e.g., Claude, Codex)
+  - `alwaysApply?`: boolean - Cursor-specific metadata.
+  - `globs?`: string | string[] - Cursor-specific metadata.
 
 ### src/schemas.ts (Added)
 
