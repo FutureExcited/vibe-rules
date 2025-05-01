@@ -27,6 +27,7 @@ vibe-rules/
 │       ├── path.ts        # Path helpers
 │       ├── similarity.ts  # Text similarity utilities
 │       └── rule-formatter.ts # Rule formatting utilities for metadata (Added)
+│       └── single-file-helpers.ts # Helpers for single-file providers (Added)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -286,7 +287,26 @@ Provides utility functions for formatting rule content with metadata like `alway
   - `config`: The rule config to format
   - `options`: Optional metadata like alwaysApply and globs
 - Returns: The complete tagged rule block with metadata
-- Used by providers that store rules in a single file with XML-like tags
+- Used by providers that store rules in a single file with XML-like tags (via `single-file-helpers.ts`)
+
+### src/utils/single-file-helpers.ts (Added)
+
+Provides utility functions specific to providers that manage rules within a single configuration file using tagged blocks.
+
+#### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>`
+
+- Encapsulates the logic for managing rules in single-file providers (Windsurf, Claude Code, Codex).
+- Reads the `targetPath` file content.
+- Uses `createTaggedRuleBlock` to generate the XML-like block for the rule.
+- Searches for an existing block using a regex based on the `config.name` (e.g., `<rule-name>...</rule-name>`).
+- **If found:** Replaces the existing block with the newly generated one.
+- **If not found:** Appends the new block.
+  - If `appendInsideVibeToolsBlock` is `true` (for Claude, Codex), it attempts to insert the block just before the `</vibe-tools Integration>` tag if present.
+  - Otherwise (or if the integration block isn't found), it appends the block to the end of the file.
+- Writes the updated content back to the `targetPath`.
+- Ensures the parent directory exists using `ensureTargetDir`.
+- Handles file not found errors gracefully (creates the file).
+- Returns `true` on success, `false` on failure.
 
 ### src/providers/index.ts
 
@@ -326,14 +346,11 @@ Implementation of the `RuleProvider` interface for Windsurf editor.
 - Handles Windsurf's single `.windsurfrules` file.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`). (Note: `saveRule` currently seems unused directly by CLI).
 - **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Updated):**
-  - Reads the target `.windsurfrules` file.
-  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
-  - If found, replaces the content within the tags.
-  - If not found, appends the new tagged block to the end of the file.
-- **`generateRuleContent` (Updated):**
-  - Now utilizes the shared `createTaggedRuleBlock` utility to format rules with metadata
-  - Includes human-readable `alwaysApply` and `globs` information in rule content
+- **`appendFormattedRule` (Refactored):**
+  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
+  - Passes `false` for the `appendInsideVibeToolsBlock` parameter.
+- **`generateRuleContent` (Unchanged):**
+  - Utilizes the shared `createTaggedRuleBlock` utility to format rules with metadata.
 
 ### src/providers/claude-code-provider.ts (Added)
 
@@ -346,15 +363,12 @@ Implementation of the `RuleProvider` interface for Claude Code IDE.
 - Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
 - `generateRuleContent` returns plain rule content suitable for insertion.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
-- **`appendRule` (Updated):** Loads a rule from internal storage and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Updated):**
-  - Reads the target `CLAUDE.md` file.
-  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
-  - If found, replaces the content within the tags.
-  - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
-- **`generateRuleContent` (Updated):**
-  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
-  - Handles both `alwaysApply` and `globs` options to include in human-readable format
+- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Refactored):**
+  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
+  - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
+- **`generateRuleContent` (Unchanged):**
+  - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
 
 ### src/providers/codex-provider.ts (Added)
 
@@ -367,15 +381,12 @@ Implementation of the `RuleProvider` interface for Codex IDE.
 - Handles Codex's `instructions.md` (global) or `codex.md` (local).
 - `generateRuleContent` returns plain rule content suitable for insertion.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
-- **`appendRule` (Updated):** Loads a rule from internal storage and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Updated):**
-  - Reads the target `instructions.md` or `codex.md` file.
-  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
-  - If found, replaces the content within the tags.
-  - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
-- **`generateRuleContent` (Updated):**
-  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
-  - Handles both `alwaysApply` and `globs` options to include in human-readable format
+- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Refactored):**
+  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
+  - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
+- **`generateRuleContent` (Unchanged):**
+  - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
 
 ### src/providers/clinerules-provider.ts (Added)
 

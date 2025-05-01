@@ -16,6 +16,8 @@ import {
   createTaggedRuleBlock,
 } from "../utils/rule-formatter";
 import chalk from "chalk";
+import * as fsPromises from "fs/promises";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
 
 export class CodexRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CODEX;
@@ -38,7 +40,7 @@ export class CodexRuleProvider implements RuleProvider {
     options?: RuleGeneratorOptions
   ): Promise<string> {
     const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
-    await fs.writeFile(internalPath, config.content);
+    await fsPromises.writeFile(internalPath, config.content);
     return internalPath;
   }
 
@@ -47,11 +49,20 @@ export class CodexRuleProvider implements RuleProvider {
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
     const internalPath = getInternalRuleStoragePath(this.ruleType, name);
-    if (!(await fs.pathExists(internalPath))) {
-      return null;
+    try {
+      const content = await fsPromises.readFile(internalPath, "utf-8");
+      return { name, content, description: `Internally stored rule: ${name}` };
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // File not found, expected if rule doesn't exist
+        return null;
+      }
+      console.error(
+        `Error loading rule "${name}" from ${internalPath}:`,
+        error
+      );
+      throw error; // Re-throw other errors
     }
-    const content = await fs.readFile(internalPath, "utf-8");
-    return { name, content, description: `Internally stored rule: ${name}` };
   }
 
   /**
@@ -61,13 +72,19 @@ export class CodexRuleProvider implements RuleProvider {
     const rulesDir = path.dirname(
       getInternalRuleStoragePath(this.ruleType, "dummy")
     );
-    if (!(await fs.pathExists(rulesDir))) {
-      return [];
+    try {
+      const files = await fsPromises.readdir(rulesDir);
+      return files
+        .filter((file) => file.endsWith(".txt"))
+        .map((file) => path.basename(file, ".txt"));
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // Directory not found, means no rules saved yet
+        return [];
+      }
+      console.error(`Error listing rules from ${rulesDir}:`, error);
+      throw error; // Re-throw other errors
     }
-    const files = await fs.readdir(rulesDir);
-    return files
-      .filter((file) => file.endsWith(".txt"))
-      .map((file) => path.basename(file, ".txt"));
   }
 
   /**
@@ -79,16 +96,19 @@ export class CodexRuleProvider implements RuleProvider {
     isGlobal: boolean = false,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const rule = await this.loadRule(name);
-    if (!rule) {
-      console.error(`Rule '${name}' not found for type ${this.ruleType}.`);
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal storage.`);
       return false;
     }
-
-    const destinationPath =
-      targetPath || getRulePath(this.ruleType, name, isGlobal);
-
-    return this.appendFormattedRule(rule, destinationPath, isGlobal, options);
+    const actualTargetPath =
+      targetPath ?? getRulePath(this.ruleType, "", isGlobal);
+    return this.appendFormattedRule(
+      ruleConfig,
+      actualTargetPath,
+      isGlobal,
+      options
+    );
   }
 
   /**
@@ -98,66 +118,9 @@ export class CodexRuleProvider implements RuleProvider {
   async appendFormattedRule(
     config: RuleConfig,
     targetPath: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
+    isGlobal?: boolean | undefined,
+    options?: RuleGeneratorOptions | undefined
   ): Promise<boolean> {
-    const destinationPath = targetPath;
-    ensureTargetDir(destinationPath);
-
-    const newBlock = createTaggedRuleBlock(config, options);
-
-    let fileContent = "";
-    if (await fs.pathExists(destinationPath)) {
-      fileContent = await fs.readFile(destinationPath, "utf-8");
-    }
-
-    const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(
-      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
-      "m"
-    );
-
-    let updatedContent: string;
-    const match = fileContent.match(regex);
-
-    if (match) {
-      console.log(
-        chalk.blue(
-          `Updating existing rule block for "${config.name}" in ${destinationPath}...`
-        )
-      );
-      updatedContent = fileContent.replace(regex, newBlock);
-    } else {
-      console.log(
-        chalk.blue(
-          `Appending new rule block for "${config.name}" to ${destinationPath}...`
-        )
-      );
-
-      const integrationStartTag = "<vibe-tools Integration>";
-      const integrationEndTag = "</vibe-tools Integration>";
-      const startIndex = fileContent.indexOf(integrationStartTag);
-      const endIndex = fileContent.indexOf(integrationEndTag);
-
-      if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-        const insertionPoint = endIndex;
-        const before = fileContent.slice(0, insertionPoint);
-        const after = fileContent.slice(insertionPoint);
-        updatedContent = `${before.trimEnd()}\n\n${newBlock}\n\n${after.trimStart()}`;
-      } else {
-        const separator = fileContent.trim().length > 0 ? "\n\n" : "";
-        updatedContent = fileContent + separator + newBlock;
-      }
-    }
-
-    try {
-      await fs.writeFile(destinationPath, updatedContent.trim() + "\n");
-      return true;
-    } catch (error) {
-      console.error(
-        chalk.red(`Error writing updated rules to ${destinationPath}: ${error}`)
-      );
-      return false;
-    }
+    return appendOrUpdateTaggedBlock(targetPath, config, options, true);
   }
 }

@@ -15,9 +15,12 @@ import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
 } from "../utils/rule-formatter";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
 import chalk from "chalk";
 
 export class WindsurfRuleProvider implements RuleProvider {
+  private readonly ruleType = RuleType.WINDSURF;
+
   /**
    * Format rule content with XML tags
    */
@@ -102,26 +105,15 @@ export class WindsurfRuleProvider implements RuleProvider {
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const rule = await this.loadRule(name);
-
     if (!rule) {
+      console.error(`Rule '${name}' not found for type ${this.ruleType}.`);
       return false;
     }
+    // Windsurf typically doesn't use global paths or specific rule name paths for the target
+    // It uses a single default file.
+    const destinationPath = targetPath || getDefaultTargetPath(this.ruleType);
 
-    const destPath = targetPath || getDefaultTargetPath(RuleType.WINDSURF);
-    ensureTargetDir(destPath);
-
-    // For windsurf, append to an existing file or create a new one
-    const formattedRule = this.formatRuleContent(rule, options);
-
-    if (await fs.pathExists(destPath)) {
-      // Append to existing file
-      await fs.appendFile(destPath, `\n\n${formattedRule}`);
-    } else {
-      // Create new file
-      await fs.writeFile(destPath, formattedRule);
-    }
-
-    return true;
+    return this.appendFormattedRule(rule, destinationPath, false, options);
   }
 
   /**
@@ -134,50 +126,8 @@ export class WindsurfRuleProvider implements RuleProvider {
     isGlobal?: boolean,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const destPath = targetPath;
-    ensureTargetDir(destPath);
-
-    const newBlock = createTaggedRuleBlock(config, options);
-
-    let fileContent = "";
-    if (await fs.pathExists(destPath)) {
-      fileContent = await fs.readFile(destPath, "utf-8");
-    }
-
-    const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(
-      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
-      "m"
-    );
-
-    let updatedContent: string;
-    const match = fileContent.match(regex);
-
-    if (match) {
-      console.log(
-        chalk.blue(
-          `Updating existing rule block for "${config.name}" in ${destPath}...`
-        )
-      );
-      updatedContent = fileContent.replace(regex, newBlock);
-    } else {
-      console.log(
-        chalk.blue(
-          `Appending new rule block for "${config.name}" to ${destPath}...`
-        )
-      );
-      const separator = fileContent.trim().length > 0 ? "\n\n" : "";
-      updatedContent = fileContent + separator + newBlock;
-    }
-
-    try {
-      await fs.writeFile(destPath, updatedContent.trim() + "\n");
-      return true;
-    } catch (error) {
-      console.error(
-        chalk.red(`Error writing updated rules to ${destPath}: ${error}`)
-      );
-      return false;
-    }
+    // Delegate to the shared helper function
+    // Pass false for appendInsideVibeToolsBlock as Windsurf just appends to end
+    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
   }
 }

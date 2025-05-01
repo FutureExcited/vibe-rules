@@ -54,6 +54,8 @@ The content is organized as follows:
     good-behaviour.mdc
     vibe-tools.mdc
     yo.mdc
+example/
+  package.json
 src/
   llms/
     index.ts
@@ -68,12 +70,15 @@ src/
     windsurf-provider.ts
   utils/
     path.ts
+    rule-formatter.ts
     similarity.ts
+    single-file-helpers.ts
   cli.ts
   index.ts
   schemas.ts
   text.d.ts
   types.ts
+test/
 .gitignore
 .npmignore
 .windsurfrules
@@ -103,6 +108,10 @@ If you need my input to answer a question or when you finish a task and want to 
 In the yo you MUST provide ONLY a very short message (think like an email subject line) for why you need my attention / input.
 
 Then reply with your update / question to the normal chat.
+</file>
+
+<file path="example/package.json">
+{}
 </file>
 
 <file path="src/llms/llms.txt">
@@ -177,153 +186,6 @@ vibe-rules install [packageName]
 - Expects the default export to be an array conforming to the VibeRulesSchema (array of { name, content, description? }).
 - Saves each valid rule found into the common local store (~/.vibe-rules/rules/).
 `,
-</file>
-
-<file path="src/providers/clinerules-provider.ts">
-import fs from "fs-extra";
-import path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types";
-import {
-  getRulePath, // Returns the .clinerules directory path
-  ensureTargetDir, // Ensures parent directory exists
-  getInternalRuleStoragePath,
-} from "../utils/path";
-// Helper function specifically for clinerules/roo setup
-// Focuses on the directory structure: .clinerules/vibe-tools.md
-async function setupClinerulesDirectory(
-  clinerulesDirPath: string,
-  rulesContent: string
-): Promise<void> {
-  await fs.ensureDir(clinerulesDirPath); // Ensure the .clinerules directory exists
-  const vibeToolsRulePath = path.join(clinerulesDirPath, "vibe-tools.md");
-  const rulesTemplate = rulesContent.replace(/\r\n/g, "\n").trim();
-  // Wrap content with <vibe-tools> tags if not already present
-  const startTag = "<vibe-tools Integration>";
-  const endTag = "</vibe-tools Integration>";
-  let contentToWrite = rulesTemplate;
-  if (!contentToWrite.includes(startTag)) {
-    contentToWrite = `${startTag}\n${rulesTemplate}\n${endTag}`;
-  }
-  await fs.writeFile(vibeToolsRulePath, contentToWrite + "\n");
-}
-export class ClinerulesRuleProvider implements RuleProvider {
-  // Handles both CLINERULES and ROO types
-  private readonly supportedTypes = [RuleType.CLINERULES, RuleType.ROO];
-  /**
-   * Generates plain content for Clinerules/Roo.
-   */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
-    return config.content;
-  }
-  /**
-   * Saves the rule definition internally.
-   */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    // Use CLINERULES type for internal storage regardless of ROO
-    const internalPath = getInternalRuleStoragePath(
-      RuleType.CLINERULES,
-      config.name
-    );
-    await fs.writeFile(internalPath, config.content);
-    return internalPath;
-  }
-  /**
-   * Loads a rule definition from internal storage.
-   */
-  async loadRule(name: string): Promise<RuleConfig | null> {
-    const internalPath = getInternalRuleStoragePath(RuleType.CLINERULES, name);
-    if (!(await fs.pathExists(internalPath))) {
-      return null;
-    }
-    const content = await fs.readFile(internalPath, "utf-8");
-    return {
-      name,
-      content,
-      description: `Internally stored rule: ${name}`,
-    };
-  }
-  /**
-   * Lists rules from internal storage.
-   */
-  async listRules(): Promise<string[]> {
-    const rulesDir = path.dirname(
-      getInternalRuleStoragePath(RuleType.CLINERULES, "dummy")
-    );
-    if (!(await fs.pathExists(rulesDir))) {
-      return [];
-    }
-    const files = await fs.readdir(rulesDir);
-    return files
-      .filter((file) => file.endsWith(".txt"))
-      .map((file) => path.basename(file, ".txt"));
-  }
-  /**
-   * Applies a rule by setting up the .clinerules/vibe-tools.md structure.
-   * Always targets the project-local .clinerules directory.
-   */
-  async appendRule(
-    name: string,
-    targetPath?: string // If provided, should be the .clinerules directory path
-  ): Promise<boolean> {
-    const rule = await this.loadRule(name);
-    if (!rule) {
-      console.error(
-        `Rule '${name}' not found for type ${RuleType.CLINERULES}/${RuleType.ROO}.`
-      );
-      return false;
-    }
-    // getRulePath for CLINERULES/ROO returns the directory path
-    const destinationDir = targetPath || getRulePath(RuleType.CLINERULES, name); // name is ignored here
-    try {
-      const contentToAppend = this.generateRuleContent(rule);
-      await setupClinerulesDirectory(destinationDir, contentToAppend);
-      console.log(
-        `Successfully set up ${RuleType.CLINERULES}/${RuleType.ROO} rules in: ${destinationDir}`
-      );
-      return true;
-    } catch (error) {
-      console.error(
-        `Error setting up ${RuleType.CLINERULES}/${RuleType.ROO} rules in ${destinationDir}:`,
-        error
-      );
-      return false;
-    }
-  }
-  /**
-   * Formats and applies a rule directly from a RuleConfig object.
-   */
-  async appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string // Should be the .clinerules directory path
-  ): Promise<boolean> {
-    const destinationDir = targetPath;
-    try {
-      const contentToAppend = this.generateRuleContent(config);
-      await setupClinerulesDirectory(destinationDir, contentToAppend);
-      console.log(
-        `Successfully applied formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to: ${destinationDir}`
-      );
-      return true;
-    } catch (error) {
-      console.error(
-        `Error applying formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to ${destinationDir}:`,
-        error
-      );
-      return false;
-    }
-  }
-}
 </file>
 
 <file path="src/providers/index.ts">
@@ -424,6 +286,107 @@ export function findSimilarRules(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((rule) => rule.name);
+}
+</file>
+
+<file path="src/utils/single-file-helpers.ts">
+import * as fs from "fs/promises";
+import * as path from "path";
+import { RuleConfig, RuleGeneratorOptions } from "../types";
+import { createTaggedRuleBlock } from "./rule-formatter";
+import { ensureTargetDir } from "./path";
+/**
+ * Appends or updates a tagged block within a single target file.
+ *
+ * Reads the file content, looks for an existing block matching the rule name tag,
+ * replaces it if found, or appends the new block otherwise.
+ *
+ * @param targetPath The path to the target file.
+ * @param config The rule configuration.
+ * @param options Optional generator options.
+ * @param appendInsideVibeToolsBlock If true, tries to append within <vibe-tools Integration> block.
+ * @returns Promise resolving to true if successful, false otherwise.
+ */
+export async function appendOrUpdateTaggedBlock(
+  targetPath: string,
+  config: RuleConfig,
+  options?: RuleGeneratorOptions,
+  appendInsideVibeToolsBlock: boolean = false
+): Promise<boolean> {
+  try {
+    await ensureTargetDir(targetPath); // Ensure parent directory exists
+    let currentContent = "";
+    try {
+      currentContent = await fs.readFile(targetPath, "utf-8");
+    } catch (error: any) {
+      if (error.code !== "ENOENT") {
+        console.error(`Error reading target file ${targetPath}:`, error);
+        return false;
+      }
+      // File doesn't exist, which is fine, we'll create it.
+      console.debug(`Target file ${targetPath} not found, will create.`);
+    }
+    const newBlock = createTaggedRuleBlock(config, options);
+    const ruleNameRegexStr = config.name.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\\\$&"
+    ); // Escape regex special chars
+    const existingBlockRegex = new RegExp(
+      `<${ruleNameRegexStr}>[\\s\\S]*?</${ruleNameRegexStr}>`,
+      "m"
+    );
+    let updatedContent: string;
+    const match = currentContent.match(existingBlockRegex);
+    if (match) {
+      // Update existing block
+      console.debug(
+        `Updating existing block for rule "${config.name}" in ${targetPath}`
+      );
+      updatedContent = currentContent.replace(existingBlockRegex, newBlock);
+    } else {
+      // Append new block
+      console.debug(
+        `Appending new block for rule "${config.name}" to ${targetPath}`
+      );
+      const vibeToolsIntegrationEndTag = "</vibe-tools Integration>";
+      const integrationEndIndex = currentContent.lastIndexOf(
+        vibeToolsIntegrationEndTag
+      );
+      if (appendInsideVibeToolsBlock && integrationEndIndex !== -1) {
+        // Append inside the vibe-tools block if requested and found
+        const insertionPoint = integrationEndIndex;
+        updatedContent =
+          currentContent.slice(0, insertionPoint).trimEnd() +
+          "\\n\\n" + // Ensure separation
+          newBlock +
+          "\\n\\n" + // Ensure separation
+          currentContent.slice(insertionPoint);
+        console.debug(`Appending rule inside <vibe-tools Integration> block.`);
+      } else {
+        // Append to the end
+        const separator = currentContent.trim().length > 0 ? "\\n\\n" : ""; // Add separator if file not empty
+        updatedContent = currentContent.trimEnd() + separator + newBlock;
+        if (appendInsideVibeToolsBlock) {
+          console.debug(
+            `Could not find <vibe-tools Integration> block, appending rule to the end.`
+          );
+        }
+      }
+    }
+    // Ensure file ends with a newline
+    if (!updatedContent.endsWith("\\n")) {
+      updatedContent += "\\n";
+    }
+    await fs.writeFile(targetPath, updatedContent, "utf-8");
+    console.log(`Successfully applied rule "${config.name}" to ${targetPath}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `Error applying rule "${config.name}" to ${targetPath}:`,
+      error
+    );
+    return false;
+  }
 }
 </file>
 
@@ -903,7 +866,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-Always use vibe-tools repo before writing any code. 
+In the beginning of each task, always use vibe-tools repo. ENSURE 100% you use vibe-tools repo before writing any code. DO NOT look up any files before you vibe-tools repo.
 
 Keep the code changes as minimal as you can, only changing the absolute necessary parts. Do not change anything directly unrelated to what user asked.
 </file>
@@ -1173,7 +1136,7 @@ const vibeRulesRepoRules: PackageRuleItem[] = [
 export default vibeRulesRepoRules;
 </file>
 
-<file path="src/providers/codex-provider.ts">
+<file path="src/providers/clinerules-provider.ts">
 import fs from "fs-extra";
 import path from "path";
 import {
@@ -1183,21 +1146,44 @@ import {
   RuleType,
 } from "../types";
 import {
-  getRulePath,
-  ensureTargetDir,
+  getRulePath, // Returns the .clinerules directory path
+  ensureTargetDir, // Ensures parent directory exists
   getInternalRuleStoragePath,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
 import chalk from "chalk";
-export class CodexRuleProvider implements RuleProvider {
-  private readonly ruleType = RuleType.CODEX;
+// Helper function specifically for clinerules/roo setup
+// Focuses on the directory structure: .clinerules/vibe-tools.md
+async function setupClinerulesDirectory(
+  clinerulesDirPath: string,
+  rulesContent: string
+): Promise<void> {
+  await fs.ensureDir(clinerulesDirPath); // Ensure the .clinerules directory exists
+  const vibeToolsRulePath = path.join(clinerulesDirPath, "vibe-tools.md");
+  const rulesTemplate = rulesContent.replace(/\r\n/g, "\n").trim();
+  // Wrap content with <vibe-tools> tags if not already present
+  const startTag = "<vibe-tools Integration>";
+  const endTag = "</vibe-tools Integration>";
+  let contentToWrite = rulesTemplate;
+  if (!contentToWrite.includes(startTag)) {
+    contentToWrite = `${startTag}\n${rulesTemplate}\n${endTag}`;
+  }
+  await fs.writeFile(vibeToolsRulePath, contentToWrite + "\n");
+}
+export class ClinerulesRuleProvider implements RuleProvider {
+  // Handles both CLINERULES and ROO types
+  private readonly supportedTypes = [RuleType.CLINERULES, RuleType.ROO];
   /**
-   * Generates plain content for Codex.
+   * Generates formatted content for Clinerules/Roo including metadata.
    */
   generateRuleContent(
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {
-    return config.content;
+    return formatRuleWithMetadata(config, options);
   }
   /**
    * Saves the rule definition internally.
@@ -1206,7 +1192,11 @@ export class CodexRuleProvider implements RuleProvider {
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): Promise<string> {
-    const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
+    // Use CLINERULES type for internal storage regardless of ROO
+    const internalPath = getInternalRuleStoragePath(
+      RuleType.CLINERULES,
+      config.name
+    );
     await fs.writeFile(internalPath, config.content);
     return internalPath;
   }
@@ -1214,19 +1204,23 @@ export class CodexRuleProvider implements RuleProvider {
    * Loads a rule definition from internal storage.
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
-    const internalPath = getInternalRuleStoragePath(this.ruleType, name);
+    const internalPath = getInternalRuleStoragePath(RuleType.CLINERULES, name);
     if (!(await fs.pathExists(internalPath))) {
       return null;
     }
     const content = await fs.readFile(internalPath, "utf-8");
-    return { name, content, description: `Internally stored rule: ${name}` };
+    return {
+      name,
+      content,
+      description: `Internally stored rule: ${name}`,
+    };
   }
   /**
    * Lists rules from internal storage.
    */
   async listRules(): Promise<string[]> {
     const rulesDir = path.dirname(
-      getInternalRuleStoragePath(this.ruleType, "dummy")
+      getInternalRuleStoragePath(RuleType.CLINERULES, "dummy")
     );
     if (!(await fs.pathExists(rulesDir))) {
       return [];
@@ -1237,79 +1231,84 @@ export class CodexRuleProvider implements RuleProvider {
       .map((file) => path.basename(file, ".txt"));
   }
   /**
-   * Applies a rule by updating the <vibe-tools> section in the target codex.md/instructions.md.
+   * Applies a rule by setting up the .clinerules/vibe-tools.md structure.
+   * Always targets the project-local .clinerules directory.
    */
   async appendRule(
     name: string,
-    targetPath?: string,
-    isGlobal: boolean = false,
+    targetPath?: string, // If provided, should be the .clinerules directory path
+    isGlobal?: boolean,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const rule = await this.loadRule(name);
     if (!rule) {
-      console.error(`Rule '${name}' not found for type ${this.ruleType}.`);
+      console.error(
+        `Rule '${name}' not found for type ${RuleType.CLINERULES}/${RuleType.ROO}.`
+      );
       return false;
     }
-    const destinationPath =
-      targetPath || getRulePath(this.ruleType, name, isGlobal);
-    return this.appendFormattedRule(rule, destinationPath, isGlobal, options);
-  }
-  /**
-   * Formats and applies a rule directly from a RuleConfig object using XML-like tags.
-   * If a rule with the same name (tag) already exists, its content is updated.
-   */
-  async appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    const destinationPath = targetPath;
-    ensureTargetDir(destinationPath);
-    const ruleContent = this.generateRuleContent(config, options);
-    const startTag = `<${config.name}>`;
-    const endTag = `</${config.name}>`;
-    const newBlock = `${startTag}\n${ruleContent}\n${endTag}`;
-    let fileContent = "";
-    if (await fs.pathExists(destinationPath)) {
-      fileContent = await fs.readFile(destinationPath, "utf-8");
-    }
-    const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(
-      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
-      "m"
-    );
-    let updatedContent: string;
-    const match = fileContent.match(regex);
-    if (match) {
-      console.log(
-        chalk.blue(`Updating existing rule block for "${config.name}" in ${destinationPath}...`)
-      );
-      updatedContent = fileContent.replace(regex, newBlock);
-    } else {
-      console.log(
-        chalk.blue(`Appending new rule block for "${config.name}" to ${destinationPath}...`)
-      );
-      const integrationStartTag = "<vibe-tools Integration>";
-      const integrationEndTag = "</vibe-tools Integration>";
-      const startIndex = fileContent.indexOf(integrationStartTag);
-      const endIndex = fileContent.indexOf(integrationEndTag);
-      if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-        const insertionPoint = endIndex;
-        const before = fileContent.slice(0, insertionPoint);
-        const after = fileContent.slice(insertionPoint);
-        updatedContent = `${before.trimEnd()}\n\n${newBlock}\n\n${after.trimStart()}`;
-      } else {
-        const separator = fileContent.trim().length > 0 ? "\n\n" : "";
-        updatedContent = fileContent + separator + newBlock;
-      }
-    }
+    // getRulePath for CLINERULES/ROO returns the directory path
+    const destinationDir = targetPath || getRulePath(RuleType.CLINERULES, name); // name is ignored here
     try {
-      await fs.writeFile(destinationPath, updatedContent.trim() + "\n");
+      const contentToAppend = this.generateRuleContent(rule, options);
+      await setupClinerulesDirectory(destinationDir, contentToAppend);
+      console.log(
+        chalk.green(
+          `Successfully set up ${RuleType.CLINERULES}/${RuleType.ROO} rules in: ${destinationDir}`
+        )
+      );
       return true;
     } catch (error) {
       console.error(
-        chalk.red(`Error writing updated rules to ${destinationPath}: ${error}`)
+        chalk.red(
+          `Error setting up ${RuleType.CLINERULES}/${RuleType.ROO} rules in ${destinationDir}:`
+        ),
+        error
+      );
+      return false;
+    }
+  }
+  /**
+   * Formats and applies a rule directly from a RuleConfig object.
+   */
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string, // Should be the .clinerules directory path
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const destinationDir = targetPath;
+    try {
+      if (options?.alwaysApply !== undefined || options?.globs) {
+        console.log(
+          chalk.blue(
+            `Rule "${config.name}" has metadata that will be included in content:`
+          )
+        );
+        if (options?.alwaysApply !== undefined) {
+          console.log(chalk.blue(`  - alwaysApply: ${options.alwaysApply}`));
+        }
+        if (options?.globs) {
+          const globsStr = Array.isArray(options.globs)
+            ? options.globs.join(", ")
+            : options.globs;
+          console.log(chalk.blue(`  - globs: ${globsStr}`));
+        }
+      }
+      const contentToAppend = this.generateRuleContent(config, options);
+      await setupClinerulesDirectory(destinationDir, contentToAppend);
+      console.log(
+        chalk.green(
+          `Successfully applied formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to: ${destinationDir}`
+        )
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `Error applying formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to ${destinationDir}:`
+        ),
+        error
       );
       return false;
     }
@@ -1338,7 +1337,9 @@ const formatFrontmatter = (fm: Record<string, any>): string => {
     result += `description: ${fm.description}\n`;
   }
   if (fm.globs) {
-    console.log("TEST GLOBS", fm.globs);
+    if (fm.debug) {
+      console.log(`[Debug] Formatting globs: ${JSON.stringify(fm.globs)}`);
+    }
     const globsString = Array.isArray(fm.globs) ? fm.globs.join(",") : fm.globs;
     if (globsString) {
       result += `globs: ${globsString}\n`;
@@ -1346,6 +1347,8 @@ const formatFrontmatter = (fm: Record<string, any>): string => {
   }
   if (fm.alwaysApply === false) {
     result += `alwaysApply: false\n`;
+  } else if (fm.alwaysApply === true) {
+    result += `alwaysApply: true\n`;
   }
   return result.trim();
 };
@@ -1366,6 +1369,9 @@ export class CursorRuleProvider implements RuleProvider {
     }
     if (options?.alwaysApply !== undefined) {
       frontmatter.alwaysApply = options.alwaysApply;
+    }
+    if (options?.debug) {
+      frontmatter.debug = options.debug;
     }
     const frontmatterString =
       Object.keys(frontmatter).length > 0
@@ -1458,154 +1464,6 @@ export class CursorRuleProvider implements RuleProvider {
       console.error(
         `Error applying Cursor rule "${config.name}" to ${targetPath}:`,
         error
-      );
-      return false;
-    }
-  }
-}
-</file>
-
-<file path="src/providers/windsurf-provider.ts">
-import fs from "fs-extra";
-import path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleType,
-  RuleGeneratorOptions,
-} from "../types";
-import {
-  getRulePath,
-  getDefaultTargetPath,
-  ensureTargetDir,
-} from "../utils/path";
-import chalk from "chalk";
-export class WindsurfRuleProvider implements RuleProvider {
-  /**
-   * Format rule content with XML tags
-   */
-  private formatRuleContent(config: RuleConfig): string {
-    return `<${config.name}>\n${config.content}\n</${config.name}>`;
-  }
-  /**
-   * Generates formatted rule content with Windsurf XML tags
-   */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
-    return this.formatRuleContent(config);
-  }
-  /**
-   * Save a windsurf rule
-   */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    const rulePath = getRulePath(RuleType.WINDSURF, config.name);
-    const content = this.formatRuleContent(config);
-    await fs.writeFile(rulePath, content);
-    return rulePath;
-  }
-  /**
-   * Load a windsurf rule
-   */
-  async loadRule(name: string): Promise<RuleConfig | null> {
-    const rulePath = getRulePath(RuleType.WINDSURF, name);
-    if (!(await fs.pathExists(rulePath))) {
-      return null;
-    }
-    const content = await fs.readFile(rulePath, "utf-8");
-    // Extract content from XML tags if present
-    const tagMatch = content.match(
-      new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "m")
-    );
-    const ruleContent = tagMatch ? tagMatch[1].trim() : content;
-    return {
-      name,
-      content: ruleContent,
-    };
-  }
-  /**
-   * List all windsurf rules
-   */
-  async listRules(): Promise<string[]> {
-    const windsurfRulesDir = getRulePath(RuleType.WINDSURF, "");
-    if (!(await fs.pathExists(windsurfRulesDir))) {
-      return [];
-    }
-    const files = await fs.readdir(windsurfRulesDir);
-    return files
-      .filter((file) => !file.endsWith(".mdc")) // Not cursor files
-      .map((file) => path.basename(file, ".txt"));
-  }
-  /**
-   * Append a windsurf rule to a target file
-   */
-  async appendRule(name: string, targetPath?: string): Promise<boolean> {
-    const rule = await this.loadRule(name);
-    if (!rule) {
-      return false;
-    }
-    const destPath = targetPath || getDefaultTargetPath(RuleType.WINDSURF);
-    ensureTargetDir(destPath);
-    // For windsurf, append to an existing file or create a new one
-    const formattedRule = this.formatRuleContent(rule);
-    if (await fs.pathExists(destPath)) {
-      // Append to existing file
-      await fs.appendFile(destPath, `\n\n${formattedRule}`);
-    } else {
-      // Create new file
-      await fs.writeFile(destPath, formattedRule);
-    }
-    return true;
-  }
-  /**
-   * Format and append a rule directly from a RuleConfig object.
-   * If a rule with the same name (tag) already exists, its content is updated.
-   */
-  async appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    const destPath = targetPath;
-    ensureTargetDir(destPath);
-    const ruleContent = this.generateRuleContent(config, options);
-    const startTag = `<${config.name}>`;
-    const endTag = `</${config.name}>`;
-    const newBlock = `${startTag}\n${config.content}\n${endTag}`;
-    let fileContent = "";
-    if (await fs.pathExists(destPath)) {
-      fileContent = await fs.readFile(destPath, "utf-8");
-    }
-    const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(
-      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
-      "m"
-    );
-    let updatedContent: string;
-    const match = fileContent.match(regex);
-    if (match) {
-      console.log(
-        chalk.blue(`Updating existing rule block for "${config.name}" in ${destPath}...`)
-      );
-      updatedContent = fileContent.replace(regex, newBlock);
-    } else {
-      console.log(
-        chalk.blue(`Appending new rule block for "${config.name}" to ${destPath}...`)
-      );
-      const separator = fileContent.trim().length > 0 ? "\n\n" : "";
-      updatedContent = fileContent + separator + newBlock;
-    }
-    try {
-      await fs.writeFile(destPath, updatedContent.trim() + "\n");
-      return true;
-    } catch (error) {
-      console.error(
-        chalk.red(`Error writing updated rules to ${destPath}: ${error}`)
       );
       return false;
     }
@@ -1737,6 +1595,66 @@ export function slugifyRuleName(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9_]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+</file>
+
+<file path="src/utils/rule-formatter.ts">
+import { RuleConfig, RuleGeneratorOptions } from "../types";
+/**
+ * Formats rule content for non-cursor providers that use XML-like tags.
+ * Includes additional metadata like alwaysApply and globs in a human-readable format
+ * within the rule content.
+ */
+export function formatRuleWithMetadata(
+  config: RuleConfig,
+  options?: RuleGeneratorOptions
+): string {
+  let formattedContent = config.content;
+  // Add metadata lines at the beginning of content if they exist
+  const metadataLines = [];
+  // Add alwaysApply information if provided
+  if (options?.alwaysApply !== undefined) {
+    metadataLines.push(
+      `Always Apply: ${options.alwaysApply ? "true" : "false"} - ${
+        options.alwaysApply
+          ? "This rule should ALWAYS be applied by the AI"
+          : "This rule should only be applied when relevant files are open"
+      }`
+    );
+  }
+  // Add globs information if provided
+  if (options?.globs) {
+    const globsStr = Array.isArray(options.globs)
+      ? options.globs.join(", ")
+      : options.globs;
+    // Skip adding the glob info if it's just a generic catch-all pattern
+    const isCatchAllPattern =
+      globsStr === "**/*" ||
+      (Array.isArray(options.globs) &&
+        options.globs.length === 1 &&
+        options.globs[0] === "**/*");
+    if (!isCatchAllPattern) {
+      metadataLines.push(`Always apply this rule in these files: ${globsStr}`);
+    }
+  }
+  // If we have metadata, add it to the beginning of the content
+  if (metadataLines.length > 0) {
+    formattedContent = `${metadataLines.join("\n")}\n\n${config.content}`;
+  }
+  return formattedContent;
+}
+/**
+ * Creates a complete XML-like block for a rule, including start/end tags
+ * and formatted content with metadata
+ */
+export function createTaggedRuleBlock(
+  config: RuleConfig,
+  options?: RuleGeneratorOptions
+): string {
+  const formattedContent = formatRuleWithMetadata(config, options);
+  const startTag = `<${config.name}>`;
+  const endTag = `</${config.name}>`;
+  return `${startTag}\n${formattedContent}\n${endTag}`;
 }
 </file>
 
@@ -1983,6 +1901,248 @@ MIT
 }
 </file>
 
+<file path="src/providers/codex-provider.ts">
+import fs from "fs-extra";
+import path from "path";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleGeneratorOptions,
+  RuleType,
+} from "../types";
+import {
+  getRulePath,
+  ensureTargetDir,
+  getInternalRuleStoragePath,
+} from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
+import chalk from "chalk";
+import * as fsPromises from "fs/promises";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+export class CodexRuleProvider implements RuleProvider {
+  private readonly ruleType = RuleType.CODEX;
+  /**
+   * Generates formatted content for Codex including metadata.
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return formatRuleWithMetadata(config, options);
+  }
+  /**
+   * Saves the rule definition internally.
+   */
+  async saveRule(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): Promise<string> {
+    const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
+    await fsPromises.writeFile(internalPath, config.content);
+    return internalPath;
+  }
+  /**
+   * Loads a rule definition from internal storage.
+   */
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    const internalPath = getInternalRuleStoragePath(this.ruleType, name);
+    try {
+      const content = await fsPromises.readFile(internalPath, "utf-8");
+      return { name, content, description: `Internally stored rule: ${name}` };
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // File not found, expected if rule doesn't exist
+        return null;
+      }
+      console.error(
+        `Error loading rule "${name}" from ${internalPath}:`,
+        error
+      );
+      throw error; // Re-throw other errors
+    }
+  }
+  /**
+   * Lists rules from internal storage.
+   */
+  async listRules(): Promise<string[]> {
+    const rulesDir = path.dirname(
+      getInternalRuleStoragePath(this.ruleType, "dummy")
+    );
+    try {
+      const files = await fsPromises.readdir(rulesDir);
+      return files
+        .filter((file) => file.endsWith(".txt"))
+        .map((file) => path.basename(file, ".txt"));
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // Directory not found, means no rules saved yet
+        return [];
+      }
+      console.error(`Error listing rules from ${rulesDir}:`, error);
+      throw error; // Re-throw other errors
+    }
+  }
+  /**
+   * Applies a rule by updating the <vibe-tools> section in the target codex.md/instructions.md.
+   */
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal: boolean = false,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal storage.`);
+      return false;
+    }
+    const actualTargetPath =
+      targetPath ?? getRulePath(this.ruleType, "", isGlobal);
+    return this.appendFormattedRule(
+      ruleConfig,
+      actualTargetPath,
+      isGlobal,
+      options
+    );
+  }
+  /**
+   * Formats and applies a rule directly from a RuleConfig object using XML-like tags.
+   * If a rule with the same name (tag) already exists, its content is updated.
+   */
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean | undefined,
+    options?: RuleGeneratorOptions | undefined
+  ): Promise<boolean> {
+    return appendOrUpdateTaggedBlock(targetPath, config, options, true);
+  }
+}
+</file>
+
+<file path="src/providers/windsurf-provider.ts">
+import fs from "fs-extra";
+import path from "path";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleType,
+  RuleGeneratorOptions,
+} from "../types";
+import {
+  getRulePath,
+  getDefaultTargetPath,
+  ensureTargetDir,
+} from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import chalk from "chalk";
+export class WindsurfRuleProvider implements RuleProvider {
+  private readonly ruleType = RuleType.WINDSURF;
+  /**
+   * Format rule content with XML tags
+   */
+  private formatRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return createTaggedRuleBlock(config, options);
+  }
+  /**
+   * Generates formatted rule content with Windsurf XML tags
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return this.formatRuleContent(config, options);
+  }
+  /**
+   * Save a windsurf rule
+   */
+  async saveRule(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): Promise<string> {
+    const rulePath = getRulePath(RuleType.WINDSURF, config.name);
+    const content = this.formatRuleContent(config, options);
+    await fs.writeFile(rulePath, content);
+    return rulePath;
+  }
+  /**
+   * Load a windsurf rule
+   */
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    const rulePath = getRulePath(RuleType.WINDSURF, name);
+    if (!(await fs.pathExists(rulePath))) {
+      return null;
+    }
+    const content = await fs.readFile(rulePath, "utf-8");
+    // Extract content from XML tags if present
+    const tagMatch = content.match(
+      new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "m")
+    );
+    const ruleContent = tagMatch ? tagMatch[1].trim() : content;
+    return {
+      name,
+      content: ruleContent,
+    };
+  }
+  /**
+   * List all windsurf rules
+   */
+  async listRules(): Promise<string[]> {
+    const windsurfRulesDir = getRulePath(RuleType.WINDSURF, "");
+    if (!(await fs.pathExists(windsurfRulesDir))) {
+      return [];
+    }
+    const files = await fs.readdir(windsurfRulesDir);
+    return files
+      .filter((file) => !file.endsWith(".mdc")) // Not cursor files
+      .map((file) => path.basename(file, ".txt"));
+  }
+  /**
+   * Append a windsurf rule to a target file
+   */
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const rule = await this.loadRule(name);
+    if (!rule) {
+      console.error(`Rule '${name}' not found for type ${this.ruleType}.`);
+      return false;
+    }
+    // Windsurf typically doesn't use global paths or specific rule name paths for the target
+    // It uses a single default file.
+    const destinationPath = targetPath || getDefaultTargetPath(this.ruleType);
+    return this.appendFormattedRule(rule, destinationPath, false, options);
+  }
+  /**
+   * Format and append a rule directly from a RuleConfig object.
+   * If a rule with the same name (tag) already exists, its content is updated.
+   */
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    // Delegate to the shared helper function
+    // Pass false for appendInsideVibeToolsBlock as Windsurf just appends to end
+    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+}
+</file>
+
 <file path="src/providers/claude-code-provider.ts">
 import fs from "fs-extra";
 import path from "path";
@@ -1997,26 +2157,30 @@ import {
   ensureTargetDir,
   getInternalRuleStoragePath,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
 import chalk from "chalk";
 export class ClaudeCodeRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CLAUDE_CODE;
   /**
-   * Generates plain content for Claude Code (no frontmatter needed).
+   * Generates formatted content for Claude Code including metadata.
    * This content is intended to be placed within the <vibe-tools Integration> block.
    */
   generateRuleContent(
     config: RuleConfig,
-    options?: RuleGeneratorOptions // Options like description/isGlobal are not used by Claude format
+    options?: RuleGeneratorOptions
   ): string {
-    // Claude just needs the raw content
-    return config.content;
+    // Format the content with metadata
+    return formatRuleWithMetadata(config, options);
   }
   /**
    * Saves the rule definition internally. Claude rules are applied, not saved as standalone.
    */
   async saveRule(
     config: RuleConfig,
-    options?: RuleGeneratorOptions // options not used for internal saving
+    options?: RuleGeneratorOptions
   ): Promise<string> {
     const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
     await fs.writeFile(internalPath, config.content);
@@ -2027,12 +2191,22 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
     const internalPath = getInternalRuleStoragePath(this.ruleType, name);
-    if (!(await fs.pathExists(internalPath))) {
-      return null;
+    try {
+      const content = await fs.readFile(internalPath, "utf-8");
+      // Description isn't stored directly for Claude, could potentially infer later
+      return { name, content, description: `Internally stored rule: ${name}` };
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // File not found, which is expected if rule doesn't exist
+        return null;
+      }
+      // Re-throw other errors
+      console.error(
+        `Error loading rule "${name}" from ${internalPath}:`,
+        error
+      );
+      throw error;
     }
-    const content = await fs.readFile(internalPath, "utf-8");
-    // Description isn't stored directly for Claude, could potentially infer later
-    return { name, content, description: `Internally stored rule: ${name}` };
   }
   /**
    * Lists rules from internal storage.
@@ -2041,13 +2215,20 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     const rulesDir = path.dirname(
       getInternalRuleStoragePath(this.ruleType, "dummy")
     ); // Get the directory for this type
-    if (!(await fs.pathExists(rulesDir))) {
-      return [];
+    try {
+      const files = await fs.readdir(rulesDir);
+      return files
+        .filter((file) => file.endsWith(".txt")) // Assuming internal storage uses .txt
+        .map((file) => path.basename(file, ".txt"));
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // Directory not found, means no rules saved yet
+        return [];
+      }
+      // Re-throw other errors
+      console.error(`Error listing rules from ${rulesDir}:`, error);
+      throw error;
     }
-    const files = await fs.readdir(rulesDir);
-    return files
-      .filter((file) => file.endsWith(".txt")) // Assuming internal storage uses .txt
-      .map((file) => path.basename(file, ".txt"));
   }
   /**
    * Applies a rule by updating the <vibe-tools> section in the target CLAUDE.md.
@@ -2080,11 +2261,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
   ): Promise<boolean> {
     const destinationPath = targetPath;
     ensureTargetDir(destinationPath); // Ensure directory exists
-    const ruleContent = this.generateRuleContent(config, options);
-    // Generate XML-like tags based on the prefixed rule name
-    const startTag = `<${config.name}>`;
-    const endTag = `</${config.name}>`;
-    const newBlock = `${startTag}\n${ruleContent}\n${endTag}`;
+    const newBlock = createTaggedRuleBlock(config, options);
     let fileContent = "";
     if (await fs.pathExists(destinationPath)) {
       fileContent = await fs.readFile(destinationPath, "utf-8");
@@ -2637,11 +2814,12 @@ program
       installOptions: { global?: boolean; target?: string; debug?: boolean }
     ) => {
       console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
-      console.log("TEST TEST TEST12 ");
+      // Enable debug mode if requested
+      isDebugEnabled = installOptions.debug || isDebugEnabled;
       try {
         // Dynamically import the expected rules module
         const ruleModulePath = `${pkgName}/llms`;
-        console.log("Importing module", ruleModulePath);
+        debugLog(`Importing module ${ruleModulePath}`);
         const defaultExport = await importModuleFromCwd(ruleModulePath);
         if (!defaultExport) {
           console.log(
@@ -2655,10 +2833,8 @@ program
         let rulesToInstall: RuleConfig[] = [];
         // Handle if default export is a string
         if (typeof defaultExport === "string") {
-          console.log(
-            chalk.blue(
-              `Found rule content as string in ${pkgName}. Preparing to install...`
-            )
+          debugLog(
+            `Found rule content as string in ${pkgName}. Preparing to install...`
           );
           let ruleName = slugifyRuleName(pkgName); // Start with slugified name
           // Ensure the name starts with the package name prefix
@@ -2670,6 +2846,7 @@ program
         }
         // Handle if default export is an array (existing logic, adapted)
         else {
+          debugLog(`Found array export in ${pkgName}. Validating...`);
           const validationResult =
             VibePackageRulesSchema.safeParse(defaultExport);
           if (!validationResult.success) {
@@ -2682,6 +2859,7 @@ program
           }
           // Process the validated items
           const items = validationResult.data;
+          debugLog(`Found ${items.length} valid items in ${pkgName}`);
           for (const [index, item] of items.entries()) {
             if (typeof item === "string") {
               // Handle string item - name already includes pkgName-index via slugify
@@ -2698,6 +2876,10 @@ program
               if (!ruleName.startsWith(`${pkgName}_`)) {
                 ruleName = `${pkgName}_${ruleName}`;
               }
+              debugLog(`Processing object rule: ${item.name} with properties:
+                alwaysApply: ${item.alwaysApply !== undefined ? item.alwaysApply : "undefined"}
+                globs: ${item.globs ? (Array.isArray(item.globs) ? item.globs.join(",") : item.globs) : "undefined"}
+              `);
               rulesToInstall.push({
                 name: ruleName, // Use potentially prefixed name
                 content: item.rule, // Map rule to content
@@ -2736,6 +2918,14 @@ program
               };
               // Add additional options from the original rules if they exist
               // This handles the case where we processed a rule object with additional metadata
+              let originalName = ruleConfig.name;
+              // Remove the package prefix to match against the original item
+              if (originalName.startsWith(`${pkgName}_`)) {
+                originalName = originalName.substring(pkgName.length + 1);
+              }
+              debugLog(
+                `Looking for metadata with original name: ${originalName} (from ${ruleConfig.name})`
+              );
               const originalItem =
                 typeof defaultExport === "string"
                   ? null
@@ -2743,38 +2933,75 @@ program
                     ? defaultExport.find(
                         (item: any) =>
                           typeof item === "object" &&
-                          item.name === ruleConfig.name
+                          (item.name === originalName ||
+                            item.name === ruleConfig.name)
                       )
                     : null;
               if (originalItem && typeof originalItem === "object") {
                 debugLog(
                   `Found additional metadata for rule ${ruleConfig.name}: ${JSON.stringify(originalItem)}`
                 );
-                console.log("TEST TEST TEST123");
                 if ("alwaysApply" in originalItem) {
                   generatorOptions.alwaysApply = originalItem.alwaysApply;
+                  debugLog(`Setting alwaysApply: ${originalItem.alwaysApply}`);
                 }
                 if ("globs" in originalItem) {
                   generatorOptions.globs = originalItem.globs;
+                  debugLog(
+                    `Setting globs: ${JSON.stringify(originalItem.globs)}`
+                  );
                 }
               }
               // Apply the rule using the provider
-              const success = await provider.appendFormattedRule(
-                ruleConfig,
-                finalTargetPath,
-                installOptions.global,
-                generatorOptions
+              debugLog(
+                `Applying rule ${ruleConfig.name} with options: ${JSON.stringify(generatorOptions)}`
               );
-              if (success) {
+              if (generatorOptions.globs) {
                 console.log(
-                  chalk.green(
-                    `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                  chalk.blue(
+                    `Rule "${ruleConfig.name}" has globs: ${
+                      Array.isArray(generatorOptions.globs)
+                        ? generatorOptions.globs.join(", ")
+                        : generatorOptions.globs
+                    }`
                   )
                 );
-              } else {
+              }
+              if (generatorOptions.alwaysApply !== undefined) {
+                console.log(
+                  chalk.blue(
+                    `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
+                  )
+                );
+              }
+              try {
+                const success = await provider.appendFormattedRule(
+                  ruleConfig,
+                  finalTargetPath,
+                  installOptions.global,
+                  generatorOptions
+                );
+                if (success) {
+                  console.log(
+                    chalk.green(
+                      `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                    )
+                  );
+                } else {
+                  console.error(
+                    chalk.red(
+                      `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                    )
+                  );
+                }
+              } catch (ruleApplyError) {
                 console.error(
                   chalk.red(
-                    `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                    `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${
+                      ruleApplyError instanceof Error
+                        ? ruleApplyError.message
+                        : ruleApplyError
+                    }`
                   )
                 );
               }
@@ -3010,7 +3237,9 @@ vibe-rules/
 │   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Added)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
-│       └── similarity.ts  # Text similarity utilities
+│       ├── similarity.ts  # Text similarity utilities
+│       └── rule-formatter.ts # Rule formatting utilities for metadata (Added)
+│       └── single-file-helpers.ts # Helpers for single-file providers (Added)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -3249,6 +3478,48 @@ Provides text similarity utilities for finding related rules based on name simil
   - `limit`: Maximum number of similar rules to return (default: 5)
 - Returns: Array of similar rule names sorted by similarity (most similar first)
 
+### src/utils/rule-formatter.ts (Added)
+
+Provides utility functions for formatting rule content with metadata like `alwaysApply` and `globs`.
+
+#### `formatRuleWithMetadata(config: RuleConfig, options?: RuleGeneratorOptions): string`
+
+- Formats rule content with human-readable metadata lines at the beginning
+- Parameters:
+  - `config`: The rule config to format
+  - `options`: Optional metadata like alwaysApply and globs
+- Returns: The formatted rule content with metadata lines included
+- Handles both alwaysApply (true/false) and globs (string or array)
+- Used by non-cursor providers to include metadata in their rule content
+
+#### `createTaggedRuleBlock(config: RuleConfig, options?: RuleGeneratorOptions): string`
+
+- Creates a complete XML-like block for a rule, with start/end tags and formatted content
+- Parameters:
+  - `config`: The rule config to format
+  - `options`: Optional metadata like alwaysApply and globs
+- Returns: The complete tagged rule block with metadata
+- Used by providers that store rules in a single file with XML-like tags (via `single-file-helpers.ts`)
+
+### src/utils/single-file-helpers.ts (Added)
+
+Provides utility functions specific to providers that manage rules within a single configuration file using tagged blocks.
+
+#### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>`
+
+- Encapsulates the logic for managing rules in single-file providers (Windsurf, Claude Code, Codex).
+- Reads the `targetPath` file content.
+- Uses `createTaggedRuleBlock` to generate the XML-like block for the rule.
+- Searches for an existing block using a regex based on the `config.name` (e.g., `<rule-name>...</rule-name>`).
+- **If found:** Replaces the existing block with the newly generated one.
+- **If not found:** Appends the new block.
+  - If `appendInsideVibeToolsBlock` is `true` (for Claude, Codex), it attempts to insert the block just before the `</vibe-tools Integration>` tag if present.
+  - Otherwise (or if the integration block isn't found), it appends the block to the end of the file.
+- Writes the updated content back to the `targetPath`.
+- Ensures the parent directory exists using `ensureTargetDir`.
+- Handles file not found errors gracefully (creates the file).
+- Returns `true` on success, `false` on failure.
+
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
@@ -3272,6 +3543,9 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
   - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install` command processing).
+- **`formatFrontmatter` (Updated):**
+  - Now properly handles both `alwaysApply: true` and `alwaysApply: false` cases
+  - Uses debug-friendly logging for globs formatting
 
 ### src/providers/windsurf-provider.ts
 
@@ -3284,11 +3558,11 @@ Implementation of the `RuleProvider` interface for Windsurf editor.
 - Handles Windsurf's single `.windsurfrules` file.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`). (Note: `saveRule` currently seems unused directly by CLI).
 - **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Updated):**
-  - Reads the target `.windsurfrules` file.
-  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
-  - If found, replaces the content within the tags.
-  - If not found, appends the new tagged block to the end of the file.
+- **`appendFormattedRule` (Refactored):**
+  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
+  - Passes `false` for the `appendInsideVibeToolsBlock` parameter.
+- **`generateRuleContent` (Unchanged):**
+  - Utilizes the shared `createTaggedRuleBlock` utility to format rules with metadata.
 
 ### src/providers/claude-code-provider.ts (Added)
 
@@ -3301,12 +3575,12 @@ Implementation of the `RuleProvider` interface for Claude Code IDE.
 - Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
 - `generateRuleContent` returns plain rule content suitable for insertion.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
-- **`appendRule` (Updated):** Loads a rule from internal storage and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Updated):**
-  - Reads the target `CLAUDE.md` file.
-  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
-  - If found, replaces the content within the tags.
-  - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
+- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Refactored):**
+  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
+  - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
+- **`generateRuleContent` (Unchanged):**
+  - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
 
 ### src/providers/codex-provider.ts (Added)
 
@@ -3319,12 +3593,12 @@ Implementation of the `RuleProvider` interface for Codex IDE.
 - Handles Codex's `instructions.md` (global) or `codex.md` (local).
 - `generateRuleContent` returns plain rule content suitable for insertion.
 - `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
-- **`appendRule` (Updated):** Loads a rule from internal storage and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Updated):**
-  - Reads the target `instructions.md` or `codex.md` file.
-  - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
-  - If found, replaces the content within the tags.
-  - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
+- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`appendFormattedRule` (Refactored):**
+  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
+  - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
+- **`generateRuleContent` (Unchanged):**
+  - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
 
 ### src/providers/clinerules-provider.ts (Added)
 
@@ -3332,7 +3606,13 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 #### `ClinerulesRuleProvider` (class)
 
-##### Methods: `
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- **`generateRuleContent` (Updated):**
+  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
+  - Handles both `alwaysApply` and `globs` options to include in human-readable format
+- **`appendFormattedRule` (Updated):**
+  - Adds additional logging to show when metadata is included in rule content
 
 ### src/llms/internal.ts (Added)
 

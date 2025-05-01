@@ -50,13 +50,22 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
   async loadRule(name: string): Promise<RuleConfig | null> {
     const internalPath = getInternalRuleStoragePath(this.ruleType, name);
 
-    if (!(await fs.pathExists(internalPath))) {
-      return null;
+    try {
+      const content = await fs.readFile(internalPath, "utf-8");
+      // Description isn't stored directly for Claude, could potentially infer later
+      return { name, content, description: `Internally stored rule: ${name}` };
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // File not found, which is expected if rule doesn't exist
+        return null;
+      }
+      // Re-throw other errors
+      console.error(
+        `Error loading rule "${name}" from ${internalPath}:`,
+        error
+      );
+      throw error;
     }
-
-    const content = await fs.readFile(internalPath, "utf-8");
-    // Description isn't stored directly for Claude, could potentially infer later
-    return { name, content, description: `Internally stored rule: ${name}` };
   }
 
   /**
@@ -66,13 +75,20 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     const rulesDir = path.dirname(
       getInternalRuleStoragePath(this.ruleType, "dummy")
     ); // Get the directory for this type
-    if (!(await fs.pathExists(rulesDir))) {
-      return [];
+    try {
+      const files = await fs.readdir(rulesDir);
+      return files
+        .filter((file) => file.endsWith(".txt")) // Assuming internal storage uses .txt
+        .map((file) => path.basename(file, ".txt"));
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // Directory not found, means no rules saved yet
+        return [];
+      }
+      // Re-throw other errors
+      console.error(`Error listing rules from ${rulesDir}:`, error);
+      throw error;
     }
-    const files = await fs.readdir(rulesDir);
-    return files
-      .filter((file) => file.endsWith(".txt")) // Assuming internal storage uses .txt
-      .map((file) => path.basename(file, ".txt"));
   }
 
   /**

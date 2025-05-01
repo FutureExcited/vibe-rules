@@ -10,6 +10,7 @@ import {
   getRulePath, // Returns the .clinerules directory path
   ensureTargetDir, // Ensures parent directory exists
   getInternalRuleStoragePath,
+  ensureDirectoryExists,
 } from "../utils/path";
 import {
   formatRuleWithMetadata,
@@ -147,46 +148,40 @@ export class ClinerulesRuleProvider implements RuleProvider {
    */
   async appendFormattedRule(
     config: RuleConfig,
-    targetPath: string, // Should be the .clinerules directory path
+    targetPath: string, // Should now receive the correct .../.clinerules/slugified-name.md path
     isGlobal?: boolean,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const destinationDir = targetPath;
+    // Ensure the parent .clinerules directory exists
+    const parentDir = path.dirname(targetPath);
+    ensureDirectoryExists(parentDir);
+
+    // Generate the content
+    const content = this.generateRuleContent(config, options);
+
+    // Log metadata inclusion (optional, but kept from previous state)
+    if (options?.alwaysApply !== undefined || options?.globs) {
+      console.log(
+        chalk.blue(
+          `  Including metadata in rule content: alwaysApply=${options.alwaysApply}, globs=${JSON.stringify(options.globs)}`
+        )
+      );
+    }
 
     try {
-      if (options?.alwaysApply !== undefined || options?.globs) {
-        console.log(
-          chalk.blue(
-            `Rule "${config.name}" has metadata that will be included in content:`
-          )
-        );
-
-        if (options?.alwaysApply !== undefined) {
-          console.log(chalk.blue(`  - alwaysApply: ${options.alwaysApply}`));
-        }
-
-        if (options?.globs) {
-          const globsStr = Array.isArray(options.globs)
-            ? options.globs.join(", ")
-            : options.globs;
-          console.log(chalk.blue(`  - globs: ${globsStr}`));
-        }
-      }
-
-      const contentToAppend = this.generateRuleContent(config, options);
-      await setupClinerulesDirectory(destinationDir, contentToAppend);
+      // Write directly to the target file path
+      await fs.writeFile(targetPath, content, "utf-8");
       console.log(
         chalk.green(
-          `Successfully applied formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to: ${destinationDir}`
+          `Successfully applied rule "${config.name}" to ${targetPath}`
         )
       );
       return true;
     } catch (error) {
       console.error(
         chalk.red(
-          `Error applying formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to ${destinationDir}:`
-        ),
-        error
+          `Error applying rule "${config.name}" to ${targetPath}: ${error}`
+        )
       );
       return false;
     }

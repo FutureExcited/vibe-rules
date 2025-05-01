@@ -65,10 +65,12 @@ export function getRulePath(
         : path.join(projectRoot, "codex.md");
     case RuleType.CLINERULES:
     case RuleType.ROO:
-      // Cline/Roo rules are project-local in .clinerules/
-      // The standard is a directory with vibe-tools.md inside
-      // We return the path to the directory for the provider to handle internal structure
-      return path.join(projectRoot, ".clinerules");
+      // Cline/Roo rules are project-local files in .clinerules/
+      return path.join(
+        projectRoot,
+        ".clinerules",
+        slugifyRuleName(ruleName) + ".md" // Use .md extension
+      );
     case RuleType.CUSTOM:
     default:
       // Fallback for custom or unknown - store internally for now
@@ -115,10 +117,29 @@ export function getDefaultTargetPath(
 }
 
 /**
- * Ensures the target directory exists for a given file path.
+ * Ensures that a specific directory exists, creating it if necessary.
+ *
+ * @param dirPath The absolute or relative path to the directory to ensure.
+ */
+export function ensureDirectoryExists(dirPath: string): void {
+  try {
+    fs.ensureDirSync(dirPath);
+    console.debug(`Ensured directory exists: ${dirPath}`);
+  } catch (err: any) {
+    console.error(`Failed to ensure directory ${dirPath}:`, err);
+    // Depending on the desired behavior, you might want to re-throw or exit
+    // throw err;
+  }
+}
+
+/**
+ * Ensures that the _parent directory_ for a given file path exists.
+ * @deprecated Use ensureDirectoryExists(path.dirname(targetFilePath)) instead.
+ * @param targetFilePath The full file path
  */
 export function ensureTargetDir(targetFilePath: string): void {
-  fs.ensureDirSync(path.dirname(targetFilePath));
+  const dir = path.dirname(targetFilePath);
+  ensureDirectoryExists(dir);
 }
 
 /**
