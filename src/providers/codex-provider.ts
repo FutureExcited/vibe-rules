@@ -11,19 +11,23 @@ import {
   ensureTargetDir,
   getInternalRuleStoragePath,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
 import chalk from "chalk";
 
 export class CodexRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CODEX;
 
   /**
-   * Generates plain content for Codex.
+   * Generates formatted content for Codex including metadata.
    */
   generateRuleContent(
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {
-    return config.content;
+    return formatRuleWithMetadata(config, options);
   }
 
   /**
@@ -100,10 +104,7 @@ export class CodexRuleProvider implements RuleProvider {
     const destinationPath = targetPath;
     ensureTargetDir(destinationPath);
 
-    const ruleContent = this.generateRuleContent(config, options);
-    const startTag = `<${config.name}>`;
-    const endTag = `</${config.name}>`;
-    const newBlock = `${startTag}\n${ruleContent}\n${endTag}`;
+    const newBlock = createTaggedRuleBlock(config, options);
 
     let fileContent = "";
     if (await fs.pathExists(destinationPath)) {
@@ -121,12 +122,16 @@ export class CodexRuleProvider implements RuleProvider {
 
     if (match) {
       console.log(
-        chalk.blue(`Updating existing rule block for "${config.name}" in ${destinationPath}...`)
+        chalk.blue(
+          `Updating existing rule block for "${config.name}" in ${destinationPath}...`
+        )
       );
       updatedContent = fileContent.replace(regex, newBlock);
     } else {
       console.log(
-        chalk.blue(`Appending new rule block for "${config.name}" to ${destinationPath}...`)
+        chalk.blue(
+          `Appending new rule block for "${config.name}" to ${destinationPath}...`
+        )
       );
 
       const integrationStartTag = "<vibe-tools Integration>";

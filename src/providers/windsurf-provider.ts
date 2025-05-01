@@ -11,14 +11,21 @@ import {
   getDefaultTargetPath,
   ensureTargetDir,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
 import chalk from "chalk";
 
 export class WindsurfRuleProvider implements RuleProvider {
   /**
    * Format rule content with XML tags
    */
-  private formatRuleContent(config: RuleConfig): string {
-    return `<${config.name}>\n${config.content}\n</${config.name}>`;
+  private formatRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return createTaggedRuleBlock(config, options);
   }
 
   /**
@@ -28,7 +35,7 @@ export class WindsurfRuleProvider implements RuleProvider {
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {
-    return this.formatRuleContent(config);
+    return this.formatRuleContent(config, options);
   }
 
   /**
@@ -39,7 +46,7 @@ export class WindsurfRuleProvider implements RuleProvider {
     options?: RuleGeneratorOptions
   ): Promise<string> {
     const rulePath = getRulePath(RuleType.WINDSURF, config.name);
-    const content = this.formatRuleContent(config);
+    const content = this.formatRuleContent(config, options);
 
     await fs.writeFile(rulePath, content);
     return rulePath;
@@ -88,7 +95,12 @@ export class WindsurfRuleProvider implements RuleProvider {
   /**
    * Append a windsurf rule to a target file
    */
-  async appendRule(name: string, targetPath?: string): Promise<boolean> {
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
     const rule = await this.loadRule(name);
 
     if (!rule) {
@@ -99,7 +111,7 @@ export class WindsurfRuleProvider implements RuleProvider {
     ensureTargetDir(destPath);
 
     // For windsurf, append to an existing file or create a new one
-    const formattedRule = this.formatRuleContent(rule);
+    const formattedRule = this.formatRuleContent(rule, options);
 
     if (await fs.pathExists(destPath)) {
       // Append to existing file
@@ -125,10 +137,7 @@ export class WindsurfRuleProvider implements RuleProvider {
     const destPath = targetPath;
     ensureTargetDir(destPath);
 
-    const ruleContent = this.generateRuleContent(config, options);
-    const startTag = `<${config.name}>`;
-    const endTag = `</${config.name}>`;
-    const newBlock = `${startTag}\n${config.content}\n${endTag}`;
+    const newBlock = createTaggedRuleBlock(config, options);
 
     let fileContent = "";
     if (await fs.pathExists(destPath)) {
@@ -146,12 +155,16 @@ export class WindsurfRuleProvider implements RuleProvider {
 
     if (match) {
       console.log(
-        chalk.blue(`Updating existing rule block for "${config.name}" in ${destPath}...`)
+        chalk.blue(
+          `Updating existing rule block for "${config.name}" in ${destPath}...`
+        )
       );
       updatedContent = fileContent.replace(regex, newBlock);
     } else {
       console.log(
-        chalk.blue(`Appending new rule block for "${config.name}" to ${destPath}...`)
+        chalk.blue(
+          `Appending new rule block for "${config.name}" to ${destPath}...`
+        )
       );
       const separator = fileContent.trim().length > 0 ? "\n\n" : "";
       updatedContent = fileContent + separator + newBlock;

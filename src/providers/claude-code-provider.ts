@@ -11,21 +11,25 @@ import {
   ensureTargetDir,
   getInternalRuleStoragePath,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
 import chalk from "chalk";
 
 export class ClaudeCodeRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CLAUDE_CODE;
 
   /**
-   * Generates plain content for Claude Code (no frontmatter needed).
+   * Generates formatted content for Claude Code including metadata.
    * This content is intended to be placed within the <vibe-tools Integration> block.
    */
   generateRuleContent(
     config: RuleConfig,
-    options?: RuleGeneratorOptions // Options like description/isGlobal are not used by Claude format
+    options?: RuleGeneratorOptions
   ): string {
-    // Claude just needs the raw content
-    return config.content;
+    // Format the content with metadata
+    return formatRuleWithMetadata(config, options);
   }
 
   /**
@@ -33,7 +37,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
    */
   async saveRule(
     config: RuleConfig,
-    options?: RuleGeneratorOptions // options not used for internal saving
+    options?: RuleGeneratorOptions
   ): Promise<string> {
     const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
     await fs.writeFile(internalPath, config.content);
@@ -106,11 +110,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     const destinationPath = targetPath;
     ensureTargetDir(destinationPath); // Ensure directory exists
 
-    const ruleContent = this.generateRuleContent(config, options);
-    // Generate XML-like tags based on the prefixed rule name
-    const startTag = `<${config.name}>`;
-    const endTag = `</${config.name}>`;
-    const newBlock = `${startTag}\n${ruleContent}\n${endTag}`;
+    const newBlock = createTaggedRuleBlock(config, options);
 
     let fileContent = "";
     if (await fs.pathExists(destinationPath)) {

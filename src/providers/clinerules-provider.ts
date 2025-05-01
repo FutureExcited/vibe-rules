@@ -11,6 +11,11 @@ import {
   ensureTargetDir, // Ensures parent directory exists
   getInternalRuleStoragePath,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
+import chalk from "chalk";
 
 // Helper function specifically for clinerules/roo setup
 // Focuses on the directory structure: .clinerules/vibe-tools.md
@@ -39,13 +44,13 @@ export class ClinerulesRuleProvider implements RuleProvider {
   private readonly supportedTypes = [RuleType.CLINERULES, RuleType.ROO];
 
   /**
-   * Generates plain content for Clinerules/Roo.
+   * Generates formatted content for Clinerules/Roo including metadata.
    */
   generateRuleContent(
     config: RuleConfig,
     options?: RuleGeneratorOptions
   ): string {
-    return config.content;
+    return formatRuleWithMetadata(config, options);
   }
 
   /**
@@ -102,7 +107,9 @@ export class ClinerulesRuleProvider implements RuleProvider {
    */
   async appendRule(
     name: string,
-    targetPath?: string // If provided, should be the .clinerules directory path
+    targetPath?: string, // If provided, should be the .clinerules directory path
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const rule = await this.loadRule(name);
     if (!rule) {
@@ -116,15 +123,19 @@ export class ClinerulesRuleProvider implements RuleProvider {
     const destinationDir = targetPath || getRulePath(RuleType.CLINERULES, name); // name is ignored here
 
     try {
-      const contentToAppend = this.generateRuleContent(rule);
+      const contentToAppend = this.generateRuleContent(rule, options);
       await setupClinerulesDirectory(destinationDir, contentToAppend);
       console.log(
-        `Successfully set up ${RuleType.CLINERULES}/${RuleType.ROO} rules in: ${destinationDir}`
+        chalk.green(
+          `Successfully set up ${RuleType.CLINERULES}/${RuleType.ROO} rules in: ${destinationDir}`
+        )
       );
       return true;
     } catch (error) {
       console.error(
-        `Error setting up ${RuleType.CLINERULES}/${RuleType.ROO} rules in ${destinationDir}:`,
+        chalk.red(
+          `Error setting up ${RuleType.CLINERULES}/${RuleType.ROO} rules in ${destinationDir}:`
+        ),
         error
       );
       return false;
@@ -136,19 +147,45 @@ export class ClinerulesRuleProvider implements RuleProvider {
    */
   async appendFormattedRule(
     config: RuleConfig,
-    targetPath: string // Should be the .clinerules directory path
+    targetPath: string, // Should be the .clinerules directory path
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const destinationDir = targetPath;
+
     try {
-      const contentToAppend = this.generateRuleContent(config);
+      if (options?.alwaysApply !== undefined || options?.globs) {
+        console.log(
+          chalk.blue(
+            `Rule "${config.name}" has metadata that will be included in content:`
+          )
+        );
+
+        if (options?.alwaysApply !== undefined) {
+          console.log(chalk.blue(`  - alwaysApply: ${options.alwaysApply}`));
+        }
+
+        if (options?.globs) {
+          const globsStr = Array.isArray(options.globs)
+            ? options.globs.join(", ")
+            : options.globs;
+          console.log(chalk.blue(`  - globs: ${globsStr}`));
+        }
+      }
+
+      const contentToAppend = this.generateRuleContent(config, options);
       await setupClinerulesDirectory(destinationDir, contentToAppend);
       console.log(
-        `Successfully applied formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to: ${destinationDir}`
+        chalk.green(
+          `Successfully applied formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to: ${destinationDir}`
+        )
       );
       return true;
     } catch (error) {
       console.error(
-        `Error applying formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to ${destinationDir}:`,
+        chalk.red(
+          `Error applying formatted ${RuleType.CLINERULES}/${RuleType.ROO} rule to ${destinationDir}:`
+        ),
         error
       );
       return false;

@@ -25,7 +25,8 @@ vibe-rules/
 │   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Added)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
-│       └── similarity.ts  # Text similarity utilities
+│       ├── similarity.ts  # Text similarity utilities
+│       └── rule-formatter.ts # Rule formatting utilities for metadata (Added)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -264,6 +265,29 @@ Provides text similarity utilities for finding related rules based on name simil
   - `limit`: Maximum number of similar rules to return (default: 5)
 - Returns: Array of similar rule names sorted by similarity (most similar first)
 
+### src/utils/rule-formatter.ts (Added)
+
+Provides utility functions for formatting rule content with metadata like `alwaysApply` and `globs`.
+
+#### `formatRuleWithMetadata(config: RuleConfig, options?: RuleGeneratorOptions): string`
+
+- Formats rule content with human-readable metadata lines at the beginning
+- Parameters:
+  - `config`: The rule config to format
+  - `options`: Optional metadata like alwaysApply and globs
+- Returns: The formatted rule content with metadata lines included
+- Handles both alwaysApply (true/false) and globs (string or array)
+- Used by non-cursor providers to include metadata in their rule content
+
+#### `createTaggedRuleBlock(config: RuleConfig, options?: RuleGeneratorOptions): string`
+
+- Creates a complete XML-like block for a rule, with start/end tags and formatted content
+- Parameters:
+  - `config`: The rule config to format
+  - `options`: Optional metadata like alwaysApply and globs
+- Returns: The complete tagged rule block with metadata
+- Used by providers that store rules in a single file with XML-like tags
+
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
@@ -287,6 +311,9 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
   - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install` command processing).
+- **`formatFrontmatter` (Updated):**
+  - Now properly handles both `alwaysApply: true` and `alwaysApply: false` cases
+  - Uses debug-friendly logging for globs formatting
 
 ### src/providers/windsurf-provider.ts
 
@@ -304,6 +331,9 @@ Implementation of the `RuleProvider` interface for Windsurf editor.
   - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
   - If found, replaces the content within the tags.
   - If not found, appends the new tagged block to the end of the file.
+- **`generateRuleContent` (Updated):**
+  - Now utilizes the shared `createTaggedRuleBlock` utility to format rules with metadata
+  - Includes human-readable `alwaysApply` and `globs` information in rule content
 
 ### src/providers/claude-code-provider.ts (Added)
 
@@ -322,6 +352,9 @@ Implementation of the `RuleProvider` interface for Claude Code IDE.
   - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
   - If found, replaces the content within the tags.
   - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
+- **`generateRuleContent` (Updated):**
+  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
+  - Handles both `alwaysApply` and `globs` options to include in human-readable format
 
 ### src/providers/codex-provider.ts (Added)
 
@@ -340,6 +373,9 @@ Implementation of the `RuleProvider` interface for Codex IDE.
   - Checks for an existing block using XML-like tags based on the rule name (e.g., `<rule-name>...</rule-name>`).
   - If found, replaces the content within the tags.
   - If not found, attempts to append the new tagged block within the `<vibe-tools Integration>` block if present, otherwise appends to the end of the file.
+- **`generateRuleContent` (Updated):**
+  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
+  - Handles both `alwaysApply` and `globs` options to include in human-readable format
 
 ### src/providers/clinerules-provider.ts (Added)
 
@@ -347,7 +383,13 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 #### `ClinerulesRuleProvider` (class)
 
-##### Methods: `
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- **`generateRuleContent` (Updated):**
+  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
+  - Handles both `alwaysApply` and `globs` options to include in human-readable format
+- **`appendFormattedRule` (Updated):**
+  - Adds additional logging to show when metadata is included in rule content
 
 ### src/llms/internal.ts (Added)
 
