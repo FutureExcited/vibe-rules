@@ -19,8 +19,8 @@ export const RuleType = {
   CUSTOM: "custom",
 } as const;
 
-export type RuleTypeArray = typeof RuleType[keyof typeof RuleType][];
-export type RuleType = typeof RuleType[keyof typeof RuleType];
+export type RuleTypeArray = (typeof RuleType)[keyof typeof RuleType][];
+export type RuleType = (typeof RuleType)[keyof typeof RuleType];
 
 export interface RuleProvider {
   /**

@@ -31,6 +31,7 @@ vibe-rules/
 │   │   └── index.vue      # Landing page
 │   ├── public/            # Public assets
 │   └── nuxt.config.ts     # Nuxt configuration
+├── package.json           # Project metadata and dependencies (Updated scripts)
 └── README.md              # Project documentation (Updated examples)
 └── ARCHITECTURE.md        # This file
 ```
@@ -54,7 +55,7 @@ Defines the command-line interface using `commander`.
     - Reads the determined single target file (e.g., `.windsurfrules`, `CLAUDE.md`).
     - Removes any XML-like blocks within the file where the tag name starts with the package prefix (e.g., finds and removes `<pkgName_rule1>...</pkgName_rule1>`, `<pkgName_anotherRule>...</pkgName_anotherRule>`).
     - Writes the modified content back to the file.
-    - Does *not* delete the file itself.
+    - Does _not_ delete the file itself.
   - **Behavior for Multi-File Providers** (e.g., Cursor, Clinerules):
     - Deletes files within the target directory whose names start with `${pkgName}_`.
 
@@ -357,3 +358,14 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 - Provides the module resolved by the `vibe-rules/llms` export path defined in `package.json`.
 - Intentionally exports an empty array (`export default [];`).
 - This ensures that when other packages use the `vibe-rules install`
+
+### package.json (Updated)
+
+Contains project metadata, dependencies, and scripts.
+
+#### Scripts
+
+- `build`: Compiles TypeScript code using `tsc`.
+- `start`: Runs the built CLI using Node.
+- `dev`: Runs the CLI using `ts-node` for development.
+- `npm:publish`: Builds the project using `bun build` and then publishes to npm using `npm publish`. (Added)

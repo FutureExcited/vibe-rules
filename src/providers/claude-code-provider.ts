@@ -130,7 +130,9 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     if (match) {
       // Rule exists, replace its content
       console.log(
-        chalk.blue(`Updating existing rule block for "${config.name}" in ${destinationPath}...`)
+        chalk.blue(
+          `Updating existing rule block for "${config.name}" in ${destinationPath}...`
+        )
       );
       updatedContent = fileContent.replace(regex, newBlock);
     } else {
@@ -142,7 +144,9 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
       const endIndex = fileContent.indexOf(integrationEndTag);
 
       console.log(
-        chalk.blue(`Appending new rule block for "${config.name}" to ${destinationPath}...`)
+        chalk.blue(
+          `Appending new rule block for "${config.name}" to ${destinationPath}...`
+        )
       );
 
       if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {

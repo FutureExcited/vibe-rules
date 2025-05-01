@@ -68,7 +68,7 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
 async function clearExistingRules(
   pkgName: string,
   editorType: RuleType,
-  options: { global?: boolean; }
+  options: { global?: boolean }
 ): Promise<void> {
   debugLog(
     `Clearing existing rules for package "${pkgName}" and editor "${editorType}" with options ${JSON.stringify(options)}...`
@@ -99,9 +99,7 @@ async function clearExistingRules(
     }
   } catch (error: any) {
     console.error(
-      chalk.red(
-        `Error checking default path ${defaultPath}: ${error.message}`
-      )
+      chalk.red(`Error checking default path ${defaultPath}: ${error.message}`)
     );
     return; // Cannot determine target directory
   }
@@ -113,7 +111,7 @@ async function clearExistingRules(
   // If it's a known single file provider, remove matching XML blocks instead of deleting files
   if (isSingleFileProvider) {
     const potentialTargetFile = getRulePath(editorType, "", options.global);
-    if (!await fs.pathExists(potentialTargetFile)) {
+    if (!(await fs.pathExists(potentialTargetFile))) {
       debugLog(
         `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
       );
@@ -146,7 +144,9 @@ async function clearExistingRules(
       let removedCount = 0;
       const newContent = content.replace(removalRegex, (match) => {
         removedCount++;
-        debugLog(`Removing block matching pattern: ${match.substring(0, 100)}...`); // Log beginning of removed block
+        debugLog(
+          `Removing block matching pattern: ${match.substring(0, 100)}...`
+        ); // Log beginning of removed block
         return ""; // Replace with empty string
       });
 

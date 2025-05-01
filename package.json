@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.2.2",
+  "version": "0.2.23",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
-    "dev": "ts-node src/cli.ts"
+    "dev": "ts-node src/cli.ts",
+    "publish": "bun run build && npm publish"
   },
   "keywords": [
     "cursor",
@@ -41,8 +42,7 @@
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.3.0",
-    "vibe-rules": ".",
-    "vibe-tools": "git://github.com/eastlondoner/cursor-tools.git#llms-txt"
+    "vibe-rules": "."
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
