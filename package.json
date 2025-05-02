@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.2.30",
+  "version": "0.2.31",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -41,8 +41,7 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
-    "fs-extra": "^11.3.0",
-    "vibe-rules": "."
+    "fs-extra": "^11.3.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
