@@ -1,16 +1,22 @@
-import fs from "fs-extra";
-import path from "path";
+import * as fs from "fs-extra";
+import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleGeneratorOptions,
   RuleType,
 } from "../types";
-import { getRulePath, getInternalRuleStoragePath } from "../utils/path";
+import { getRulePath, getDefaultTargetPath } from "../utils/path";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
 } from "../utils/rule-formatter";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
 import chalk from "chalk";
 
 export class ClaudeCodeRuleProvider implements RuleProvider {
@@ -29,62 +35,29 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
   }
 
   /**
-   * Saves the rule definition internally. Claude rules are applied, not saved as standalone.
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
    */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
-    await fs.writeFile(internalPath, config.content);
-    return internalPath;
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(RuleType.CLAUDE_CODE, config);
   }
 
   /**
    * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
-    const internalPath = getInternalRuleStoragePath(this.ruleType, name);
-
-    try {
-      const content = await fs.readFile(internalPath, "utf-8");
-      // Description isn't stored directly for Claude, could potentially infer later
-      return { name, content, description: `Internally stored rule: ${name}` };
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
-        // File not found, which is expected if rule doesn't exist
-        return null;
-      }
-      // Re-throw other errors
-      console.error(
-        `Error loading rule "${name}" from ${internalPath}:`,
-        error
-      );
-      throw error;
-    }
+    return loadInternalRule(RuleType.CLAUDE_CODE, name);
   }
 
   /**
-   * Lists rules from internal storage.
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
    */
   async listRules(): Promise<string[]> {
-    const rulesDir = path.dirname(
-      getInternalRuleStoragePath(this.ruleType, "dummy")
-    ); // Get the directory for this type
-    try {
-      const files = await fs.readdir(rulesDir);
-      return files
-        .filter((file) => file.endsWith(".txt")) // Assuming internal storage uses .txt
-        .map((file) => path.basename(file, ".txt"));
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
-        // Directory not found, means no rules saved yet
-        return [];
-      }
-      // Re-throw other errors
-      console.error(`Error listing rules from ${rulesDir}:`, error);
-      throw error;
-    }
+    return listInternalRules(RuleType.CLAUDE_CODE);
   }
 
   /**

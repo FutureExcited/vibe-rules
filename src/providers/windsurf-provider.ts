@@ -1,22 +1,23 @@
-import fs from "fs-extra";
-import path from "path";
+import * as fs from "fs-extra";
+import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleType,
   RuleGeneratorOptions,
 } from "../types";
-import {
-  getRulePath,
-  getInternalRuleStoragePath,
-  getDefaultTargetPath,
-} from "../utils/path";
+import { getRulePath, getDefaultTargetPath } from "../utils/path";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
 } from "../utils/rule-formatter";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
 import chalk from "chalk";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
 
 export class WindsurfRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.WINDSURF;
@@ -42,57 +43,29 @@ export class WindsurfRuleProvider implements RuleProvider {
   }
 
   /**
-   * Save a windsurf rule
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
    */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    const rulePath = getRulePath(RuleType.WINDSURF, config.name);
-    const content = this.formatRuleContent(config, options);
-
-    await fs.writeFile(rulePath, content);
-    return rulePath;
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(RuleType.WINDSURF, config);
   }
 
   /**
-   * Load a windsurf rule
+   * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
-    const rulePath = getRulePath(RuleType.WINDSURF, name);
-
-    if (!(await fs.pathExists(rulePath))) {
-      return null;
-    }
-
-    const content = await fs.readFile(rulePath, "utf-8");
-
-    // Extract content from XML tags if present
-    const tagMatch = content.match(
-      new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "m")
-    );
-    const ruleContent = tagMatch ? tagMatch[1].trim() : content;
-
-    return {
-      name,
-      content: ruleContent,
-    };
+    return loadInternalRule(RuleType.WINDSURF, name);
   }
 
   /**
-   * List all windsurf rules
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
    */
   async listRules(): Promise<string[]> {
-    const windsurfRulesDir = getRulePath(RuleType.WINDSURF, "");
-
-    if (!(await fs.pathExists(windsurfRulesDir))) {
-      return [];
-    }
-
-    const files = await fs.readdir(windsurfRulesDir);
-    return files
-      .filter((file) => !file.endsWith(".mdc")) // Not cursor files
-      .map((file) => path.basename(file, ".txt"));
+    return listInternalRules(RuleType.WINDSURF);
   }
 
   /**
