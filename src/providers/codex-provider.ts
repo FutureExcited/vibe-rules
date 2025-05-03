@@ -8,8 +8,8 @@ import {
 } from "../types";
 import {
   getRulePath,
-  ensureTargetDir,
   getInternalRuleStoragePath,
+  getDefaultTargetPath,
 } from "../utils/path";
 import {
   formatRuleWithMetadata,
@@ -121,6 +121,11 @@ export class CodexRuleProvider implements RuleProvider {
     isGlobal?: boolean | undefined,
     options?: RuleGeneratorOptions | undefined
   ): Promise<boolean> {
-    return appendOrUpdateTaggedBlock(targetPath, config, options, true);
+    return appendOrUpdateTaggedBlock(
+      targetPath,
+      config,
+      options,
+      true // Append inside <vibe-tools Integration>
+    );
   }
 }

@@ -224,12 +224,6 @@ Provides utility functions for managing file paths related to rules and IDE conf
   - `isGlobalHint`: Hint for global context
 - Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`)
 
-#### `ensureTargetDir(targetFilePath: string): void`
-
-- Ensures that the _parent directory_ for a given file path exists.
-- Parameters:
-  - `targetFilePath`: The full file path
-
 #### `slugifyRuleName(name: string): string`
 
 - Converts a rule name to a filename-safe slug.
@@ -424,3 +418,9 @@ Contains project metadata, dependencies, and scripts.
 - `start`: Runs the built CLI using Node.
 - `dev`: Runs the CLI using `ts-node` for development.
 - `npm:publish`: Builds the project using `bun build` and then publishes to npm using `npm publish`. (Added)
+
+### Provider Changes
+
+- **Directory Creation:** Providers (`cursor-provider.ts`, `clinerules-provider.ts`) or helper functions (`appendOrUpdateTaggedBlock` used by `windsurf-provider.ts`, `claude-code-provider.ts`, `codex-provider.ts`) that need to ensure a target file's parent directory exists now directly use `fs.ensureDirSync(path.dirname(targetPath))` from the `fs-extra` library (or a utility function that calls it). The deprecated utility function `ensureTargetDir` has been removed from `src/utils/path.ts`, and its usages within `src/cli.ts` (in the `load` and `install` commands) have also been replaced with direct `fs.ensureDirSync` calls.
+
+## Core Logic

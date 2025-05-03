@@ -6,11 +6,7 @@ import {
   RuleGeneratorOptions,
   RuleType,
 } from "../types";
-import {
-  getRulePath,
-  ensureTargetDir,
-  getInternalRuleStoragePath,
-} from "../utils/path";
+import { getRulePath, getInternalRuleStoragePath } from "../utils/path";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
@@ -124,7 +120,8 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
     const destinationPath = targetPath;
-    ensureTargetDir(destinationPath); // Ensure directory exists
+    // Ensure the parent directory exists
+    fs.ensureDirSync(path.dirname(destinationPath));
 
     const newBlock = createTaggedRuleBlock(config, options);
 

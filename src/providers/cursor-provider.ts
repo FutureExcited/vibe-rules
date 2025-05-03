@@ -8,9 +8,15 @@ import {
 } from "../types";
 import {
   getRulePath,
+  getInternalRuleStoragePath,
   getDefaultTargetPath,
-  ensureTargetDir,
+  slugifyRuleName,
 } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
+import chalk from "chalk";
 
 // Custom function to format frontmatter simply
 const formatFrontmatter = (fm: Record<string, any>): string => {
@@ -145,22 +151,33 @@ export class CursorRuleProvider implements RuleProvider {
   }
 
   /**
-   * Format and append a rule directly from a RuleConfig object
+   * Formats and applies a rule directly from a RuleConfig object.
+   * Creates the .cursor/rules directory if it doesn't exist.
+   * Uses slugified rule name for the filename.
    */
   async appendFormattedRule(
     config: RuleConfig,
     targetPath: string,
-    isGlobal?: boolean,
+    _isGlobal?: boolean, // Cursor rules are typically local
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
+    const destinationPath = targetPath; // Keep original target path
+
+    // Ensure the directory for the file exists using fs-extra
+    fs.ensureDirSync(path.dirname(destinationPath));
+
+    const newBlock = createTaggedRuleBlock(config, options);
+
+    let fileContent = "";
+
     try {
       const formattedContent = this.generateRuleContent(config, options);
-      ensureTargetDir(targetPath);
-      await fs.writeFile(targetPath, formattedContent, "utf-8");
+      fileContent = formattedContent;
+      await fs.writeFile(destinationPath, fileContent, "utf-8");
       return true;
     } catch (error) {
       console.error(
-        `Error applying Cursor rule "${config.name}" to ${targetPath}:`,
+        `Error applying Cursor rule "${config.name}" to ${destinationPath}:`,
         error
       );
       return false;
