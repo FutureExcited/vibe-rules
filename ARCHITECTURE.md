@@ -346,6 +346,7 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
   - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install` command processing).
+  - **Important:** Now expects the `targetPath` argument to be the _full file path_ (e.g., `./.cursor/rules/my-rule.mdc`), not just the target directory.
 - **`formatFrontmatter` (Updated):**
   - Now properly handles both `alwaysApply: true` and `alwaysApply: false` cases
   - Uses debug-friendly logging for globs formatting
@@ -443,6 +444,6 @@ Contains project metadata, dependencies, and scripts.
 
 ### Provider Changes
 
-- **Directory Creation:** Providers (`cursor-provider.ts`, `clinerules-provider.ts`) or helper functions (`appendOrUpdateTaggedBlock` used by `windsurf-provider.ts`, `claude-code-provider.ts`, `codex-provider.ts`) that need to ensure a target file's parent directory exists now directly use `fs.ensureDirSync(path.dirname(targetPath))` from the `fs-extra` library (or a utility function that calls it). The deprecated utility function `ensureTargetDir` has been removed from `src/utils/path.ts`, and its usages within `src/cli.ts` (in the `load` and `install` commands) have also been replaced with direct `fs.ensureDirSync` calls.
+- **Directory Creation:** Providers (`cursor-provider.ts`, `clinerules-provider.ts`) or helper functions (`appendOrUpdateTaggedBlock` used by `windsurf-provider.ts`, `claude-code-provider.ts`, `codex-provider.ts`) that need to ensure a target file's parent directory exist now directly use `fs.ensureDirSync(path.dirname(targetPath))` from the `fs-extra` library (or a utility function that calls it). The deprecated utility function `ensureTargetDir` has been removed from `src/utils/path.ts`, and its usages within `src/cli.ts` (in the `load` and `install` commands) have also been replaced with direct `fs.ensureDirSync` calls.
 
 ## Core Logic

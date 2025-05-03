@@ -134,12 +134,11 @@ export class CursorRuleProvider implements RuleProvider {
     isGlobal: boolean = false,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const ruleFileName = `${slugifyRuleName(config.name)}.mdc`;
-    const fullPath = path.join(targetPath, ruleFileName);
+    const fullPath = targetPath;
     const dir = path.dirname(fullPath);
 
     try {
-      await fs.ensureDir(dir); // Ensure the target rules directory exists
+      await fs.ensureDir(dir); // Ensure the PARENT directory exists
       const formattedContent = this.generateRuleContent(config, options); // Pass options
       await fs.writeFile(fullPath, formattedContent, "utf-8");
       return true;

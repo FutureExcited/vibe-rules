@@ -1,5 +1,7 @@
 ---
-description: vibe-tools
+description: 
+globs: 
+alwaysApply: true
 ---
 # Instructions
 Use the following commands to get AI assistance:
