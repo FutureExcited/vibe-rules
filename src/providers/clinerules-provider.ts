@@ -1,5 +1,5 @@
-import fs from "fs-extra";
-import path from "path";
+import * as fs from "fs-extra";
+import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
@@ -8,7 +8,6 @@ import {
 } from "../types";
 import {
   getRulePath, // Returns the .clinerules directory path
-  getInternalRuleStoragePath,
   ensureDirectoryExists,
   getDefaultTargetPath,
   slugifyRuleName,
@@ -18,6 +17,11 @@ import {
   createTaggedRuleBlock,
 } from "../utils/rule-formatter";
 import chalk from "chalk";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
 
 // Helper function specifically for clinerules/roo setup
 // Focuses on the directory structure: .clinerules/vibe-tools.md
@@ -42,8 +46,7 @@ async function setupClinerulesDirectory(
 }
 
 export class ClinerulesRuleProvider implements RuleProvider {
-  // Handles both CLINERULES and ROO types
-  private readonly supportedTypes = [RuleType.CLINERULES, RuleType.ROO];
+  private readonly ruleType = RuleType.CLINERULES;
 
   /**
    * Generates formatted content for Clinerules/Roo including metadata.
@@ -56,51 +59,29 @@ export class ClinerulesRuleProvider implements RuleProvider {
   }
 
   /**
-   * Saves the rule definition internally.
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
    */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    // Use CLINERULES type for internal storage regardless of ROO
-    const internalPath = getInternalRuleStoragePath(
-      RuleType.CLINERULES,
-      config.name
-    );
-    await fs.writeFile(internalPath, config.content);
-    return internalPath;
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(this.ruleType, config);
   }
 
   /**
    * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
-    const internalPath = getInternalRuleStoragePath(RuleType.CLINERULES, name);
-    if (!(await fs.pathExists(internalPath))) {
-      return null;
-    }
-    const content = await fs.readFile(internalPath, "utf-8");
-    return {
-      name,
-      content,
-      description: `Internally stored rule: ${name}`,
-    };
+    return loadInternalRule(this.ruleType, name);
   }
 
   /**
-   * Lists rules from internal storage.
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
    */
   async listRules(): Promise<string[]> {
-    const rulesDir = path.dirname(
-      getInternalRuleStoragePath(RuleType.CLINERULES, "dummy")
-    );
-    if (!(await fs.pathExists(rulesDir))) {
-      return [];
-    }
-    const files = await fs.readdir(rulesDir);
-    return files
-      .filter((file) => file.endsWith(".txt"))
-      .map((file) => path.basename(file, ".txt"));
+    return listInternalRules(this.ruleType);
   }
 
   /**

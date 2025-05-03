@@ -1,5 +1,5 @@
-import fs from "fs-extra";
-import path from "path";
+import * as fs from "fs-extra";
+import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
@@ -17,6 +17,11 @@ import {
   createTaggedRuleBlock,
 } from "../utils/rule-formatter";
 import chalk from "chalk";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
 
 // Custom function to format frontmatter simply
 const formatFrontmatter = (fm: Record<string, any>): string => {
@@ -72,64 +77,32 @@ export class CursorRuleProvider implements RuleProvider {
   }
 
   /**
-   * Save a cursor rule
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
    */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    const rulePath = getRulePath(RuleType.CURSOR, config.name);
-    const content = this.generateRuleContent(config, options);
-
-    await fs.writeFile(rulePath, content);
-    return rulePath;
+  async saveRule(config: RuleConfig): Promise<string> {
+    // Use the utility function to save to internal storage
+    return saveInternalRule(RuleType.CURSOR, config);
   }
 
   /**
-   * Load a cursor rule
+   * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
-    const rulePath = getRulePath(RuleType.CURSOR, name);
-
-    if (!(await fs.pathExists(rulePath))) {
-      return null;
-    }
-
-    const content = await fs.readFile(rulePath, "utf-8");
-
-    // Basic parsing of frontmatter
-    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-    let description = "";
-
-    if (frontmatterMatch) {
-      const frontmatter = frontmatterMatch[1];
-      const descMatch = frontmatter.match(/description:\s*(.+)$/m);
-      if (descMatch) {
-        description = descMatch[1].trim();
-      }
-    }
-
-    return {
-      name,
-      content: frontmatterMatch ? frontmatterMatch[2] : content,
-      description,
-    };
+    // Use the utility function to load from internal storage
+    return loadInternalRule(RuleType.CURSOR, name);
   }
 
   /**
-   * List all cursor rules
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
    */
   async listRules(): Promise<string[]> {
-    const cursorRulesDir = getDefaultTargetPath(RuleType.CURSOR);
-
-    if (!(await fs.pathExists(cursorRulesDir))) {
-      return [];
-    }
-
-    const files = await fs.readdir(cursorRulesDir);
-    return files
-      .filter((file) => file.endsWith(".mdc"))
-      .map((file) => path.basename(file, ".mdc"));
+    // Use the utility function to list rules from internal storage
+    return listInternalRules(RuleType.CURSOR);
   }
 
   /**
@@ -158,26 +131,21 @@ export class CursorRuleProvider implements RuleProvider {
   async appendFormattedRule(
     config: RuleConfig,
     targetPath: string,
-    _isGlobal?: boolean, // Cursor rules are typically local
+    isGlobal: boolean = false,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    const destinationPath = targetPath; // Keep original target path
-
-    // Ensure the directory for the file exists using fs-extra
-    fs.ensureDirSync(path.dirname(destinationPath));
-
-    const newBlock = createTaggedRuleBlock(config, options);
-
-    let fileContent = "";
+    const ruleFileName = `${slugifyRuleName(config.name)}.mdc`;
+    const fullPath = path.join(targetPath, ruleFileName);
+    const dir = path.dirname(fullPath);
 
     try {
-      const formattedContent = this.generateRuleContent(config, options);
-      fileContent = formattedContent;
-      await fs.writeFile(destinationPath, fileContent, "utf-8");
+      await fs.ensureDir(dir); // Ensure the target rules directory exists
+      const formattedContent = this.generateRuleContent(config, options); // Pass options
+      await fs.writeFile(fullPath, formattedContent, "utf-8");
       return true;
     } catch (error) {
       console.error(
-        `Error applying Cursor rule "${config.name}" to ${destinationPath}:`,
+        `Error applying Cursor rule "${config.name}" to ${fullPath}:`,
         error
       );
       return false;

@@ -18,16 +18,17 @@ vibe-rules/
 │   │   └── internal.ts    # Internal rule definitions (not exported)
 │   ├── providers/         # Provider implementations
 │   │   ├── index.ts       # Provider factory
-│   │   ├── cursor-provider.ts  # Cursor editor provider
-│   │   ├── windsurf-provider.ts # Windsurf editor provider
-│   │   ├── claude-code-provider.ts # Claude Code provider (Added)
-│   │   ├── codex-provider.ts       # Codex provider (Added)
-│   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Added)
+│   │   ├── cursor-provider.ts  # Cursor editor provider (Refactored)
+│   │   ├── windsurf-provider.ts # Windsurf editor provider (Refactored)
+│   │   ├── claude-code-provider.ts # Claude Code provider (Refactored)
+│   │   ├── codex-provider.ts       # Codex provider (Refactored)
+│   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       ├── similarity.ts  # Text similarity utilities
 │       └── rule-formatter.ts # Rule formatting utilities for metadata (Added)
 │       └── single-file-helpers.ts # Helpers for single-file providers (Added)
+│       └── rule-storage.ts # Helpers for internal rule storage (Added)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -302,11 +303,31 @@ Provides utility functions specific to providers that manage rules within a sing
 - Handles file not found errors gracefully (creates the file).
 - Returns `true` on success, `false` on failure.
 
+### src/utils/rule-storage.ts (Added)
+
+Provides utility functions for interacting with the internal rule definition storage located at `~/.vibe-rules/rules/<ruleType>/*`.
+
+#### `saveInternalRule(ruleType: RuleType, config: RuleConfig): Promise<string>`
+
+- Saves a rule definition (`config.content`) to the internal storage path determined by `ruleType` and `config.name`.
+- Ensures the target directory exists.
+- Returns the full path where the rule was saved.
+
+#### `loadInternalRule(ruleType: RuleType, name: string): Promise<RuleConfig | null>`
+
+- Loads a rule definition from the internal storage file corresponding to `ruleType` and `name`.
+- Returns a `RuleConfig` object containing the name and content if found, otherwise returns `null`.
+
+#### `listInternalRules(ruleType: RuleType): Promise<string[]>`
+
+- Lists the names of all rules (.txt files) stored internally for the given `ruleType`.
+- Returns an array of rule names (filenames without the .txt extension).
+
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
 
-### src/providers/cursor-provider.ts
+### src/providers/cursor-provider.ts (Refactored)
 
 Implementation of the `RuleProvider` interface for Cursor editor.
 
@@ -315,7 +336,7 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Cursor's `.mdc` files with frontmatter.
-- `saveRule`, `loadRule`, `listRules` interact with the internal storage path (`~/.vibe-rules/cursor/`).
+- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
 - **`generateRuleContent` (Updated):**
   - Now accepts `RuleGeneratorOptions` (which includes optional `alwaysApply` and `globs`).
   - If `alwaysApply` or `globs` are present in the options, they are included in the generated frontmatter.
@@ -329,7 +350,7 @@ Implementation of the `RuleProvider` interface for Cursor editor.
   - Now properly handles both `alwaysApply: true` and `alwaysApply: false` cases
   - Uses debug-friendly logging for globs formatting
 
-### src/providers/windsurf-provider.ts
+### src/providers/windsurf-provider.ts (Refactored)
 
 Implementation of the `RuleProvider` interface for Windsurf editor.
 
@@ -338,15 +359,15 @@ Implementation of the `RuleProvider` interface for Windsurf editor.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Windsurf's single `.windsurfrules` file.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/windsurf/`). (Note: `saveRule` currently seems unused directly by CLI).
-- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
 - **`appendFormattedRule` (Refactored):**
   - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
   - Passes `false` for the `appendInsideVibeToolsBlock` parameter.
 - **`generateRuleContent` (Unchanged):**
   - Utilizes the shared `createTaggedRuleBlock` utility to format rules with metadata.
 
-### src/providers/claude-code-provider.ts (Added)
+### src/providers/claude-code-provider.ts (Refactored)
 
 Implementation of the `RuleProvider` interface for Claude Code IDE.
 
@@ -355,16 +376,15 @@ Implementation of the `RuleProvider` interface for Claude Code IDE.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
-- `generateRuleContent` returns plain rule content suitable for insertion.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/claude-code/`).
-- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
 - **`appendFormattedRule` (Refactored):**
   - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
   - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
 - **`generateRuleContent` (Unchanged):**
   - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
 
-### src/providers/codex-provider.ts (Added)
+### src/providers/codex-provider.ts (Refactored)
 
 Implementation of the `RuleProvider` interface for Codex IDE.
 
@@ -373,16 +393,15 @@ Implementation of the `RuleProvider` interface for Codex IDE.
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
 - Handles Codex's `instructions.md` (global) or `codex.md` (local).
-- `generateRuleContent` returns plain rule content suitable for insertion.
-- `saveRule`, `loadRule`, `listRules` interact with internal storage (`~/.vibe-rules/codex/`).
-- **`appendRule`**: Loads a rule from internal storage and calls `appendFormattedRule`.
+- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
 - **`appendFormattedRule` (Refactored):**
   - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
   - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
 - **`generateRuleContent` (Unchanged):**
   - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
 
-### src/providers/clinerules-provider.ts (Added)
+### src/providers/clinerules-provider.ts (Refactored)
 
 Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
@@ -390,6 +409,9 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
+- Handles saving individual rule files (e.g., `.clinerules/my-rule.md`).
+- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
 - **`generateRuleContent` (Updated):**
   - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
   - Handles both `alwaysApply` and `globs` options to include in human-readable format

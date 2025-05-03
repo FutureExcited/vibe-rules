@@ -1,16 +1,12 @@
-import fs from "fs-extra";
-import path from "path";
+import * as fs from "fs-extra";
+import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleGeneratorOptions,
   RuleType,
 } from "../types";
-import {
-  getRulePath,
-  getInternalRuleStoragePath,
-  getDefaultTargetPath,
-} from "../utils/path";
+import { getRulePath, getDefaultTargetPath } from "../utils/path";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
@@ -18,6 +14,11 @@ import {
 import chalk from "chalk";
 import * as fsPromises from "fs/promises";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
 
 export class CodexRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CODEX;
@@ -33,62 +34,38 @@ export class CodexRuleProvider implements RuleProvider {
   }
 
   /**
-   * Saves the rule definition internally.
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
    */
-  async saveRule(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): Promise<string> {
-    const internalPath = getInternalRuleStoragePath(this.ruleType, config.name);
-    await fsPromises.writeFile(internalPath, config.content);
-    return internalPath;
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(this.ruleType, config);
   }
 
   /**
    * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
    */
   async loadRule(name: string): Promise<RuleConfig | null> {
-    const internalPath = getInternalRuleStoragePath(this.ruleType, name);
-    try {
-      const content = await fsPromises.readFile(internalPath, "utf-8");
-      return { name, content, description: `Internally stored rule: ${name}` };
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
-        // File not found, expected if rule doesn't exist
-        return null;
-      }
-      console.error(
-        `Error loading rule "${name}" from ${internalPath}:`,
-        error
-      );
-      throw error; // Re-throw other errors
-    }
+    return loadInternalRule(this.ruleType, name);
   }
 
   /**
-   * Lists rules from internal storage.
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
    */
   async listRules(): Promise<string[]> {
-    const rulesDir = path.dirname(
-      getInternalRuleStoragePath(this.ruleType, "dummy")
-    );
-    try {
-      const files = await fsPromises.readdir(rulesDir);
-      return files
-        .filter((file) => file.endsWith(".txt"))
-        .map((file) => path.basename(file, ".txt"));
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
-        // Directory not found, means no rules saved yet
-        return [];
-      }
-      console.error(`Error listing rules from ${rulesDir}:`, error);
-      throw error; // Re-throw other errors
-    }
+    return listInternalRules(this.ruleType);
   }
 
   /**
-   * Applies a rule by updating the <vibe-tools> section in the target codex.md/instructions.md.
+   * Appends a rule loaded from internal storage to the target Codex file.
+   * @param name - The name of the rule in internal storage.
+   * @param targetPath - Optional explicit target file path.
+   * @param isGlobal - Hint for global context (uses ~/.codex/instructions.md).
+   * @param options - Additional generation options.
+   * @returns True on success, false on failure.
    */
   async appendRule(
     name: string,
@@ -114,6 +91,11 @@ export class CodexRuleProvider implements RuleProvider {
   /**
    * Formats and applies a rule directly from a RuleConfig object using XML-like tags.
    * If a rule with the same name (tag) already exists, its content is updated.
+   * @param config - The rule configuration to apply.
+   * @param targetPath - The target file path (e.g., ~/.codex/instructions.md or ./codex.md).
+   * @param isGlobal - Unused by this method but kept for interface compatibility.
+   * @param options - Additional options like description, alwaysApply, globs.
+   * @returns True on success, false on failure.
    */
   async appendFormattedRule(
     config: RuleConfig,
@@ -121,6 +103,7 @@ export class CodexRuleProvider implements RuleProvider {
     isGlobal?: boolean | undefined,
     options?: RuleGeneratorOptions | undefined
   ): Promise<boolean> {
+    // Delegate to the shared helper, ensuring insertion within <vibe-tools>
     return appendOrUpdateTaggedBlock(
       targetPath,
       config,
