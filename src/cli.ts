@@ -16,7 +16,6 @@ import {
   getDefaultTargetPath,
   getInternalRuleStoragePath,
   getCommonRulesDir,
-  ensureTargetDir,
   getRulePath,
   slugifyRuleName,
 } from "./utils/path";
@@ -387,7 +386,7 @@ program
       }
 
       // Ensure the target directory exists
-      ensureTargetDir(finalTargetPath);
+      fs.ensureDirSync(path.dirname(finalTargetPath));
 
       // Apply the rule using the provider
       // The provider receives the final target path determined by cli
@@ -573,7 +572,7 @@ program
               }
 
               // Ensure the target directory exists
-              ensureTargetDir(finalTargetPath);
+              fs.ensureDirSync(path.dirname(finalTargetPath));
 
               // Find any metadata for this rule from the original module
               const generatorOptions: RuleGeneratorOptions = {

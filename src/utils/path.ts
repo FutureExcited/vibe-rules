@@ -133,16 +133,6 @@ export function ensureDirectoryExists(dirPath: string): void {
 }
 
 /**
- * Ensures that the _parent directory_ for a given file path exists.
- * @deprecated Use ensureDirectoryExists(path.dirname(targetFilePath)) instead.
- * @param targetFilePath The full file path
- */
-export function ensureTargetDir(targetFilePath: string): void {
-  const dir = path.dirname(targetFilePath);
-  ensureDirectoryExists(dir);
-}
-
-/**
  * Convert a rule name to a filename-safe slug.
  */
 export function slugifyRuleName(name: string): string {

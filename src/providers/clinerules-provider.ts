@@ -8,9 +8,10 @@ import {
 } from "../types";
 import {
   getRulePath, // Returns the .clinerules directory path
-  ensureTargetDir, // Ensures parent directory exists
   getInternalRuleStoragePath,
   ensureDirectoryExists,
+  getDefaultTargetPath,
+  slugifyRuleName,
 } from "../utils/path";
 import {
   formatRuleWithMetadata,

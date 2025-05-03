@@ -8,8 +8,8 @@ import {
 } from "../types";
 import {
   getRulePath,
+  getInternalRuleStoragePath,
   getDefaultTargetPath,
-  ensureTargetDir,
 } from "../utils/path";
 import {
   formatRuleWithMetadata,
@@ -126,8 +126,7 @@ export class WindsurfRuleProvider implements RuleProvider {
     isGlobal?: boolean,
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
-    // Delegate to the shared helper function
-    // Pass false for appendInsideVibeToolsBlock as Windsurf just appends to end
+    // Delegate to the shared helper
     return appendOrUpdateTaggedBlock(targetPath, config, options, false);
   }
 }
