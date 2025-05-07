@@ -99,7 +99,12 @@ Defines the command-line interface using `commander`.
       - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
       - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
     - Does **not** save rules to the common local store (`~/.vibe-rules/rules`).
-    - **Error Handling:** Common errors like a package not being found or not exporting rules (`<pkg>/llms`) are handled gracefully. These are logged as debug messages if `--debug` is enabled, otherwise they are skipped silently to avoid excessive output when checking many dependencies.
+    - **Error Handling (Updated):**
+      - When attempting to import `<packageName>/llms`:
+        - **Module Not Found/Not Exported:** Errors like `MODULE_NOT_FOUND`, `ERR_MODULE_NOT_FOUND`, or `ERR_PACKAGE_PATH_NOT_EXPORTED` are logged with a descriptive message if `--debug` is enabled. Otherwise, the package is typically skipped silently to avoid excessive output when checking many dependencies.
+        - **Syntax Errors:** If a `SyntaxError` occurs in the imported module, an error message is printed to the console, clearly indicating that the issue lies within the syntax of the rule module of the specified package.
+        - **Initialization Errors (Client-Side Errors):** If the module is found and parsed but throws an error during its own initialization phase (e.g., internal file access errors like `ENOENT`, or other runtime errors within the module's top-level code), a detailed error message is printed. This message explicitly suggests that the problem likely originates from within the imported package itself, providing the original error message from the package for easier debugging by the package maintainers or users.
+      - Other errors during the rule application process for a specific rule are logged, but the `install` command will attempt to continue with other rules or packages.
 
 ### src/types.ts
 

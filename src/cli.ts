@@ -475,9 +475,14 @@ program
         const defaultExport = await importModuleFromCwd(ruleModulePath);
 
         if (!defaultExport) {
+          // importModuleFromCwd would throw if it truly failed to import.
+          // This case handles if it resolves but to something falsy,
+          // or if it didn't throw but didn't return a module (shouldn't happen with current importModuleFromCwd).
+          // Consider if importModuleFromCwd should always throw or return non-falsy on success.
+          // For now, keeping existing logic.
           console.log(
             chalk.yellow(
-              `No default export found in ${ruleModulePath}. Skipping.`
+              `No default export or module found in ${ruleModulePath} after import attempt. Skipping.`
             )
           );
           return;
@@ -607,7 +612,7 @@ program
 
               if (originalItem && typeof originalItem === "object") {
                 debugLog(
-                  `Found additional metadata for rule ${ruleConfig.name}: ${JSON.stringify(originalItem)}`
+                  `Found additional metadata for rule ${ruleConfig.name}. Keys: ${Object.keys(originalItem).join(", ")}`
                 );
                 if ("alwaysApply" in originalItem) {
                   generatorOptions.alwaysApply = originalItem.alwaysApply;
@@ -690,21 +695,51 @@ program
           debugLog(`No valid rules found or processed from ${pkgName}.`);
         }
       } catch (error: any) {
-        // Handle common "not found" errors gracefully, only log if debug is enabled
+        // const isDebug = installOptions.debug || isDebugEnabled; // Ensure we have debug status
+
         if (
           error.code === "MODULE_NOT_FOUND" ||
+          error.code === "ERR_MODULE_NOT_FOUND" || // Added for ESM import errors from importModuleFromCwd
           error.code === "ERR_PACKAGE_PATH_NOT_EXPORTED"
         ) {
-          debugLog(
-            `Skipping package ${pkgName}: Rules module not found or not exported. Error: ${error.message}`
-          );
-        } else {
-          // Log other unexpected errors as errors
+          const msg = `Skipping package ${pkgName}: Rules module ('${pkgName}/llms') not found or not exported.`;
+          // Rely on internal check in debugLog
+          debugLog(`${msg} Error: ${error.message}`);
+          debugLog(`Stack: ${error.stack}`);
+          // Original conditional else block removed as it was for non-debug logging, which is not the role of debugLog
+        } else if (error instanceof SyntaxError) {
           console.error(
             chalk.red(
-              `Failed to install rules from ${pkgName}: ${error instanceof Error ? error.message : error}`
+              `Error in package '${pkgName}': Syntax error found in its rule module ('${pkgName}/llms').`
             )
           );
+          console.error(
+            chalk.red(
+              "Please check the syntax of the rules module in this package."
+            )
+          );
+          // Rely on internal check in debugLog
+          debugLog(`SyntaxError details: ${error.message}`);
+          debugLog(`Stack: ${error.stack}`);
+        } else {
+          // This is the case for errors during the imported module's own initialization
+          console.error(
+            chalk.red(
+              `Error from package '${pkgName}': Its rule module ('${pkgName}/llms') was found but failed during its own initialization.`
+            )
+          );
+          console.error(
+            chalk.yellow(
+              `This often indicates an issue within the '${pkgName}' package itself (e.g., trying to access files with incorrect paths post-build, or other internal errors).`
+            )
+          );
+          console.error(
+            chalk.red(`Original error from '${pkgName}': ${error.message}`)
+          );
+          debugLog(
+            `Full error trace from '${pkgName}' to help its developers:`
+          );
+          debugLog(error.stack);
         }
       }
     };
@@ -785,9 +820,9 @@ async function importModuleFromCwd(ruleModulePath: string) {
   try {
     // Attempt 1: Use createRequire for CommonJS compatibility
     debugLog(`Trying require for ${ruleModulePath}...`);
+    // Use eval to construct the require call dynamically based on CWD
+    // This allows importing modules relative to the project running vibe-rules
     module = await eval(
-      // Use eval to construct the require call dynamically based on CWD
-      // This allows importing modules relative to the project running vibe-rules
       `require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`
     );
     debugLog(`Successfully imported using require.`);
@@ -800,28 +835,42 @@ async function importModuleFromCwd(ruleModulePath: string) {
       try {
         // Attempt 2: Use dynamic import() for ES Modules
         // Construct the file path more reliably for dynamic import
-        const absolutePath = require.resolve(ruleModulePath, {
-          paths: [process.cwd()],
-        });
+        let absolutePath: string;
+        try {
+          absolutePath = require.resolve(ruleModulePath, {
+            paths: [process.cwd()],
+          });
+        } catch (resolveError: any) {
+          debugLog(
+            `Could not resolve path for dynamic import of ${ruleModulePath}: ${resolveError.message}`
+          );
+          throw resolveError; // Propagate error if path resolution fails
+        }
+
         debugLog(`Resolved path for import(): ${absolutePath}`);
         // Use pathToFileURL to ensure correct format for import() esp on Windows
         const fileUrl = require("url").pathToFileURL(absolutePath).href;
         debugLog(`Trying dynamic import('${fileUrl}')...`);
+        // Prefer direct dynamic import over eval if possible for clarity and security
+        // const module = await import(fileUrl);
+        // For now, keeping eval to match original structure
         module = await eval(`import('${fileUrl}')`);
         debugLog(`Successfully imported using dynamic import().`);
       } catch (importError: any) {
-        // Log import error only in debug mode, but still throw
         debugLog(
           `Dynamic import() failed for ${ruleModulePath}: ${importError.message}`
         );
         // Re-throw the *import* error if dynamic import also fails
+        // This will be caught by the handler in installSinglePackage
         throw importError;
       }
     } else {
-      // Log require error only in debug mode, but still throw
+      // Error from require was not ERR_REQUIRE_ESM
       debugLog(
         `Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
       );
+      // Re-throw the error if require failed for other reasons
+      // This will be caught by the handler in installSinglePackage
       throw error;
     }
   }
