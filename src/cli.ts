@@ -151,7 +151,7 @@ async function clearExistingRules(
 
       if (removedCount > 0) {
         await fs.writeFile(potentialTargetFile, newContent, "utf-8");
-        console.log(
+        debugLog(
           chalk.blue(
             `Removed ${removedCount} existing rule block(s) matching prefix "${pkgName}_" from ${potentialTargetFile}.`
           )
@@ -194,7 +194,7 @@ async function clearExistingRules(
         const filePath = path.join(targetDir, file);
         try {
           await fs.remove(filePath);
-          console.log(chalk.grey(`Deleted existing rule file: ${filePath}`));
+          debugLog(chalk.grey(`Deleted existing rule file: ${filePath}`));
           deletedCount++;
         } catch (deleteError: any) {
           console.error(
@@ -206,7 +206,7 @@ async function clearExistingRules(
       }
     }
     if (deletedCount > 0) {
-      console.log(
+      debugLog(
         chalk.blue(
           `Cleared ${deletedCount} existing rule file(s) matching prefix "${prefix}" in ${targetDir}.`
         )
@@ -463,10 +463,13 @@ program
       provider: RuleProvider,
       installOptions: { global?: boolean; target?: string; debug?: boolean }
     ) => {
-      console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
+      if (isDebugEnabled) {
+        console.log(
+          chalk.blue(`Attempting to install rules from ${pkgName}...`)
+        );
+      }
 
-      // Enable debug mode if requested
-      isDebugEnabled = installOptions.debug || isDebugEnabled;
+      let rulesSuccessfullyAppliedCount = 0;
 
       try {
         // Dynamically import the expected rules module
@@ -475,14 +478,9 @@ program
         const defaultExport = await importModuleFromCwd(ruleModulePath);
 
         if (!defaultExport) {
-          // importModuleFromCwd would throw if it truly failed to import.
-          // This case handles if it resolves but to something falsy,
-          // or if it didn't throw but didn't return a module (shouldn't happen with current importModuleFromCwd).
-          // Consider if importModuleFromCwd should always throw or return non-falsy on success.
-          // For now, keeping existing logic.
-          console.log(
+          debugLog(
             chalk.yellow(
-              `No default export or module found in ${ruleModulePath} after import attempt. Skipping.`
+              `No default export or module found in ${ruleModulePath} after import attempt. Skipping ${pkgName}.`
             )
           );
           return;
@@ -515,7 +513,11 @@ program
               chalk.red(`Validation failed for rules from ${pkgName}:`),
               validationResult.error.errors
             );
-            console.log(chalk.yellow(`Skipping installation from ${pkgName}.`));
+            debugLog(
+              chalk.yellow(
+                `Skipping installation from ${pkgName} due to validation failure.`
+              )
+            );
             return;
           }
 
@@ -556,11 +558,13 @@ program
 
         // Now, install the gathered rules using the provider
         if (rulesToInstall.length > 0) {
-          console.log(
-            chalk.blue(
-              `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
-            )
-          );
+          if (isDebugEnabled) {
+            console.log(
+              chalk.blue(
+                `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
+              )
+            );
+          }
 
           for (const ruleConfig of rulesToInstall) {
             try {
@@ -631,24 +635,26 @@ program
                 `Applying rule ${ruleConfig.name} with options: ${JSON.stringify(generatorOptions)}`
               );
 
-              if (generatorOptions.globs) {
-                console.log(
-                  chalk.blue(
-                    `Rule "${ruleConfig.name}" has globs: ${
-                      Array.isArray(generatorOptions.globs)
-                        ? generatorOptions.globs.join(", ")
-                        : generatorOptions.globs
-                    }`
-                  )
-                );
-              }
+              if (isDebugEnabled) {
+                if (generatorOptions.globs) {
+                  console.log(
+                    chalk.blue(
+                      `Rule "${ruleConfig.name}" has globs: ${
+                        Array.isArray(generatorOptions.globs)
+                          ? generatorOptions.globs.join(", ")
+                          : generatorOptions.globs
+                      }`
+                    )
+                  );
+                }
 
-              if (generatorOptions.alwaysApply !== undefined) {
-                console.log(
-                  chalk.blue(
-                    `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
-                  )
-                );
+                if (generatorOptions.alwaysApply !== undefined) {
+                  console.log(
+                    chalk.blue(
+                      `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
+                    )
+                  );
+                }
               }
 
               try {
@@ -660,11 +666,14 @@ program
                 );
 
                 if (success) {
-                  console.log(
-                    chalk.green(
-                      `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
-                    )
-                  );
+                  rulesSuccessfullyAppliedCount++;
+                  if (isDebugEnabled) {
+                    console.log(
+                      chalk.green(
+                        `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                      )
+                    );
+                  }
                 } else {
                   console.error(
                     chalk.red(
@@ -695,18 +704,17 @@ program
           debugLog(`No valid rules found or processed from ${pkgName}.`);
         }
       } catch (error: any) {
-        // const isDebug = installOptions.debug || isDebugEnabled; // Ensure we have debug status
-
+        // Error handling for module import issues (MODULE_NOT_FOUND, SyntaxError, initialization errors)
+        // This section already uses debugLog for non-critical issues or console.error for critical ones.
+        // No changes needed here for this refactor, as per previous discussions.
         if (
           error.code === "MODULE_NOT_FOUND" ||
           error.code === "ERR_MODULE_NOT_FOUND" || // Added for ESM import errors from importModuleFromCwd
           error.code === "ERR_PACKAGE_PATH_NOT_EXPORTED"
         ) {
           const msg = `Skipping package ${pkgName}: Rules module ('${pkgName}/llms') not found or not exported.`;
-          // Rely on internal check in debugLog
           debugLog(`${msg} Error: ${error.message}`);
           debugLog(`Stack: ${error.stack}`);
-          // Original conditional else block removed as it was for non-debug logging, which is not the role of debugLog
         } else if (error instanceof SyntaxError) {
           console.error(
             chalk.red(
@@ -718,7 +726,6 @@ program
               "Please check the syntax of the rules module in this package."
             )
           );
-          // Rely on internal check in debugLog
           debugLog(`SyntaxError details: ${error.message}`);
           debugLog(`Stack: ${error.stack}`);
         } else {
@@ -742,6 +749,15 @@ program
           debugLog(error.stack);
         }
       }
+
+      // Final summary log for non-debug mode
+      if (!isDebugEnabled && rulesSuccessfullyAppliedCount > 0) {
+        console.log(
+          chalk.green(
+            `[vibe-rules] Successfully installed ${rulesSuccessfullyAppliedCount} rule(s) from package '${pkgName}'.`
+          )
+        );
+      }
     };
 
     if (packageName) {
@@ -756,7 +772,7 @@ program
       // Install from all dependencies in package.json
       console.log(
         chalk.blue(
-          `Installing rules from all dependencies in package.json for ${editor}...`
+          `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
         )
       );
       try {
@@ -780,7 +796,7 @@ program
           return;
         }
 
-        console.log(
+        debugLog(
           chalk.blue(
             `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
           )
@@ -795,7 +811,7 @@ program
           );
         }
 
-        console.log(chalk.green("Finished checking all dependencies."));
+        debugLog(chalk.green("Finished checking all dependencies."));
       } catch (error) {
         console.error(
           chalk.red(
