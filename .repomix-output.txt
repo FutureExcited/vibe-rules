@@ -54,6 +54,7 @@ The content is organized as follows:
     good-behaviour.mdc
     vibe-tools.mdc
     yo.mdc
+.rules/
 src/
   llms/
     index.ts
@@ -66,6 +67,7 @@ src/
     cursor-provider.ts
     index.ts
     windsurf-provider.ts
+    zed-provider.ts
   utils/
     path.ts
     rule-formatter.ts
@@ -77,10 +79,8 @@ src/
   schemas.ts
   text.d.ts
   types.ts
-test/
 .gitignore
 .npmignore
-.rules
 .windsurfrules
 ARCHITECTURE.md
 LICENSE
@@ -259,35 +259,6 @@ vibe-rules install [packageName]
 - Expects the default export to be an array conforming to the VibeRulesSchema (array of { name, content, description? }).
 - Saves each valid rule found into the common local store (~/.vibe-rules/rules/).
 `,
-</file>
-
-<file path="src/providers/index.ts">
-import { RuleProvider, RuleType } from "../types";
-import { CursorRuleProvider } from "./cursor-provider";
-import { WindsurfRuleProvider } from "./windsurf-provider";
-import { ClaudeCodeRuleProvider } from "./claude-code-provider";
-import { CodexRuleProvider } from "./codex-provider";
-import { ClinerulesRuleProvider } from "./clinerules-provider";
-/**
- * Factory function to get the appropriate rule provider based on rule type
- */
-export function getRuleProvider(ruleType: RuleType): RuleProvider {
-  switch (ruleType) {
-    case RuleType.CURSOR:
-      return new CursorRuleProvider();
-    case RuleType.WINDSURF:
-      return new WindsurfRuleProvider();
-    case RuleType.CLAUDE_CODE:
-      return new ClaudeCodeRuleProvider();
-    case RuleType.CODEX:
-      return new CodexRuleProvider();
-    case RuleType.CLINERULES:
-    case RuleType.ROO:
-      return new ClinerulesRuleProvider();
-    default:
-      throw new Error(`Unsupported or unrecognized rule type: ${ruleType}`);
-  }
-}
 </file>
 
 <file path="src/utils/rule-formatter.ts">
@@ -477,72 +448,6 @@ declare module "*.txt" {
 }
 </file>
 
-<file path="src/types.ts">
-/**
- * Rule type definitions for the vibe-rules utility
- */
-export type * from "./schemas";
-export interface RuleConfig {
-  name: string;
-  content: string;
-  description?: string;
-  // Additional properties can be added as needed
-}
-export const RuleType = {
-  CURSOR: "cursor",
-  WINDSURF: "windsurf",
-  CLAUDE_CODE: "claude-code",
-  CODEX: "codex",
-  CLINERULES: "clinerules",
-  ROO: "roo",
-  CUSTOM: "custom",
-} as const;
-export type RuleTypeArray = (typeof RuleType)[keyof typeof RuleType][];
-export type RuleType = (typeof RuleType)[keyof typeof RuleType];
-export interface RuleProvider {
-  /**
-   * Creates a new rule file with the given content
-   */
-  saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>;
-  /**
-   * Loads a rule from storage
-   */
-  loadRule(name: string): Promise<RuleConfig | null>;
-  /**
-   * Lists all available rules
-   */
-  listRules(): Promise<string[]>;
-  /**
-   * Appends a rule to an existing file
-   */
-  appendRule(name: string, targetPath?: string): Promise<boolean>;
-  /**
-   * Formats and appends a rule directly from a RuleConfig object
-   */
-  appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean>;
-  /**
-   * Generates formatted rule content with editor-specific formatting
-   */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string;
-}
-export interface RuleGeneratorOptions {
-  description?: string;
-  isGlobal?: boolean;
-  alwaysApply?: boolean;
-  globs?: string | string[];
-  debug?: boolean;
-  // Additional options for specific rule types
-}
-</file>
-
 <file path=".gitignore">
 # Node.js
 node_modules/
@@ -588,181 +493,6 @@ examples
 ARCHITECTURE.md
 .vscode
 .idea
-</file>
-
-<file path=".rules">
-<vibe-tools>
-# Instructions
-Use the following commands to get AI assistance:
-
-**Direct Model Queries:**
-`vibe-tools ask "<your question>" --provider <provider> --model <model>` - Ask any model from any provider a direct question (e.g., `vibe-tools ask "What is the capital of France?" --provider openai --model o3-mini`). Note that this command is generally less useful than other commands like `repo` or `plan` because it does not include any context from your codebase or repository. In general you should not use the ask command because it does not include any context. The other commands like `web`, `doc`, `repo`, or `plan` are usually better. If you are using it, make sure to include in your question all the information and context that the model might need to answer usefully.
-
-**Ask Command Options:**
---provider=<provider>: AI provider to use (openai, anthropic, perplexity, gemini, modelbox, openrouter, or xai)
---model=<model>: Model to use (required for the ask command)
---reasoning-effort=<low|medium|high>: Control the depth of reasoning for supported models (OpenAI o1/o3-mini models and Claude 3.7 Sonnet). Higher values produce more thorough responses for complex questions.
---with-doc=<doc_url>: Fetch content from a document URL and include it as context for the question (e.g., `vibe-tools ask "What does this spec require?" --with-doc=https://example.com/spec.pdf`)
-
-**Implementation Planning:**
-`vibe-tools plan "<query>"` - Generate a focused implementation plan using AI (e.g., `vibe-tools plan "Add user authentication to the login page"`)
-The plan command uses multiple AI models to:
-1. Identify relevant files in your codebase (using Gemini by default)
-2. Extract content from those files
-3. Generate a detailed implementation plan (using OpenAI o3-mini by default)
-
-**Plan Command Options:**
---fileProvider=<provider>: Provider for file identification (gemini, openai, anthropic, perplexity, modelbox, openrouter, or xai)
---thinkingProvider=<provider>: Provider for plan generation (gemini, openai, anthropic, perplexity, modelbox, openrouter, or xai)
---fileModel=<model>: Model to use for file identification
---thinkingModel=<model>: Model to use for plan generation
---with-doc=<doc_url>: Fetch content from a document URL and include it as context for both file identification and planning (e.g., `vibe-tools plan "implement feature X following the spec" --with-doc=https://example.com/feature-spec`)
-
-**Web Search:**
-`vibe-tools web "<your question>"` - Get answers from the web using a provider that supports web search (e.g., Perplexity models and Gemini Models either directly or from OpenRouter or ModelBox) (e.g., `vibe-tools web "latest shadcn/ui installation instructions"`)
-Note: web is a smart autonomous agent with access to the internet and an extensive up to date knowledge base. Web is NOT a web search engine. Always ask the agent for what you want using a proper sentence, do not just send it a list of keywords. In your question to web include the context and the goal that you're trying to acheive so that it can help you most effectively.
-when using web for complex queries suggest writing the output to a file somewhere like local-research/<query summary>.md. However if user provides a specific url, you should always use any command with --with-doc instead of web.
-
-**Web Command Options:**
---provider=<provider>: AI provider to use (perplexity, gemini, modelbox, or openrouter)
-
-**Repository Context:**
-`vibe-tools repo "<your question>" [--subdir=<path>] [--from-github=<username/repo>] [--with-doc=<doc_url>]` - Get context-aware answers about this repository using Google Gemini (e.g., `vibe-tools repo "explain authentication flow"`). Use the optional `--subdir` parameter to analyze a specific subdirectory instead of the entire repository (e.g., `vibe-tools repo "explain the code structure" --subdir=src/components`). Use the optional `--from-github` parameter to analyze a remote GitHub repository without cloning it locally (e.g., `vibe-tools repo "explain the authentication system" --from-github=username/repo-name`). Use the optional `--with-doc` parameter to include content from a URL as additional context (e.g., `vibe-tools repo "implement feature X following the design spec" --with-doc=https://example.com/design-spec`).
-
-**Documentation Generation:**
-`vibe-tools doc [options] [--with-doc=<doc_url>]` - Generate comprehensive documentation for this repository (e.g., `vibe-tools doc --output docs.md`). Can incorporate document context from a URL (e.g., `vibe-tools doc --with-doc=https://example.com/existing-docs`).
-
-**YouTube Video Analysis:**
-`vibe-tools youtube "<youtube-url>" [question] [--type=<summary|transcript|plan|review|custom>]` - Analyze YouTube videos and generate detailed reports (e.g., `vibe-tools youtube "https://youtu.be/43c-Sm5GMbc" --type=summary`)
-Note: The YouTube command requires a `GEMINI_API_KEY` to be set in your environment or .vibe-tools.env file as the GEMINI API is the only interface that supports YouTube analysis.
-
-**GitHub Information:**
-`vibe-tools github pr [number]` - Get the last 10 PRs, or a specific PR by number (e.g., `vibe-tools github pr 123`)
-`vibe-tools github issue [number]` - Get the last 10 issues, or a specific issue by number (e.g., `vibe-tools github issue 456`)
-
-**ClickUp Information:**
-`vibe-tools clickup task <task_id>` - Get detailed information about a ClickUp task including description, comments, status, assignees, and metadata (e.g., `vibe-tools clickup task "task_id"`)
-
-**Model Context Protocol (MCP) Commands:**
-Use the following commands to interact with MCP servers and their specialized tools:
-`vibe-tools mcp search "<query>"` - Search the MCP Marketplace for available servers that match your needs (e.g., `vibe-tools mcp search "git repository management"`)
-`vibe-tools mcp run "<query>"` - Execute MCP server tools using natural language queries (e.g., `vibe-tools mcp run "list files in the current directory" --provider=openrouter`). The query must include sufficient information for vibe-tools to determine which server to use, provide plenty of context.
-
-The `search` command helps you discover servers in the MCP Marketplace based on their capabilities and your requirements. The `run` command automatically selects and executes appropriate tools from these servers based on your natural language queries. If you want to use a specific server include the server name in your query. E.g. `vibe-tools mcp run "using the mcp-server-sqlite list files in directory --provider=openrouter"`
-
-**Notes on MCP Commands:**
-- MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` to be set in your environment
-- By default the `mcp` command uses Anthropic, but takes a --provider argument that can be set to 'anthropic' or 'openrouter'
-- Results are streamed in real-time for immediate feedback
-- Tool calls are automatically cached to prevent redundant operations
-- Often the MCP server will not be able to run because environment variables are not set. If this happens ask the user to add the missing environment variables to the cursor tools env file at ~/.vibe-tools/.env
-
-**Stagehand Browser Automation:**
-`vibe-tools browser open <url> [options]` - Open a URL and capture page content, console logs, and network activity (e.g., `vibe-tools browser open "https://example.com" --html`)
-`vibe-tools browser act "<instruction>" --url=<url | 'current'> [options]` - Execute actions on a webpage using natural language instructions (e.g., `vibe-tools browser act "Click Login" --url=https://example.com`)
-`vibe-tools browser observe "<instruction>" --url=<url> [options]` - Observe interactive elements on a webpage and suggest possible actions (e.g., `vibe-tools browser observe "interactive elements" --url=https://example.com`)
-`vibe-tools browser extract "<instruction>" --url=<url> [options]` - Extract data from a webpage based on natural language instructions (e.g., `vibe-tools browser extract "product names" --url=https://example.com/products`)
-
-**Notes on Browser Commands:**
-- All browser commands are stateless unless --connect-to is used to connect to a long-lived interactive session. In disconnected mode each command starts with a fresh browser instance and closes it when done.
-- When using `--connect-to`, special URL values are supported:
-  - `current`: Use the existing page without reloading
-  - `reload-current`: Use the existing page and refresh it (useful in development)
-  - If working interactively with a user you should always use --url=current unless you specifically want to navigate to a different page. Setting the url to anything else will cause a page refresh loosing current state.
-- Multi step workflows involving state or combining multiple actions are supported in the `act` command using the pipe (|) separator (e.g., `vibe-tools browser act "Click Login | Type 'user@example.com' into email | Click Submit" --url=https://example.com`)
-- Video recording is available for all browser commands using the `--video=<directory>` option. This will save a video of the entire browser interaction at 1280x720 resolution. The video file will be saved in the specified directory with a timestamp.
-- DO NOT ask browser act to "wait" for anything, the wait command is currently disabled in Stagehand.
-
-**Tool Recommendations:**
-- `vibe-tools web` is best for general web information not specific to the repository. Generally call this without additional arguments.
-- `vibe-tools repo` is ideal for repository-specific questions, planning, code review and debugging. E.g. `vibe-tools repo "Review recent changes to command error handling looking for mistakes, omissions and improvements"`. Generally call this without additional arguments.
-- `vibe-tools plan` is ideal for planning tasks. E.g. `vibe-tools plan "Adding authentication with social login using Google and Github"`. Generally call this without additional arguments.
-- `vibe-tools doc` generates documentation for local or remote repositories.
-- `vibe-tools youtube` analyzes YouTube videos to generate summaries, transcripts, implementation plans, or custom analyses
-- `vibe-tools browser` is useful for testing and debugging web apps and uses Stagehand
-- `vibe-tools mcp` enables interaction with specialized tools through MCP servers (e.g., for Git operations, file system tasks, or custom tools)
-- When implementing features based on documentation, specifications, or any external content, always use the `--with-doc=<url>` flag instead of built-in web search. For example: `vibe-tools plan "Implement login page according to specs" --with-doc=https://example.com/specs.pdf` or `vibe-tools repo "How should I implement this feature?" --with-doc=https://example.com/feature-spec.md`.
-
-- When a user provides a specific URL for documentation or reference material, always use the `--with-doc=<url>` flag with that URL rather than attempting to search for or summarize the content independently. This ensures the exact document is used as context.
-
-**Running Commands:**
-1. Use `vibe-tools <command>` to execute commands (make sure vibe-tools is installed globally using npm install -g vibe-tools so that it is in your PATH)
-
-**General Command Options (Supported by all commands):**
---provider=<provider>: AI provider to use (openai, anthropic, perplexity, gemini, openrouter, modelbox, or xai). If provider is not specified, the default provider for that task will be used.
---model=<model name>: Specify an alternative AI model to use. If model is not specified, the provider's default model for that task will be used.
---max-tokens=<number>: Control response length
---save-to=<file path>: Save command output to a file (in *addition* to displaying it)
---debug: Show detailed logs and error information
-
-**Repository Command Options:**
---provider=<provider>: AI provider to use (gemini, openai, openrouter, perplexity, modelbox, anthropic, or xai)
---model=<model>: Model to use for repository analysis
---max-tokens=<number>: Maximum tokens for response
---from-github=<GitHub username>/<repository name>[@<branch>]: Analyze a remote GitHub repository without cloning it locally
---subdir=<path>: Analyze a specific subdirectory instead of the entire repository
---with-doc=<doc_url>: Fetch content from a document URL and include it as context
-
-**Documentation Command Options:**
---from-github=<GitHub username>/<repository name>[@<branch>]: Generate documentation for a remote GitHub repository
---provider=<provider>: AI provider to use (gemini, openai, openrouter, perplexity, modelbox, anthropic, or xai)
---model=<model>: Model to use for documentation generation
---max-tokens=<number>: Maximum tokens for response
---with-doc=<doc_url>: Fetch content from a document URL and include it as context
-
-**YouTube Command Options:**
---type=<summary|transcript|plan|review|custom>: Type of analysis to perform (default: summary)
-
-**GitHub Command Options:**
---from-github=<GitHub username>/<repository name>[@<branch>]: Access PRs/issues from a specific GitHub repository
-
-**Browser Command Options (for 'open', 'act', 'observe', 'extract'):**
---console: Capture browser console logs (enabled by default, use --no-console to disable)
---html: Capture page HTML content (disabled by default)
---network: Capture network activity (enabled by default, use --no-network to disable)
---screenshot=<file path>: Save a screenshot of the page
---timeout=<milliseconds>: Set navigation timeout (default: 120000ms for Stagehand operations, 30000ms for navigation)
---viewport=<width>x<height>: Set viewport size (e.g., 1280x720). When using --connect-to, viewport is only changed if this option is explicitly provided
---headless: Run browser in headless mode (default: true)
---no-headless: Show browser UI (non-headless mode) for debugging
---connect-to=<port>: Connect to existing Chrome instance. Special values: 'current' (use existing page), 'reload-current' (refresh existing page)
---wait=<time:duration or selector:css-selector>: Wait after page load (e.g., 'time:5s', 'selector:#element-id')
---video=<directory>: Save a video recording (1280x720 resolution, timestamped subdirectory). Not available when using --connect-to
---url=<url>: Required for `act`, `observe`, and `extract` commands. Url to navigate to before the main command or one of the special values 'current' (to stay on the current page without navigating or reloading) or 'reload-current' (to reload the current page)
---evaluate=<string>: JavaScript code to execute in the browser before the main command
-
-**Nicknames**
-Users can ask for these tools using nicknames
-Gemini is a nickname for vibe-tools repo
-Perplexity is a nickname for vibe-tools web
-Stagehand is a nickname for vibe-tools browser
-If people say "ask Gemini" or "ask Perplexity" or "ask Stagehand" they mean to use the `vibe-tools` command with the `repo`, `web`, or `browser` commands respectively.
-
-**Xcode Commands:**
-`vibe-tools xcode build [buildPath=<path>] [destination=<destination>]` - Build Xcode project and report errors.
-**Build Command Options:**
---buildPath=<path>: (Optional) Specifies a custom directory for derived build data. Defaults to ./.build/DerivedData.
---destination=<destination>: (Optional) Specifies the destination for building the app (e.g., 'platform=iOS Simulator,name=iPhone 16 Pro'). Defaults to 'platform=iOS Simulator,name=iPhone 16 Pro'.
-
-`vibe-tools xcode run [destination=<destination>]` - Build and run the Xcode project on a simulator.
-**Run Command Options:**
---destination=<destination>: (Optional) Specifies the destination simulator (e.g., 'platform=iOS Simulator,name=iPhone 16 Pro'). Defaults to 'platform=iOS Simulator,name=iPhone 16 Pro'.
-
-`vibe-tools xcode lint` - Run static analysis on the Xcode project to find and fix issues.
-
-**Additional Notes:**
-- For detailed information, see `node_modules/vibe-tools/README.md` (if installed locally).
-- Configuration is in `vibe-tools.config.json` (or `~/.vibe-tools/config.json`).
-- API keys are loaded from `.vibe-tools.env` (or `~/.vibe-tools/.env`).
-- ClickUp commands require a `CLICKUP_API_TOKEN` to be set in your `.vibe-tools.env` file.
-- Available models depend on your configured provider (OpenAI, Anthropic, xAI, etc.) in `vibe-tools.config.json`.
-- repo has a limit of 2M tokens of context. The context can be reduced by filtering out files in a .repomixignore file.
-- problems running browser commands may be because playwright is not installed. Recommend installing playwright globally.
-- MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`
-- **Remember:** You're part of a team of superhuman expert AIs. Work together to solve complex problems.
-- **Repomix Configuration:** You can customize which files are included/excluded during repository analysis by creating a `repomix.config.json` file in your project root. This file will be automatically detected by `repo`, `plan`, and `doc` commands.
-
-</vibe-tools>\n
 </file>
 
 <file path="LICENSE">
@@ -1023,6 +753,19 @@ llms.txt same way as sitemap.xml/sitemap_index.xml
 }
 </file>
 
+<file path=".cursor/rules/good-behaviour.mdc">
+---
+description: 
+globs: 
+alwaysApply: true
+---
+In the beginning of each task, always use vibe-tools repo. ENSURE 100% you use vibe-tools repo before writing any code. DO NOT look up any files before you vibe-tools repo.
+
+Keep the code changes as minimal as you can, only changing the absolute necessary parts. Do not change anything directly unrelated to what user asked.  
+
+Keep it as simple as possible, fewest lines of code as possible, as clean as possible
+</file>
+
 <file path=".cursor/rules/vibe-tools.mdc">
 ---
 description: 
@@ -1215,6 +958,108 @@ Then reply with your update / question to the normal chat.
 This mcp server should be called with this tool name: "mcp_yo-mcp_com_yo"
 </file>
 
+<file path="src/providers/index.ts">
+import { RuleProvider, RuleType } from "../types";
+import { CursorRuleProvider } from "./cursor-provider";
+import { WindsurfRuleProvider } from "./windsurf-provider";
+import { ClaudeCodeRuleProvider } from "./claude-code-provider";
+import { CodexRuleProvider } from "./codex-provider";
+import { ClinerulesRuleProvider } from "./clinerules-provider";
+import { ZedRuleProvider } from "./zed-provider";
+/**
+ * Factory function to get the appropriate rule provider based on rule type
+ */
+export function getRuleProvider(ruleType: RuleType): RuleProvider {
+  switch (ruleType) {
+    case RuleType.CURSOR:
+      return new CursorRuleProvider();
+    case RuleType.WINDSURF:
+      return new WindsurfRuleProvider();
+    case RuleType.CLAUDE_CODE:
+      return new ClaudeCodeRuleProvider();
+    case RuleType.CODEX:
+      return new CodexRuleProvider();
+    case RuleType.CLINERULES:
+    case RuleType.ROO:
+      return new ClinerulesRuleProvider();
+    case RuleType.ZED:
+      return new ZedRuleProvider();
+    case RuleType.CUSTOM:
+    default:
+      throw new Error(`Unsupported rule type: ${ruleType}`);
+  }
+}
+</file>
+
+<file path="src/providers/zed-provider.ts">
+import path from "path";
+import fs from "fs-extra";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleType,
+  RuleGeneratorOptions,
+} from "../types";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
+import { createTaggedRuleBlock } from "../utils/rule-formatter";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import { getDefaultTargetPath } from "../utils/path";
+export class ZedRuleProvider implements RuleProvider {
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(RuleType.ZED, config);
+  }
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    return loadInternalRule(RuleType.ZED, name);
+  }
+  async listRules(): Promise<string[]> {
+    return listInternalRules(RuleType.ZED);
+  }
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    // Zed .rules files are expected to be plain text or use a format
+    // compatible with simple tagged blocks if we are managing multiple rules within it.
+    // For consistency with Windsurf and other single-file providers, we use tagged blocks.
+    return createTaggedRuleBlock(config, options);
+  }
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean, // isGlobal is not typically used for Zed's .rules
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal ZED storage.`);
+      return false;
+    }
+    const finalTargetPath =
+      targetPath || getDefaultTargetPath(RuleType.ZED, isGlobal);
+    return this.appendFormattedRule(
+      ruleConfig,
+      finalTargetPath,
+      isGlobal,
+      options
+    );
+  }
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean, // isGlobal is not typically used for Zed's .rules
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    // Zed .rules files are at the root of the worktree, so isGlobal is likely false.
+    // We don't append inside a specific <vibe-tools Integration> block by default for .rules
+    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+}
+</file>
+
 <file path="src/utils/rule-storage.ts">
 import * as fs from "fs-extra";
 import * as path from "path";
@@ -1301,6 +1146,7 @@ export async function listInternalRules(ruleType: RuleType): Promise<string[]> {
 
 <file path="src/utils/single-file-helpers.ts">
 import * as fs from "fs/promises";
+import * as fsExtra from "fs-extra";
 import * as path from "path";
 import { RuleConfig, RuleGeneratorOptions } from "../types";
 import { createTaggedRuleBlock } from "./rule-formatter";
@@ -1331,15 +1177,46 @@ export async function appendOrUpdateTaggedBlock(
       ensureDirectoryExists(parentDir);
     }
     let currentContent = "";
+    let fileExists = true;
     try {
-      currentContent = await fs.readFile(targetPath, "utf-8");
+      // Check if the file exists (not directory)
+      const stats = await fs.stat(targetPath).catch(() => null);
+      if (stats) {
+        if (stats.isDirectory()) {
+          // If it's a directory but should be a file, remove it
+          console.warn(
+            `Found a directory at ${targetPath} but expected a file. Removing directory...`
+          );
+          await fs.rm(targetPath, { recursive: true, force: true });
+          fileExists = false;
+        } else {
+          // It's a file, read its content
+          currentContent = await fs.readFile(targetPath, "utf-8");
+        }
+      } else {
+        fileExists = false;
+      }
     } catch (error: any) {
       if (error.code !== "ENOENT") {
-        console.error(`Error reading target file ${targetPath}:`, error);
+        console.error(`Error accessing target file ${targetPath}:`, error);
         return false;
       }
       // File doesn't exist, which is fine, we'll create it.
+      fileExists = false;
       console.debug(`Target file ${targetPath} not found, will create.`);
+    }
+    // If file doesn't exist, explicitly create an empty file first
+    // This ensures we're creating a file, not a directory
+    if (!fileExists) {
+      try {
+        // Ensure the file exists by explicitly creating it as an empty file
+        // Use fsExtra.ensureFileSync which is designed to create the file (not directory)
+        fsExtra.ensureFileSync(targetPath);
+        console.debug(`Created empty file: ${targetPath}`);
+      } catch (error) {
+        console.error(`Failed to create empty file ${targetPath}:`, error);
+        return false;
+      }
     }
     const newBlock = createTaggedRuleBlock(config, options);
     const ruleNameRegexStr = config.name.replace(
@@ -1372,14 +1249,14 @@ export async function appendOrUpdateTaggedBlock(
         const insertionPoint = integrationEndIndex;
         updatedContent =
           currentContent.slice(0, insertionPoint).trimEnd() +
-          "\\n\\n" + // Ensure separation
+          "\n\n" + // Ensure separation
           newBlock +
-          "\\n\\n" + // Ensure separation
+          "\n\n" + // Ensure separation
           currentContent.slice(insertionPoint);
         console.debug(`Appending rule inside <vibe-tools Integration> block.`);
       } else {
         // Append to the end
-        const separator = currentContent.trim().length > 0 ? "\\n\\n" : ""; // Add separator if file not empty
+        const separator = currentContent.trim().length > 0 ? "\n\n" : ""; // Add separator if file not empty
         updatedContent = currentContent.trimEnd() + separator + newBlock;
         if (appendInsideVibeToolsBlock) {
           console.debug(
@@ -1389,8 +1266,8 @@ export async function appendOrUpdateTaggedBlock(
       }
     }
     // Ensure file ends with a newline
-    if (!updatedContent.endsWith("\\n")) {
-      updatedContent += "\\n";
+    if (!updatedContent.endsWith("\n")) {
+      updatedContent += "\n";
     }
     await fs.writeFile(targetPath, updatedContent, "utf-8");
     console.log(`Successfully applied rule "${config.name}" to ${targetPath}`);
@@ -1405,154 +1282,70 @@ export async function appendOrUpdateTaggedBlock(
 }
 </file>
 
-<file path=".cursor/rules/good-behaviour.mdc">
----
-description: 
-globs: 
-alwaysApply: true
----
-In the beginning of each task, always use vibe-tools repo. ENSURE 100% you use vibe-tools repo before writing any code. DO NOT look up any files before you vibe-tools repo.
-
-Keep the code changes as minimal as you can, only changing the absolute necessary parts. Do not change anything directly unrelated to what user asked.  
-
-Keep it as simple as possible, fewest lines of code as possible, as clean as possible
-</file>
-
-<file path="src/utils/path.ts">
-import path from "path";
-import os from "os";
-import fs from "fs-extra";
-import { RuleType } from "../types";
-// Base directory for storing internal rule definitions
-export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
-// Home directories for specific IDEs/Tools
-export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
-export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
+<file path="src/types.ts">
 /**
- * Get the common rules directory path
+ * Rule type definitions for the vibe-rules utility
  */
-export function getCommonRulesDir(): string {
-  const rulesDir = path.join(RULES_BASE_DIR, "rules");
-  fs.ensureDirSync(rulesDir);
-  return rulesDir;
+export type * from "./schemas";
+export interface RuleConfig {
+  name: string;
+  content: string;
+  description?: string;
+  // Additional properties can be added as needed
 }
-/**
- * Get path to store internal rule definitions based on rule type
- * (Not the actual target paths for IDEs)
- */
-export function getInternalRuleStoragePath(
-  ruleType: RuleType,
-  ruleName: string
-): string {
-  const typeDir = path.join(RULES_BASE_DIR, ruleType);
-  fs.ensureDirSync(typeDir);
-  // Internal storage uses a simple .txt for content
-  return path.join(typeDir, `${ruleName}.txt`);
+export const RuleType = {
+  CURSOR: "cursor",
+  WINDSURF: "windsurf",
+  CLAUDE_CODE: "claude-code",
+  CODEX: "codex",
+  CLINERULES: "clinerules",
+  ROO: "roo",
+  ZED: "zed",
+  CUSTOM: "custom",
+} as const;
+export type RuleTypeArray = (typeof RuleType)[keyof typeof RuleType][];
+export type RuleType = (typeof RuleType)[keyof typeof RuleType];
+export interface RuleProvider {
+  /**
+   * Creates a new rule file with the given content
+   */
+  saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>;
+  /**
+   * Loads a rule from storage
+   */
+  loadRule(name: string): Promise<RuleConfig | null>;
+  /**
+   * Lists all available rules
+   */
+  listRules(): Promise<string[]>;
+  /**
+   * Appends a rule to an existing file
+   */
+  appendRule(name: string, targetPath?: string): Promise<boolean>;
+  /**
+   * Formats and appends a rule directly from a RuleConfig object
+   */
+  appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean>;
+  /**
+   * Generates formatted rule content with editor-specific formatting
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string;
 }
-/**
- * Get the expected file path for a rule based on its type and context (local/global).
- * This now returns the actual path where the rule should exist for the IDE/tool.
- * The 'isGlobal' flag determines if we should use the home directory path.
- */
-export function getRulePath(
-  ruleType: RuleType,
-  ruleName: string, // ruleName might not be relevant for some types like Claude/Codex global
-  isGlobal: boolean = false,
-  projectRoot: string = process.cwd()
-): string {
-  switch (ruleType) {
-    case RuleType.CURSOR:
-      // Cursor rules are typically project-local in .cursor/rules/
-      const cursorDir = path.join(projectRoot, ".cursor", "rules");
-      // Use slugified name for the file
-      return path.join(cursorDir, `${slugifyRuleName(ruleName)}.mdc`);
-    case RuleType.WINDSURF:
-      // Windsurf rules are typically project-local .windsurfrules file
-      return path.join(projectRoot, ".windsurfrules"); // Single file, name not used for path
-    case RuleType.CLAUDE_CODE:
-      // Claude rules are CLAUDE.md, either global or local
-      return isGlobal
-        ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
-        : path.join(projectRoot, "CLAUDE.md");
-    case RuleType.CODEX:
-      // Codex uses instructions.md (global) or codex.md (local)
-      return isGlobal
-        ? path.join(CODEX_HOME_DIR, "instructions.md")
-        : path.join(projectRoot, "codex.md");
-    case RuleType.CLINERULES:
-    case RuleType.ROO:
-      // Cline/Roo rules are project-local files in .clinerules/
-      return path.join(
-        projectRoot,
-        ".clinerules",
-        slugifyRuleName(ruleName) + ".md" // Use .md extension
-      );
-    case RuleType.CUSTOM:
-    default:
-      // Fallback for custom or unknown - store internally for now
-      // Or maybe this should throw an error?
-      return getInternalRuleStoragePath(ruleType, ruleName);
-  }
-}
-/**
- * Get the default target path (directory or file) where a rule type is typically applied.
- * This is used by commands like 'apply' if no specific target is given.
- * Note: This might overlap with getRulePath for some types.
- * Returns potential paths based on convention.
- */
-export function getDefaultTargetPath(
-  ruleType: RuleType,
-  isGlobalHint: boolean = false // Hint for providers like Claude/Codex
-): string {
-  switch (ruleType) {
-    case RuleType.CURSOR:
-      // Default target is the rules directory within .cursor
-      return path.join(process.cwd(), ".cursor", "rules");
-    case RuleType.WINDSURF:
-      // Default target is the .windsurfrules file
-      return path.join(process.cwd(), ".windsurfrules");
-    case RuleType.CLAUDE_CODE:
-      // Default target depends on global hint
-      return isGlobalHint
-        ? CLAUDE_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local CLAUDE.md)
-    case RuleType.CODEX:
-      // Default target depends on global hint
-      return isGlobalHint
-        ? CODEX_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local codex.md)
-    case RuleType.CLINERULES:
-    case RuleType.ROO:
-      // Default target is the .clinerules directory
-      return path.join(process.cwd(), ".clinerules");
-    default:
-      // Default to current working directory for unknown types
-      return process.cwd();
-  }
-}
-/**
- * Ensures that a specific directory exists, creating it if necessary.
- *
- * @param dirPath The absolute or relative path to the directory to ensure.
- */
-export function ensureDirectoryExists(dirPath: string): void {
-  try {
-    fs.ensureDirSync(dirPath);
-    console.debug(`Ensured directory exists: ${dirPath}`);
-  } catch (err: any) {
-    console.error(`Failed to ensure directory ${dirPath}:`, err);
-    // Depending on the desired behavior, you might want to re-throw or exit
-    // throw err;
-  }
-}
-/**
- * Convert a rule name to a filename-safe slug.
- */
-export function slugifyRuleName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, "-")
-    .replace(/^-|-$/g, "");
+export interface RuleGeneratorOptions {
+  description?: string;
+  isGlobal?: boolean;
+  alwaysApply?: boolean;
+  globs?: string | string[];
+  debug?: boolean;
+  // Additional options for specific rule types
 }
 </file>
 
@@ -2146,6 +1939,248 @@ export class CodexRuleProvider implements RuleProvider {
 }
 </file>
 
+<file path="src/providers/windsurf-provider.ts">
+import * as fs from "fs-extra";
+import * as path from "path";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleType,
+  RuleGeneratorOptions,
+} from "../types";
+import { getRulePath, getDefaultTargetPath } from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import chalk from "chalk";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
+export class WindsurfRuleProvider implements RuleProvider {
+  private readonly ruleType = RuleType.WINDSURF;
+  /**
+   * Format rule content with XML tags
+   */
+  private formatRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return createTaggedRuleBlock(config, options);
+  }
+  /**
+   * Generates formatted rule content with Windsurf XML tags
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    return this.formatRuleContent(config, options);
+  }
+  /**
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
+   */
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(RuleType.WINDSURF, config);
+  }
+  /**
+   * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
+   */
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    return loadInternalRule(RuleType.WINDSURF, name);
+  }
+  /**
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
+   */
+  async listRules(): Promise<string[]> {
+    return listInternalRules(RuleType.WINDSURF);
+  }
+  /**
+   * Append a windsurf rule to a target file
+   */
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const rule = await this.loadRule(name);
+    if (!rule) {
+      console.error(`Rule '${name}' not found for type ${this.ruleType}.`);
+      return false;
+    }
+    // Windsurf typically doesn't use global paths or specific rule name paths for the target
+    // It uses a single default file.
+    const destinationPath = targetPath || getDefaultTargetPath(this.ruleType);
+    return this.appendFormattedRule(rule, destinationPath, false, options);
+  }
+  /**
+   * Format and append a rule directly from a RuleConfig object.
+   * If a rule with the same name (tag) already exists, its content is updated.
+   */
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    // Delegate to the shared helper
+    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+}
+</file>
+
+<file path="src/utils/path.ts">
+import path from "path";
+import os from "os";
+import fs from "fs-extra";
+import { RuleType } from "../types";
+// Base directory for storing internal rule definitions
+export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
+// Home directories for specific IDEs/Tools
+export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
+export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
+export const ZED_RULES_FILE = ".rules"; // Added for Zed
+/**
+ * Get the common rules directory path
+ */
+export function getCommonRulesDir(): string {
+  const rulesDir = path.join(RULES_BASE_DIR, "rules");
+  fs.ensureDirSync(rulesDir);
+  return rulesDir;
+}
+/**
+ * Get path to store internal rule definitions based on rule type
+ * (Not the actual target paths for IDEs)
+ */
+export function getInternalRuleStoragePath(
+  ruleType: RuleType,
+  ruleName: string
+): string {
+  const typeDir = path.join(RULES_BASE_DIR, ruleType);
+  fs.ensureDirSync(typeDir);
+  // Internal storage uses a simple .txt for content
+  return path.join(typeDir, `${ruleName}.txt`);
+}
+/**
+ * Get the expected file path for a rule based on its type and context (local/global).
+ * This now returns the actual path where the rule should exist for the IDE/tool.
+ * The 'isGlobal' flag determines if we should use the home directory path.
+ */
+export function getRulePath(
+  ruleType: RuleType,
+  ruleName: string, // ruleName might not be relevant for some types like Claude/Codex global
+  isGlobal: boolean = false,
+  projectRoot: string = process.cwd()
+): string {
+  switch (ruleType) {
+    case RuleType.CURSOR:
+      // Cursor rules are typically project-local in .cursor/rules/
+      const cursorDir = path.join(projectRoot, ".cursor", "rules");
+      // Use slugified name for the file
+      return path.join(cursorDir, `${slugifyRuleName(ruleName)}.mdc`);
+    case RuleType.WINDSURF:
+      // Windsurf rules are typically project-local .windsurfrules file
+      return path.join(projectRoot, ".windsurfrules"); // Single file, name not used for path
+    case RuleType.CLAUDE_CODE:
+      // Claude rules are CLAUDE.md, either global or local
+      return isGlobal
+        ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
+        : path.join(projectRoot, "CLAUDE.md");
+    case RuleType.CODEX:
+      // Codex uses instructions.md (global) or codex.md (local)
+      return isGlobal
+        ? path.join(CODEX_HOME_DIR, "instructions.md")
+        : path.join(projectRoot, "codex.md");
+    case RuleType.CLINERULES:
+    case RuleType.ROO:
+      // Cline/Roo rules are project-local files in .clinerules/
+      return path.join(
+        projectRoot,
+        ".clinerules",
+        slugifyRuleName(ruleName) + ".md" // Use .md extension
+      );
+    case RuleType.ZED: // Added for Zed
+      return path.join(projectRoot, ZED_RULES_FILE);
+    case RuleType.CUSTOM:
+    default:
+      // Fallback for custom or unknown - store internally for now
+      // Or maybe this should throw an error?
+      return getInternalRuleStoragePath(ruleType, ruleName);
+  }
+}
+/**
+ * Get the default target path (directory or file) where a rule type is typically applied.
+ * This is used by commands like 'apply' if no specific target is given.
+ * Note: This might overlap with getRulePath for some types.
+ * Returns potential paths based on convention.
+ */
+export function getDefaultTargetPath(
+  ruleType: RuleType,
+  isGlobalHint: boolean = false // Hint for providers like Claude/Codex
+): string {
+  switch (ruleType) {
+    case RuleType.CURSOR:
+      // Default target is the rules directory within .cursor
+      return path.join(process.cwd(), ".cursor", "rules");
+    case RuleType.WINDSURF:
+      // Default target is the .windsurfrules file
+      return path.join(process.cwd(), ".windsurfrules");
+    case RuleType.CLAUDE_CODE:
+      // Default target depends on global hint
+      return isGlobalHint
+        ? CLAUDE_HOME_DIR // Directory
+        : process.cwd(); // Project root (for local CLAUDE.md)
+    case RuleType.CODEX:
+      // Default target depends on global hint
+      return isGlobalHint
+        ? CODEX_HOME_DIR // Directory
+        : process.cwd(); // Project root (for local codex.md)
+    case RuleType.CLINERULES:
+    case RuleType.ROO:
+      // Default target is the .clinerules directory
+      return path.join(process.cwd(), ".clinerules");
+    case RuleType.ZED: // Added for Zed
+      return path.join(process.cwd(), ZED_RULES_FILE);
+    default:
+      // Default to current working directory for unknown types
+      return process.cwd();
+  }
+}
+/**
+ * Ensures that a specific directory exists, creating it if necessary.
+ *
+ * @param dirPath The absolute or relative path to the directory to ensure.
+ */
+export function ensureDirectoryExists(dirPath: string): void {
+  try {
+    fs.ensureDirSync(dirPath);
+    console.debug(`Ensured directory exists: ${dirPath}`);
+  } catch (err: any) {
+    console.error(`Failed to ensure directory ${dirPath}:`, err);
+    // Depending on the desired behavior, you might want to re-throw or exit
+    // throw err;
+  }
+}
+/**
+ * Convert a rule name to a filename-safe slug.
+ */
+export function slugifyRuleName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+</file>
+
 <file path="src/providers/cursor-provider.ts">
 import * as fs from "fs-extra";
 import * as path from "path";
@@ -2288,105 +2323,6 @@ export class CursorRuleProvider implements RuleProvider {
       );
       return false;
     }
-  }
-}
-</file>
-
-<file path="src/providers/windsurf-provider.ts">
-import * as fs from "fs-extra";
-import * as path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleType,
-  RuleGeneratorOptions,
-} from "../types";
-import { getRulePath, getDefaultTargetPath } from "../utils/path";
-import {
-  formatRuleWithMetadata,
-  createTaggedRuleBlock,
-} from "../utils/rule-formatter";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
-import chalk from "chalk";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage";
-export class WindsurfRuleProvider implements RuleProvider {
-  private readonly ruleType = RuleType.WINDSURF;
-  /**
-   * Format rule content with XML tags
-   */
-  private formatRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
-    return createTaggedRuleBlock(config, options);
-  }
-  /**
-   * Generates formatted rule content with Windsurf XML tags
-   */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
-    return this.formatRuleContent(config, options);
-  }
-  /**
-   * Saves a rule definition to internal storage for later use.
-   * @param config - The rule configuration.
-   * @returns Path where the rule definition was saved internally.
-   */
-  async saveRule(config: RuleConfig): Promise<string> {
-    return saveInternalRule(RuleType.WINDSURF, config);
-  }
-  /**
-   * Loads a rule definition from internal storage.
-   * @param name - The name of the rule to load.
-   * @returns The RuleConfig if found, otherwise null.
-   */
-  async loadRule(name: string): Promise<RuleConfig | null> {
-    return loadInternalRule(RuleType.WINDSURF, name);
-  }
-  /**
-   * Lists rule definitions available in internal storage.
-   * @returns An array of rule names.
-   */
-  async listRules(): Promise<string[]> {
-    return listInternalRules(RuleType.WINDSURF);
-  }
-  /**
-   * Append a windsurf rule to a target file
-   */
-  async appendRule(
-    name: string,
-    targetPath?: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    const rule = await this.loadRule(name);
-    if (!rule) {
-      console.error(`Rule '${name}' not found for type ${this.ruleType}.`);
-      return false;
-    }
-    // Windsurf typically doesn't use global paths or specific rule name paths for the target
-    // It uses a single default file.
-    const destinationPath = targetPath || getDefaultTargetPath(this.ruleType);
-    return this.appendFormattedRule(rule, destinationPath, false, options);
-  }
-  /**
-   * Format and append a rule directly from a RuleConfig object.
-   * If a rule with the same name (tag) already exists, its content is updated.
-   */
-  async appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    // Delegate to the shared helper
-    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
   }
 }
 </file>
@@ -3224,7 +3160,7 @@ async function importModuleFromCwd(ruleModulePath: string) {
 <file path="package.json">
 {
   "name": "vibe-rules",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -3243,7 +3179,8 @@ async function importModuleFromCwd(ruleModulePath: string) {
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
-    "publish": "bun run build && npm publish"
+    "publish": "bun run build && npm publish",
+    "prepare": "vibe-rules install cursor"
   },
   "keywords": [
     "cursor",
@@ -3265,7 +3202,8 @@ async function importModuleFromCwd(ruleModulePath: string) {
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
-    "fs-extra": "^11.3.0"
+    "fs-extra": "^11.3.0",
+    "vibe-rules": "^0.2.5"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -3301,7 +3239,8 @@ vibe-rules/
 │   │   ├── windsurf-provider.ts # Windsurf editor provider (Refactored)
 │   │   ├── claude-code-provider.ts # Claude Code provider (Refactored)
 │   │   ├── codex-provider.ts       # Codex provider (Refactored)
-│   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
+│   │   ├── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
+│   │   └── zed-provider.ts         # Zed editor provider (Added)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       ├── similarity.ts  # Text similarity utilities
@@ -3407,6 +3346,7 @@ Defines the core types and interfaces used throughout the application.
   - `CODEX`: "codex" - For Codex IDE (Added)
   - `CLINERULES`: "clinerules" - For Cline/Roo IDEs (Added)
   - `ROO`: "roo" - Alias for CLINERULES (Added)
+  - `ZED`: "zed" - For Zed editor (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
@@ -3499,7 +3439,7 @@ Provides utility functions for managing file paths related to rules and IDE conf
   - `ruleName`: The name of the rule (used by some types like Cursor)
   - `isGlobal`: Flag indicating global context (uses home dir paths for Claude/Codex)
   - `projectRoot`: The root directory for local project paths
-- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`)
+- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`, `./.rules` for Zed)
 
 #### `getDefaultTargetPath(ruleType: RuleType, isGlobalHint: boolean = false): string`
 
@@ -3507,7 +3447,7 @@ Provides utility functions for managing file paths related to rules and IDE conf
 - Parameters:
   - `ruleType`: The type of rule/editor
   - `isGlobalHint`: Hint for global context
-- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`)
+- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed)
 
 #### `slugifyRuleName(name: string): string`
 
@@ -3572,18 +3512,23 @@ Provides utility functions for formatting rule content with metadata like `alway
 
 Provides utility functions specific to providers that manage rules within a single configuration file using tagged blocks.
 
-#### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>`
+#### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>` (Updated)
 
-- Encapsulates the logic for managing rules in single-file providers (Windsurf, Claude Code, Codex).
+- Encapsulates the logic for managing rules in single-file providers (Windsurf, Claude Code, Codex, Zed).
 - Reads the `targetPath` file content.
 - Uses `createTaggedRuleBlock` to generate the XML-like block for the rule.
+- **Bug Fix:** Now properly handles file creation for dot-files (e.g., `.rules`, `.windsurfrules`):
+  - Explicitly checks if a target file exists using `fs.stat`
+  - If the path exists but is a directory, removes it with `fs.rm` (recursive: true)
+  - For new files, uses `fsExtra.ensureFileSync` to create an empty file before writing content
+  - This prevents the dot-files from being incorrectly created as directories
 - Searches for an existing block using a regex based on the `config.name` (e.g., `<rule-name>...</rule-name>`).
 - **If found:** Replaces the existing block with the newly generated one.
 - **If not found:** Appends the new block.
   - If `appendInsideVibeToolsBlock` is `true` (for Claude, Codex), it attempts to insert the block just before the `</vibe-tools Integration>` tag if present.
   - Otherwise (or if the integration block isn't found), it appends the block to the end of the file.
 - Writes the updated content back to the `targetPath`.
-- Ensures the parent directory exists using `ensureTargetDir`.
+- Ensures the parent directory exists using `ensureDirectoryExists`.
 - Handles file not found errors gracefully (creates the file).
 - Returns `true` on success, `false` on failure.
 
@@ -3610,6 +3555,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, and `ZED` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 
@@ -3702,6 +3648,20 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
   - Handles both `alwaysApply` and `globs` options to include in human-readable format
 - **`appendFormattedRule` (Updated):**
   - Adds additional logging to show when metadata is included in rule content
+
+### src/providers/zed-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for Zed editor.
+
+#### `ZedRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Handles Zed's single `.rules` file, typically located at the root of the workspace.
+- **`saveRule`, `loadRule`, `listRules`**: Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage (`~/.vibe-rules/zed/...`).
+- **`generateRuleContent`**: Utilizes the shared `createTaggedRuleBlock` utility from `src/utils/rule-formatter.ts` to format rules with metadata within XML-like tags (e.g., `<rule-name>...</rule-name>`). This is consistent with how other single-file providers like Windsurf manage multiple rules within one file.
+- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
+- **`appendFormattedRule`**: Delegates to the shared `appendOrUpdateTaggedBlock` utility function from `src/utils/single-file-helpers.ts`. This function handles reading the target `.rules` file, replacing an existing tagged block if found, or appending the new one. It passes `false` for `appendInsideVibeToolsBlock`, meaning rules are appended to the end of the file or replace existing blocks directly, not within a specific parent tag.
 
 ### src/llms/internal.ts (Added)
 

@@ -192,6 +192,7 @@ Defines Zod schemas for validating rule configurations.
 ### src/utils/path.ts
 
 Provides utility functions for managing file paths related to rules and IDE configurations.
+Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExists` (Updated).
 
 #### `RULES_BASE_DIR`
 
@@ -294,6 +295,7 @@ Provides utility functions for formatting rule content with metadata like `alway
 ### src/utils/single-file-helpers.ts (Added)
 
 Provides utility functions specific to providers that manage rules within a single configuration file using tagged blocks.
+Utilizes `debugLog` from `cli.ts` for conditional logging (Updated).
 
 #### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>` (Updated)
 
@@ -358,119 +360,4 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - `appendRule` loads a rule from internal storage and calls `appendFormattedRule`. Note that rules loaded this way might not have the dynamic `alwaysApply`/`globs` metadata unless it was also saved (currently it isn't).
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
-  - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install` command processing).
-  - **Important:** Now expects the `targetPath` argument to be the _full file path_ (e.g., `./.cursor/rules/my-rule.mdc`), not just the target directory.
-- **`formatFrontmatter` (Updated):**
-  - Now properly handles both `alwaysApply: true` and `alwaysApply: false` cases
-  - Uses debug-friendly logging for globs formatting
-
-### src/providers/windsurf-provider.ts (Refactored)
-
-Implementation of the `RuleProvider` interface for Windsurf editor.
-
-#### `WindsurfRuleProvider` (class)
-
-##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
-
-- Handles Windsurf's single `.windsurfrules` file.
-- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
-- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Refactored):**
-  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
-  - Passes `false` for the `appendInsideVibeToolsBlock` parameter.
-- **`generateRuleContent` (Unchanged):**
-  - Utilizes the shared `createTaggedRuleBlock` utility to format rules with metadata.
-
-### src/providers/claude-code-provider.ts (Refactored)
-
-Implementation of the `RuleProvider` interface for Claude Code IDE.
-
-#### `ClaudeCodeRuleProvider` (class)
-
-##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
-
-- Handles Claude Code's `CLAUDE.md` file (either global `~/.claude/CLAUDE.md` or local `./CLAUDE.md`).
-- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
-- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Refactored):**
-  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
-  - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
-- **`generateRuleContent` (Unchanged):**
-  - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
-
-### src/providers/codex-provider.ts (Refactored)
-
-Implementation of the `RuleProvider` interface for Codex IDE.
-
-#### `CodexRuleProvider` (class)
-
-##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
-
-- Handles Codex's `instructions.md` (global) or `codex.md` (local).
-- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
-- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
-- **`appendFormattedRule` (Refactored):**
-  - Now delegates entirely to the shared `appendOrUpdateTaggedBlock` utility function.
-  - Passes `true` for the `appendInsideVibeToolsBlock` parameter.
-- **`generateRuleContent` (Unchanged):**
-  - Formats content with metadata using the shared `formatRuleWithMetadata` utility.
-
-### src/providers/clinerules-provider.ts (Refactored)
-
-Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
-
-#### `ClinerulesRuleProvider` (class)
-
-##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
-
-- Handles saving individual rule files (e.g., `.clinerules/my-rule.md`).
-- **`saveRule`, `loadRule`, `listRules` (Refactored):** Now use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
-- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
-- **`generateRuleContent` (Updated):**
-  - Now formats content with metadata using the shared `formatRuleWithMetadata` utility
-  - Handles both `alwaysApply` and `globs` options to include in human-readable format
-- **`appendFormattedRule` (Updated):**
-  - Adds additional logging to show when metadata is included in rule content
-
-### src/providers/zed-provider.ts (Added)
-
-Implementation of the `RuleProvider` interface for Zed editor.
-
-#### `ZedRuleProvider` (class)
-
-##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
-
-- Handles Zed's single `.rules` file, typically located at the root of the workspace.
-- **`saveRule`, `loadRule`, `listRules`**: Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage (`~/.vibe-rules/zed/...`).
-- **`generateRuleContent`**: Utilizes the shared `createTaggedRuleBlock` utility from `src/utils/rule-formatter.ts` to format rules with metadata within XML-like tags (e.g., `<rule-name>...</rule-name>`). This is consistent with how other single-file providers like Windsurf manage multiple rules within one file.
-- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
-- **`appendFormattedRule`**: Delegates to the shared `appendOrUpdateTaggedBlock` utility function from `src/utils/single-file-helpers.ts`. This function handles reading the target `.rules` file, replacing an existing tagged block if found, or appending the new one. It passes `false` for `appendInsideVibeToolsBlock`, meaning rules are appended to the end of the file or replace existing blocks directly, not within a specific parent tag.
-
-### src/llms/internal.ts (Added)
-
-- Contains the definition and default export of the `vibeRulesRepoRules` array.
-- These rules are intended for internal use within the `vibe-rules` project itself (e.g., for developers contributing to the tool).
-- This file is **not** part of the package's public API exposed via the `exports` field in `package.json`.
-
-### src/llms/index.ts (Added)
-
-- Provides the module resolved by the `vibe-rules/llms` export path defined in `package.json`.
-- Intentionally exports an empty array (`export default [];`).
-- This ensures that when other packages use the `vibe-rules install`
-
-### package.json (Updated)
-
-Contains project metadata, dependencies, and scripts.
-
-#### Scripts
-
-- `build`: Compiles TypeScript code using `tsc`.
-- `start`: Runs the built CLI using Node.
-- `dev`: Runs the CLI using `ts-node` for development.
-- `npm:publish`: Builds the project using `bun build` and then publishes to npm using `npm publish`. (Added)
-
-### Provider Changes
-
-- **Directory Creation:** Providers (`cursor-provider.ts`, `clinerules-provider.ts`) or helper functions (`appendOrUpdateTaggedBlock` used by `windsurf-provider.ts`, `claude-code-provider.ts`, `codex-provider.ts`) that need to ensure a target file's parent directory exist now directly use `fs.ensureDirSync(path.dirname(targetPath))` from the `fs-extra` library (or a utility function that calls it). The deprecated utility function `ensureTargetDir` has been removed from `src/utils/path.ts`, and its usages within `src/cli.ts` (in the `load` and `install` commands) have also been replaced with direct `fs.ensureDirSync` calls.
-
-## Core Logic
+  - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install`

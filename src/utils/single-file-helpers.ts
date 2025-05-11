@@ -4,6 +4,7 @@ import * as path from "path";
 import { RuleConfig, RuleGeneratorOptions } from "../types";
 import { createTaggedRuleBlock } from "./rule-formatter";
 import { ensureDirectoryExists } from "./path";
+import { debugLog } from "../cli";
 
 /**
  * Appends or updates a tagged block within a single target file.
@@ -60,7 +61,7 @@ export async function appendOrUpdateTaggedBlock(
       }
       // File doesn't exist, which is fine, we'll create it.
       fileExists = false;
-      console.debug(`Target file ${targetPath} not found, will create.`);
+      debugLog(`Target file ${targetPath} not found, will create.`);
     }
 
     // If file doesn't exist, explicitly create an empty file first
@@ -70,7 +71,7 @@ export async function appendOrUpdateTaggedBlock(
         // Ensure the file exists by explicitly creating it as an empty file
         // Use fsExtra.ensureFileSync which is designed to create the file (not directory)
         fsExtra.ensureFileSync(targetPath);
-        console.debug(`Created empty file: ${targetPath}`);
+        debugLog(`Created empty file: ${targetPath}`);
       } catch (error) {
         console.error(`Failed to create empty file ${targetPath}:`, error);
         return false;
@@ -92,13 +93,13 @@ export async function appendOrUpdateTaggedBlock(
 
     if (match) {
       // Update existing block
-      console.debug(
+      debugLog(
         `Updating existing block for rule "${config.name}" in ${targetPath}`
       );
       updatedContent = currentContent.replace(existingBlockRegex, newBlock);
     } else {
       // Append new block
-      console.debug(
+      debugLog(
         `Appending new block for rule "${config.name}" to ${targetPath}`
       );
       const vibeToolsIntegrationEndTag = "</vibe-tools Integration>";
@@ -115,13 +116,13 @@ export async function appendOrUpdateTaggedBlock(
           newBlock +
           "\n\n" + // Ensure separation
           currentContent.slice(insertionPoint);
-        console.debug(`Appending rule inside <vibe-tools Integration> block.`);
+        debugLog(`Appending rule inside <vibe-tools Integration> block.`);
       } else {
         // Append to the end
         const separator = currentContent.trim().length > 0 ? "\n\n" : ""; // Add separator if file not empty
         updatedContent = currentContent.trimEnd() + separator + newBlock;
         if (appendInsideVibeToolsBlock) {
-          console.debug(
+          debugLog(
             `Could not find <vibe-tools Integration> block, appending rule to the end.`
           );
         }

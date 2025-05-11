@@ -28,8 +28,8 @@ import {
 } from "./schemas";
 
 // Simple debug logger
-let isDebugEnabled = false;
-const debugLog = (message: string, ...optionalParams: any[]) => {
+export let isDebugEnabled = false;
+export const debugLog = (message: string, ...optionalParams: any[]) => {
   if (isDebugEnabled) {
     console.log(chalk.dim(`[Debug] ${message}`), ...optionalParams);
   }

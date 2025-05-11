@@ -2,6 +2,7 @@ import path from "path";
 import os from "os";
 import fs from "fs-extra";
 import { RuleType } from "../types";
+import { debugLog } from "../cli";
 
 // Base directory for storing internal rule definitions
 export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
@@ -129,7 +130,7 @@ export function getDefaultTargetPath(
 export function ensureDirectoryExists(dirPath: string): void {
   try {
     fs.ensureDirSync(dirPath);
-    console.debug(`Ensured directory exists: ${dirPath}`);
+    debugLog(`Ensured directory exists: ${dirPath}`);
   } catch (err: any) {
     console.error(`Failed to ensure directory ${dirPath}:`, err);
     // Depending on the desired behavior, you might want to re-throw or exit
