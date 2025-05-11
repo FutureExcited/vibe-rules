@@ -4,6 +4,7 @@ import { WindsurfRuleProvider } from "./windsurf-provider";
 import { ClaudeCodeRuleProvider } from "./claude-code-provider";
 import { CodexRuleProvider } from "./codex-provider";
 import { ClinerulesRuleProvider } from "./clinerules-provider";
+import { ZedRuleProvider } from "./zed-provider";
 
 /**
  * Factory function to get the appropriate rule provider based on rule type
@@ -21,7 +22,10 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
     case RuleType.CLINERULES:
     case RuleType.ROO:
       return new ClinerulesRuleProvider();
+    case RuleType.ZED:
+      return new ZedRuleProvider();
+    case RuleType.CUSTOM:
     default:
-      throw new Error(`Unsupported or unrecognized rule type: ${ruleType}`);
+      throw new Error(`Unsupported rule type: ${ruleType}`);
   }
 }

@@ -9,6 +9,7 @@ export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
 // Home directories for specific IDEs/Tools
 export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
 export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
+export const ZED_RULES_FILE = ".rules"; // Added for Zed
 
 /**
  * Get the common rules directory path
@@ -71,6 +72,8 @@ export function getRulePath(
         ".clinerules",
         slugifyRuleName(ruleName) + ".md" // Use .md extension
       );
+    case RuleType.ZED: // Added for Zed
+      return path.join(projectRoot, ZED_RULES_FILE);
     case RuleType.CUSTOM:
     default:
       // Fallback for custom or unknown - store internally for now
@@ -110,6 +113,8 @@ export function getDefaultTargetPath(
     case RuleType.ROO:
       // Default target is the .clinerules directory
       return path.join(process.cwd(), ".clinerules");
+    case RuleType.ZED: // Added for Zed
+      return path.join(process.cwd(), ZED_RULES_FILE);
     default:
       // Default to current working directory for unknown types
       return process.cwd();

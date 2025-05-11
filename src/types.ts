@@ -16,6 +16,7 @@ export const RuleType = {
   CODEX: "codex",
   CLINERULES: "clinerules",
   ROO: "roo",
+  ZED: "zed",
   CUSTOM: "custom",
 } as const;
 

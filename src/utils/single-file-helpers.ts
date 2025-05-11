@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import * as fsExtra from "fs-extra";
 import * as path from "path";
 import { RuleConfig, RuleGeneratorOptions } from "../types";
 import { createTaggedRuleBlock } from "./rule-formatter";
@@ -31,15 +32,49 @@ export async function appendOrUpdateTaggedBlock(
     }
 
     let currentContent = "";
+    let fileExists = true;
+
     try {
-      currentContent = await fs.readFile(targetPath, "utf-8");
+      // Check if the file exists (not directory)
+      const stats = await fs.stat(targetPath).catch(() => null);
+
+      if (stats) {
+        if (stats.isDirectory()) {
+          // If it's a directory but should be a file, remove it
+          console.warn(
+            `Found a directory at ${targetPath} but expected a file. Removing directory...`
+          );
+          await fs.rm(targetPath, { recursive: true, force: true });
+          fileExists = false;
+        } else {
+          // It's a file, read its content
+          currentContent = await fs.readFile(targetPath, "utf-8");
+        }
+      } else {
+        fileExists = false;
+      }
     } catch (error: any) {
       if (error.code !== "ENOENT") {
-        console.error(`Error reading target file ${targetPath}:`, error);
+        console.error(`Error accessing target file ${targetPath}:`, error);
         return false;
       }
       // File doesn't exist, which is fine, we'll create it.
+      fileExists = false;
       console.debug(`Target file ${targetPath} not found, will create.`);
+    }
+
+    // If file doesn't exist, explicitly create an empty file first
+    // This ensures we're creating a file, not a directory
+    if (!fileExists) {
+      try {
+        // Ensure the file exists by explicitly creating it as an empty file
+        // Use fsExtra.ensureFileSync which is designed to create the file (not directory)
+        fsExtra.ensureFileSync(targetPath);
+        console.debug(`Created empty file: ${targetPath}`);
+      } catch (error) {
+        console.error(`Failed to create empty file ${targetPath}:`, error);
+        return false;
+      }
     }
 
     const newBlock = createTaggedRuleBlock(config, options);
@@ -76,14 +111,14 @@ export async function appendOrUpdateTaggedBlock(
         const insertionPoint = integrationEndIndex;
         updatedContent =
           currentContent.slice(0, insertionPoint).trimEnd() +
-          "\\n\\n" + // Ensure separation
+          "\n\n" + // Ensure separation
           newBlock +
-          "\\n\\n" + // Ensure separation
+          "\n\n" + // Ensure separation
           currentContent.slice(insertionPoint);
         console.debug(`Appending rule inside <vibe-tools Integration> block.`);
       } else {
         // Append to the end
-        const separator = currentContent.trim().length > 0 ? "\\n\\n" : ""; // Add separator if file not empty
+        const separator = currentContent.trim().length > 0 ? "\n\n" : ""; // Add separator if file not empty
         updatedContent = currentContent.trimEnd() + separator + newBlock;
         if (appendInsideVibeToolsBlock) {
           console.debug(
@@ -94,8 +129,8 @@ export async function appendOrUpdateTaggedBlock(
     }
 
     // Ensure file ends with a newline
-    if (!updatedContent.endsWith("\\n")) {
-      updatedContent += "\\n";
+    if (!updatedContent.endsWith("\n")) {
+      updatedContent += "\n";
     }
 
     await fs.writeFile(targetPath, updatedContent, "utf-8");

@@ -22,7 +22,8 @@ vibe-rules/
 │   │   ├── windsurf-provider.ts # Windsurf editor provider (Refactored)
 │   │   ├── claude-code-provider.ts # Claude Code provider (Refactored)
 │   │   ├── codex-provider.ts       # Codex provider (Refactored)
-│   │   └── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
+│   │   ├── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
+│   │   └── zed-provider.ts         # Zed editor provider (Added)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers
 │       ├── similarity.ts  # Text similarity utilities
@@ -128,6 +129,7 @@ Defines the core types and interfaces used throughout the application.
   - `CODEX`: "codex" - For Codex IDE (Added)
   - `CLINERULES`: "clinerules" - For Cline/Roo IDEs (Added)
   - `ROO`: "roo" - Alias for CLINERULES (Added)
+  - `ZED`: "zed" - For Zed editor (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
@@ -220,7 +222,7 @@ Provides utility functions for managing file paths related to rules and IDE conf
   - `ruleName`: The name of the rule (used by some types like Cursor)
   - `isGlobal`: Flag indicating global context (uses home dir paths for Claude/Codex)
   - `projectRoot`: The root directory for local project paths
-- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`)
+- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`, `./.rules` for Zed)
 
 #### `getDefaultTargetPath(ruleType: RuleType, isGlobalHint: boolean = false): string`
 
@@ -228,7 +230,7 @@ Provides utility functions for managing file paths related to rules and IDE conf
 - Parameters:
   - `ruleType`: The type of rule/editor
   - `isGlobalHint`: Hint for global context
-- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`)
+- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed)
 
 #### `slugifyRuleName(name: string): string`
 
@@ -293,18 +295,23 @@ Provides utility functions for formatting rule content with metadata like `alway
 
 Provides utility functions specific to providers that manage rules within a single configuration file using tagged blocks.
 
-#### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>`
+#### `appendOrUpdateTaggedBlock(targetPath: string, config: RuleConfig, options?: RuleGeneratorOptions, appendInsideVibeToolsBlock: boolean = false): Promise<boolean>` (Updated)
 
-- Encapsulates the logic for managing rules in single-file providers (Windsurf, Claude Code, Codex).
+- Encapsulates the logic for managing rules in single-file providers (Windsurf, Claude Code, Codex, Zed).
 - Reads the `targetPath` file content.
 - Uses `createTaggedRuleBlock` to generate the XML-like block for the rule.
+- **Bug Fix:** Now properly handles file creation for dot-files (e.g., `.rules`, `.windsurfrules`):
+  - Explicitly checks if a target file exists using `fs.stat`
+  - If the path exists but is a directory, removes it with `fs.rm` (recursive: true)
+  - For new files, uses `fsExtra.ensureFileSync` to create an empty file before writing content
+  - This prevents the dot-files from being incorrectly created as directories
 - Searches for an existing block using a regex based on the `config.name` (e.g., `<rule-name>...</rule-name>`).
 - **If found:** Replaces the existing block with the newly generated one.
 - **If not found:** Appends the new block.
   - If `appendInsideVibeToolsBlock` is `true` (for Claude, Codex), it attempts to insert the block just before the `</vibe-tools Integration>` tag if present.
   - Otherwise (or if the integration block isn't found), it appends the block to the end of the file.
 - Writes the updated content back to the `targetPath`.
-- Ensures the parent directory exists using `ensureTargetDir`.
+- Ensures the parent directory exists using `ensureDirectoryExists`.
 - Handles file not found errors gracefully (creates the file).
 - Returns `true` on success, `false` on failure.
 
@@ -331,6 +338,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, and `ZED` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 
@@ -423,6 +431,20 @@ Implementation of the `RuleProvider` interface for Cline/Roo IDEs.
   - Handles both `alwaysApply` and `globs` options to include in human-readable format
 - **`appendFormattedRule` (Updated):**
   - Adds additional logging to show when metadata is included in rule content
+
+### src/providers/zed-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for Zed editor.
+
+#### `ZedRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Handles Zed's single `.rules` file, typically located at the root of the workspace.
+- **`saveRule`, `loadRule`, `listRules`**: Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage (`~/.vibe-rules/zed/...`).
+- **`generateRuleContent`**: Utilizes the shared `createTaggedRuleBlock` utility from `src/utils/rule-formatter.ts` to format rules with metadata within XML-like tags (e.g., `<rule-name>...</rule-name>`). This is consistent with how other single-file providers like Windsurf manage multiple rules within one file.
+- **`appendRule`**: Loads a rule from internal storage (using `loadInternalRule`) and calls `appendFormattedRule`.
+- **`appendFormattedRule`**: Delegates to the shared `appendOrUpdateTaggedBlock` utility function from `src/utils/single-file-helpers.ts`. This function handles reading the target `.rules` file, replacing an existing tagged block if found, or appending the new one. It passes `false` for `appendInsideVibeToolsBlock`, meaning rules are appended to the end of the file or replace existing blocks directly, not within a specific parent tag.
 
 ### src/llms/internal.ts (Added)
 
