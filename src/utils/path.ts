@@ -75,6 +75,8 @@ export function getRulePath(
       );
     case RuleType.ZED: // Added for Zed
       return path.join(projectRoot, ZED_RULES_FILE);
+    case RuleType.UNIFIED:
+      return path.join(projectRoot, ".rules"); // Unified also uses .rules in project root
     case RuleType.CUSTOM:
     default:
       // Fallback for custom or unknown - store internally for now
@@ -116,8 +118,12 @@ export function getDefaultTargetPath(
       return path.join(process.cwd(), ".clinerules");
     case RuleType.ZED: // Added for Zed
       return path.join(process.cwd(), ZED_RULES_FILE);
+    case RuleType.UNIFIED:
+      return path.join(process.cwd(), ".rules");
     default:
-      // Default to current working directory for unknown types
+      console.warn(
+        `Default target path not defined for rule type: ${ruleType}, defaulting to CWD.`
+      );
       return process.cwd();
   }
 }

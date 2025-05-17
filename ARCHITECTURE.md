@@ -11,33 +11,35 @@ vibe-rules/
 ├── src/                   # Source code
 │   ├── cli.ts             # Command-line interface
 │   ├── index.ts           # Main exports
-│   ├── types.ts           # Type definitions
-│   ├── schemas.ts         # Zod schema definitions (Added)
-│   ├── llms/              # Rule definitions for package export (Added)
+│   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED)
+│   ├── schemas.ts         # Zod schema definitions
+│   ├── llms/              # Rule definitions for package export
 │   │   ├── index.ts       # Public rule export (intentionally empty)
 │   │   └── internal.ts    # Internal rule definitions (not exported)
 │   ├── providers/         # Provider implementations
-│   │   ├── index.ts       # Provider factory
-│   │   ├── cursor-provider.ts  # Cursor editor provider (Refactored)
-│   │   ├── windsurf-provider.ts # Windsurf editor provider (Refactored)
-│   │   ├── claude-code-provider.ts # Claude Code provider (Refactored)
-│   │   ├── codex-provider.ts       # Codex provider (Refactored)
-│   │   ├── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
-│   │   └── zed-provider.ts         # Zed editor provider (Added)
+│   │   ├── index.ts       # Provider factory (Updated: UnifiedRuleProvider)
+│   │   ├── cursor-provider.ts  # Cursor editor provider
+│   │   ├── windsurf-provider.ts # Windsurf editor provider
+│   │   ├── claude-code-provider.ts # Claude Code provider
+│   │   ├── codex-provider.ts       # Codex provider
+│   │   ├── clinerules-provider.ts  # Clinerules/Roo provider
+│   │   ├── zed-provider.ts         # Zed editor provider
+│   │   └── unified-provider.ts     # Unified .rules provider (Added)
 │   └── utils/             # Utility functions
-│       ├── path.ts        # Path helpers
+│       ├── path.ts        # Path helpers (Updated: UNIFIED paths)
 │       ├── similarity.ts  # Text similarity utilities
-│       └── rule-formatter.ts # Rule formatting utilities for metadata (Added)
-│       └── single-file-helpers.ts # Helpers for single-file providers (Added)
-│       └── rule-storage.ts # Helpers for internal rule storage (Added)
+│       └── rule-formatter.ts # Rule formatting utilities for metadata
+│       └── single-file-helpers.ts # Helpers for single-file providers
+│       └── rule-storage.ts # Helpers for internal rule storage
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
 │   ├── public/            # Public assets
 │   └── nuxt.config.ts     # Nuxt configuration
-├── package.json           # Project metadata and dependencies (Updated scripts)
-└── README.md              # Project documentation (Updated examples)
-└── ARCHITECTURE.md        # This file
+├── package.json           # Project metadata and dependencies
+├── README.md              # Project documentation (Updated: Unified convention)
+├── ARCHITECTURE.md        # This file (Being updated)
+├── UNIFIED_RULES_CONVENTION.md # Documentation for .rules (Added)
 ```
 
 ## File Descriptions
@@ -125,11 +127,12 @@ Defines the core types and interfaces used throughout the application.
 - Values:
   - `CURSOR`: "cursor" - For Cursor editor
   - `WINDSURF`: "windsurf" - For Windsurf editor
-  - `CLAUDE_CODE`: "claude-code" - For Claude Code IDE (Added)
-  - `CODEX`: "codex" - For Codex IDE (Added)
-  - `CLINERULES`: "clinerules" - For Cline/Roo IDEs (Added)
-  - `ROO`: "roo" - Alias for CLINERULES (Added)
-  - `ZED`: "zed" - For Zed editor (Added)
+  - `CLAUDE_CODE`: "claude-code" - For Claude Code IDE
+  - `CODEX`: "codex" - For Codex IDE
+  - `CLINERULES`: "clinerules" - For Cline/Roo IDEs
+  - `ROO`: "roo" - Alias for CLINERULES
+  - `ZED`: "zed" - For Zed editor
+  - `UNIFIED`: "unified" - For the unified `.rules` file convention (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
@@ -192,7 +195,7 @@ Defines Zod schemas for validating rule configurations.
 ### src/utils/path.ts
 
 Provides utility functions for managing file paths related to rules and IDE configurations.
-Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExists` (Updated).
+Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExists`.
 
 #### `RULES_BASE_DIR`
 
@@ -223,7 +226,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
   - `ruleName`: The name of the rule (used by some types like Cursor)
   - `isGlobal`: Flag indicating global context (uses home dir paths for Claude/Codex)
   - `projectRoot`: The root directory for local project paths
-- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`, `./.rules` for Zed)
+- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`, `./.rules` for Zed and Unified)
 
 #### `getDefaultTargetPath(ruleType: RuleType, isGlobalHint: boolean = false): string`
 
@@ -231,7 +234,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
 - Parameters:
   - `ruleType`: The type of rule/editor
   - `isGlobalHint`: Hint for global context
-- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed)
+- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed and Unified)
 
 #### `slugifyRuleName(name: string): string`
 
@@ -340,7 +343,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
-Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, and `ZED` (Added).
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, `ZED`, and `UNIFIED` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 
@@ -361,3 +364,37 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
   - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install`
+
+### src/providers/zed-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for Zed editor.
+
+#### `ZedRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `.rules` file in the project root.
+- Uses `appendOrUpdateTaggedBlock` from `single-file-helpers.ts` for file operations.
+- Uses `createTaggedRuleBlock` from `rule-formatter.ts` to generate rule content with metadata.
+- Delegates rule definition storage (`saveRule`, `loadRule`, `listRules`) to `src/utils/rule-storage.ts` using `RuleType.ZED`.
+
+### src/providers/unified-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for the unified `.rules` file convention.
+
+#### `UnifiedRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `.rules` file located in the project root (by convention).
+- Uses `appendOrUpdateTaggedBlock` from `src/utils/single-file-helpers.ts` to read, update, or append tagged rule blocks within the `.rules` file.
+- Uses `createTaggedRuleBlock` from `src/utils/rule-formatter.ts` to generate the XML-like tagged content for each rule, including any metadata provided.
+- Delegates the storage of rule definitions (when using `vibe-rules save unified <name> ...`) to the common internal storage via `src/utils/rule-storage.ts`, using `RuleType.UNIFIED`.
+- The `targetPath` for `appendFormattedRule` is expected to be the path to the `.rules` file itself (e.g., `./.rules`).
+
+## New Documentation Files
+
+### UNIFIED_RULES_CONVENTION.md (Added)
+
+- Describes the purpose, location, format, and usage of the `.rules` file.
+- Provides examples of the tagged rule block structure and how to interact with it using `vibe-rules` commands (`load unified`, `install unified`).

@@ -79,6 +79,9 @@ vibe-rules load my-rule-name claude-code --global
 # Load 'my-rule-name' for Windsurf (appends to ./.windsurfrules)
 vibe-rules load my-rule-name windsurf
 
+# Load into the project's unified .rules file
+vibe-rules load unified my-unified-rule
+
 # Load into a specific custom target path
 vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.mdc
 ```
@@ -116,6 +119,9 @@ vibe-rules install cursor my-rule-package
 
 # Install rules from a specific package into a custom target dir for Roo/Cline
 vibe-rules install roo my-rule-package -t ./custom-ruleset/
+
+# Install rules into the project's unified .rules file
+vibe-rules install unified my-awesome-prompts
 ```
 
 Arguments:
@@ -154,6 +160,10 @@ Options:
   - Appends/updates rules within a `<vibe-tools Integration>` block in `./codex.md` (local) or `~/.codex/instructions.md` (global).
 - **Cline/Roo (`clinerules`, `roo`)**:
   - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
+- **Unified (`unified`)**:
+  - Manages rules within a single `.rules` file in the project root.
+  - Ideal for project-specific, centralized rule management.
+  - See the [Unified .rules File Convention](./UNIFIED_RULES_CONVENTION.md) for detailed format and usage.
 
 ## Development
 

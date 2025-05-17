@@ -5,6 +5,7 @@ import { ClaudeCodeRuleProvider } from "./claude-code-provider";
 import { CodexRuleProvider } from "./codex-provider";
 import { ClinerulesRuleProvider } from "./clinerules-provider";
 import { ZedRuleProvider } from "./zed-provider";
+import { UnifiedRuleProvider } from "./unified-provider";
 
 /**
  * Factory function to get the appropriate rule provider based on rule type
@@ -24,6 +25,8 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
       return new ClinerulesRuleProvider();
     case RuleType.ZED:
       return new ZedRuleProvider();
+    case RuleType.UNIFIED:
+      return new UnifiedRuleProvider();
     case RuleType.CUSTOM:
     default:
       throw new Error(`Unsupported rule type: ${ruleType}`);
