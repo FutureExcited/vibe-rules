@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.2.52",
+  "version": "0.2.55",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -19,7 +19,7 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
-    "publish": "bun run build && npm publish",
+    "publish:npm": "bun run build && npm publish",
     "prepare": "vibe-rules install cursor"
   },
   "keywords": [
