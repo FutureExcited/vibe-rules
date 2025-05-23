@@ -1,0 +1,79 @@
+{
+  "$schema": "https://contextjson.com/context.schema.json",
+  "extends": "https://contextjson.com/default.context.json",
+  "context": {
+    "getting-started": {
+      "summary": "Essential files and documentation for quickly getting started with vibe-rules CLI tool, including installation, usage, and basic commands.",
+      "prompt": "Explain how to quickly get started with the vibe-rules CLI tool. Focus on installation, saving rules, loading rules, and installing from npm packages.",
+      "basePath": [""],
+      "pathPatterns": [
+        "README.md",
+        "src/cli.ts",
+        "src/types.ts",
+        "src/schemas.ts",
+        "src/utils/**/*",
+        "src/providers/**/*",
+        "UNIFIED_RULES_CONVENTION.md"
+      ],
+      "excludePathPatterns": [
+        "**/test/**",
+        "**/*.test.ts",
+        "dist/**",
+        "node_modules/**"
+      ],
+      "maxFileSize": [200000]
+    },
+    "authoring-package-support": {
+      "summary": "Guidelines and example for adding vibe-rules install support to your own npm package to ship versioned distributed AI LLM rules.",
+      "prompt": "Explain how to add support in your own repository so that vibe-rules install can find and apply your distributed AI llm rules via the 'llms' export, including module conventions, rule format, and package structure.",
+      "basePath": [""],
+      "pathPatterns": [
+        "README.md",
+        "src/cli.ts",
+        "src/schemas.ts",
+        "src/types.ts",
+        "src/llms/index.ts",
+        "src/llms/internal.ts"
+      ],
+      "excludePathPatterns": ["dist/**", "node_modules/**"],
+      "maxFileSize": [40000]
+    },
+    "core-architecture": {
+      "summary": "Key source code files defining the architecture and core logic of vibe-rules including provider implementations, CLI commands, and rule storage utilities.",
+      "prompt": "Describe the architecture and core implementation details of vibe-rules focusing on CLI commands, rule providers for various editors, and internal rule storage mechanisms.",
+      "basePath": [""],
+      "pathPatterns": [
+        "src/cli.ts",
+        "src/types.ts",
+        "src/utils/**/*",
+        "src/providers/**/*",
+        "src/schemas.ts",
+        "ARCHITECTURE.md"
+      ],
+      "excludePathPatterns": ["dist/**", "node_modules/**"],
+      "maxFileSize": [200000]
+    },
+    "rules-formatting": {
+      "summary": "Files related to rule formatting, tagging, and unified rules file conventions for managing AI assistant prompts across editors.",
+      "prompt": "Explain how vibe-rules formats and manages rules including metadata, tagged blocks, and the unified .rules file convention.",
+      "basePath": [""],
+      "pathPatterns": [
+        "src/utils/rule-formatter.ts",
+        "src/utils/single-file-helpers.ts",
+        "src/providers/unified-provider.ts",
+        "UNIFIED_RULES_CONVENTION.md"
+      ],
+      "excludePathPatterns": ["dist/**", "node_modules/**"],
+      "maxFileSize": [100000]
+    },
+    "package-rules-installation": {
+      "summary": "Mechanism for installing AI rules from npm packages via the `llms` export, handling both CommonJS and ESM packages.",
+      "prompt": "Describe how vibe-rules install command dynamically imports npm packages' llms export, validates rule configurations, and applies them to editors.",
+      "basePath": [""],
+      "pathPatterns": ["src/cli.ts", "src/schemas.ts", "src/types.ts"],
+      "excludePathPatterns": ["dist/**", "node_modules/**"],
+      "maxFileSize": [50000]
+    }
+  },
+  "attribution": "https://github.com/flowisgreat/vibe-rules"
+}

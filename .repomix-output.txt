@@ -54,6 +54,8 @@ The content is organized as follows:
     good-behaviour.mdc
     yo.mdc
 src/
+  commands/
+    install.ts
   llms/
     index.ts
     internal.ts
@@ -64,6 +66,7 @@ src/
     codex-provider.ts
     cursor-provider.ts
     index.ts
+    unified-provider.ts
     windsurf-provider.ts
     zed-provider.ts
   utils/
@@ -86,6 +89,7 @@ package.json
 README.md
 TODO.md
 tsconfig.json
+UNIFIED_RULES_CONVENTION.md
 vibe-tools.config.json
 </directory_structure>
 
@@ -102,6 +106,596 @@ At the end of each task, you need to write all changes to ARCHITECTURE.md.
 
 And by write all changes, I mean modify the architecture of the entire app. If you've changed a function - modify its params/output or whatever you changed.
 If you've added a new file - add it to the ARCHITECTURE.md.
+</file>
+
+<file path=".cursor/rules/good-behaviour.mdc">
+---
+description: 
+globs: 
+alwaysApply: true
+---
+In the beginning of each task, always use vibe-tools repo. ENSURE 100% you use vibe-tools repo before writing any code. DO NOT look up any files before you vibe-tools repo.
+
+Keep the code changes as minimal as you can, only changing the absolute necessary parts. Do not change anything directly unrelated to what user asked.  
+
+Keep it as simple as possible, fewest lines of code as possible, as clean as possible
+</file>
+
+<file path="src/commands/install.ts">
+import fs from "fs-extra";
+import path from "path";
+import chalk from "chalk";
+import {
+  RuleType,
+  RuleConfig,
+  RuleGeneratorOptions,
+  RuleProvider,
+  RuleTypeArray,
+} from "../types";
+import { getRuleProvider } from "../providers";
+import {
+  getDefaultTargetPath,
+  getRulePath,
+  slugifyRuleName,
+} from "../utils/path";
+import { VibePackageRulesSchema } from "../schemas";
+import { isDebugEnabled, debugLog } from "../cli"; // Assuming these will be exported from cli.ts
+// Helper function to clear existing rules installed from a package
+async function clearExistingRules(
+  pkgName: string,
+  editorType: RuleType,
+  options: { global?: boolean }
+): Promise<void> {
+  debugLog(
+    `Clearing existing rules for package "${pkgName}" and editor "${editorType}" with options ${JSON.stringify(
+      options
+    )}...`
+  );
+  let targetDir: string;
+  const singleFileProviders: RuleTypeArray = [
+    RuleType.WINDSURF,
+    RuleType.CLAUDE_CODE,
+    RuleType.CODEX,
+  ];
+  let isSingleFileProvider = singleFileProviders.includes(editorType);
+  // Get default path from provider logic
+  const defaultPath = getDefaultTargetPath(editorType, options.global);
+  try {
+    // Check if path exists first
+    if (await fs.pathExists(defaultPath)) {
+      const stats = await fs.stat(defaultPath);
+      if (stats.isDirectory()) {
+        targetDir = defaultPath;
+      } else {
+        targetDir = path.dirname(defaultPath);
+      }
+    } else {
+      // Default path doesn't exist. Create it.
+      await fs.ensureDir(defaultPath);
+      targetDir = defaultPath;
+    }
+  } catch (error: any) {
+    console.error(
+      chalk.red(`Error checking default path ${defaultPath}: ${error.message}`)
+    );
+    return; // Cannot determine target directory
+  }
+  debugLog(
+    `Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider} for ${editorType}.`
+  );
+  // If it's a known single file provider, remove matching XML blocks instead of deleting files
+  if (isSingleFileProvider) {
+    const potentialTargetFile = getRulePath(editorType, "", options.global);
+    if (!(await fs.pathExists(potentialTargetFile))) {
+      debugLog(
+        `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
+      );
+      return;
+    }
+    if (!potentialTargetFile) {
+      debugLog(
+        `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
+      );
+      return;
+    }
+    try {
+      if (!(await fs.pathExists(potentialTargetFile))) {
+        debugLog(
+          `Target file ${potentialTargetFile} does not exist. No rules to clear.`
+        );
+        return;
+      }
+      const content = await fs.readFile(potentialTargetFile, "utf-8");
+      // Regex to match <pkgName_ruleName ...>...</pkgName_ruleName> blocks
+      const removalRegex = new RegExp(
+        `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\s*\n?`,
+        "gs"
+      );
+      let removedCount = 0;
+      const newContent = content.replace(removalRegex, (match) => {
+        removedCount++;
+        debugLog(
+          `Removing block matching pattern: ${match.substring(0, 100)}...`
+        );
+        return "";
+      });
+      if (removedCount > 0) {
+        await fs.writeFile(potentialTargetFile, newContent, "utf-8");
+        debugLog(
+          chalk.blue(
+            `Removed ${removedCount} existing rule block(s) matching prefix "${pkgName}_" from ${potentialTargetFile}.`
+          )
+        );
+      } else {
+        debugLog(
+          `No rule blocks found with prefix "${pkgName}_" in ${potentialTargetFile}.`
+        );
+      }
+    } catch (error: any) {
+      console.error(
+        chalk.red(
+          `Error clearing rule blocks from ${potentialTargetFile}: ${error.message}`
+        )
+      );
+    }
+    return;
+  }
+  try {
+    if (!(await fs.pathExists(targetDir))) {
+      debugLog(
+        `Target directory ${targetDir} does not exist. No rules to clear.`
+      );
+      return;
+    }
+    const files = await fs.readdir(targetDir);
+    const prefix = `${pkgName}_`;
+    let deletedCount = 0;
+    debugLog(
+      `Scanning ${targetDir} for files starting with prefix "${prefix}"...`
+    );
+    for (const file of files) {
+      if (file.startsWith(prefix)) {
+        const filePath = path.join(targetDir, file);
+        try {
+          await fs.remove(filePath);
+          debugLog(chalk.grey(`Deleted existing rule file: ${filePath}`));
+          deletedCount++;
+        } catch (deleteError: any) {
+          console.error(
+            chalk.red(
+              `Failed to delete rule file ${filePath}: ${deleteError.message}`
+            )
+          );
+        }
+      }
+    }
+    if (deletedCount > 0) {
+      debugLog(
+        chalk.blue(
+          `Cleared ${deletedCount} existing rule file(s) matching prefix "${prefix}" in ${targetDir}.`
+        )
+      );
+    } else {
+      debugLog(`No rule files found with prefix "${prefix}" in ${targetDir}.`);
+    }
+  } catch (error: any) {
+    console.error(
+      chalk.red(
+        `Error clearing existing rules in ${targetDir}: ${error.message}`
+      )
+    );
+  }
+}
+async function importModuleFromCwd(ruleModulePath: string) {
+  debugLog(`Attempting to import module: ${ruleModulePath}`);
+  let module: any;
+  try {
+    debugLog(`Trying require for ${ruleModulePath}...`);
+    module = await eval(
+      `require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`
+    );
+    debugLog(`Successfully imported using require.`);
+  } catch (error: any) {
+    if (error.code === "ERR_REQUIRE_ESM") {
+      debugLog(
+        `Require failed (ERR_REQUIRE_ESM). Falling back to dynamic import()...`
+      );
+      try {
+        let absolutePath: string;
+        try {
+          absolutePath = require.resolve(ruleModulePath, {
+            paths: [process.cwd()],
+          });
+        } catch (resolveError: any) {
+          debugLog(
+            `Could not resolve path for dynamic import of ${ruleModulePath}: ${resolveError.message}`
+          );
+          throw resolveError;
+        }
+        debugLog(`Resolved path for import(): ${absolutePath}`);
+        const fileUrl = require("url").pathToFileURL(absolutePath).href;
+        debugLog(`Trying dynamic import('${fileUrl}')...`);
+        module = await eval(`import('${fileUrl}')`);
+        debugLog(`Successfully imported using dynamic import().`);
+      } catch (importError: any) {
+        debugLog(
+          `Dynamic import() failed for ${ruleModulePath}: ${importError.message}`
+        );
+        throw importError;
+      }
+    } else {
+      debugLog(
+        `Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
+      );
+      throw error;
+    }
+  }
+  const defaultExport = module?.default || module;
+  debugLog(`Module imported. Type: ${typeof defaultExport}`);
+  return defaultExport;
+}
+async function installSinglePackage(
+  pkgName: string,
+  editorType: RuleType,
+  provider: RuleProvider,
+  installOptions: { global?: boolean; target?: string; debug?: boolean }
+): Promise<number> {
+  // Return count of successfully applied rules
+  if (isDebugEnabled) {
+    console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
+  }
+  let rulesSuccessfullyAppliedCount = 0;
+  try {
+    const ruleModulePath = `${pkgName}/llms`;
+    debugLog(`Importing module ${ruleModulePath}`);
+    const defaultExport = await importModuleFromCwd(ruleModulePath);
+    if (!defaultExport) {
+      debugLog(
+        chalk.yellow(
+          `No default export or module found in ${ruleModulePath} after import attempt. Skipping ${pkgName}.`
+        )
+      );
+      return 0;
+    }
+    await clearExistingRules(pkgName, editorType, installOptions);
+    let rulesToInstall: RuleConfig[] = [];
+    if (typeof defaultExport === "string") {
+      debugLog(
+        `Found rule content as string in ${pkgName}. Preparing to install...`
+      );
+      let ruleName = slugifyRuleName(pkgName);
+      if (!ruleName.startsWith(`${pkgName}_`)) {
+        ruleName = `${pkgName}_${ruleName}`;
+      }
+      const ruleContent = defaultExport;
+      rulesToInstall.push({ name: ruleName, content: ruleContent });
+    } else {
+      debugLog(`Found array export in ${pkgName}. Validating...`);
+      const validationResult = VibePackageRulesSchema.safeParse(defaultExport);
+      if (!validationResult.success) {
+        console.error(
+          chalk.red(`Validation failed for rules from ${pkgName}:`),
+          validationResult.error.errors
+        );
+        debugLog(
+          chalk.yellow(
+            `Skipping installation from ${pkgName} due to validation failure.`
+          )
+        );
+        return 0;
+      }
+      const items = validationResult.data;
+      debugLog(`Found ${items.length} valid items in ${pkgName}`);
+      for (const [index, item] of items.entries()) {
+        if (typeof item === "string") {
+          const ruleName = slugifyRuleName(`${pkgName}_${index}`);
+          rulesToInstall.push({
+            name: ruleName,
+            content: item,
+            description: `Rule from ${pkgName}`,
+          });
+        } else {
+          let ruleName = item.name;
+          if (!ruleName.startsWith(`${pkgName}_`)) {
+            ruleName = `${pkgName}_${ruleName}`;
+          }
+          debugLog(`Processing object rule: ${item.name} with properties:
+            alwaysApply: ${
+              item.alwaysApply !== undefined ? item.alwaysApply : "undefined"
+            }
+            globs: ${
+              item.globs
+                ? Array.isArray(item.globs)
+                  ? item.globs.join(",")
+                  : item.globs
+                : "undefined"
+            }
+          `);
+          rulesToInstall.push({
+            name: ruleName,
+            content: item.rule,
+            description: item.description,
+          });
+        }
+      }
+    }
+    if (rulesToInstall.length > 0) {
+      if (isDebugEnabled) {
+        console.log(
+          chalk.blue(
+            `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
+          )
+        );
+      }
+      for (const ruleConfig of rulesToInstall) {
+        try {
+          let finalTargetPath: string;
+          if (installOptions.target) {
+            finalTargetPath = installOptions.target;
+          } else {
+            finalTargetPath = getRulePath(
+              editorType,
+              ruleConfig.name,
+              installOptions.global
+            );
+          }
+          fs.ensureDirSync(path.dirname(finalTargetPath));
+          const generatorOptions: RuleGeneratorOptions = {
+            description: ruleConfig.description,
+            isGlobal: installOptions.global,
+            debug: installOptions.debug,
+          };
+          let originalName = ruleConfig.name;
+          if (originalName.startsWith(`${pkgName}_`)) {
+            originalName = originalName.substring(pkgName.length + 1);
+          }
+          debugLog(
+            `Looking for metadata with original name: ${originalName} (from ${ruleConfig.name})`
+          );
+          const originalItem =
+            typeof defaultExport === "string"
+              ? null
+              : Array.isArray(defaultExport)
+              ? defaultExport.find(
+                  (item: any) =>
+                    typeof item === "object" &&
+                    (item.name === originalName ||
+                      item.name === ruleConfig.name)
+                )
+              : null;
+          if (originalItem && typeof originalItem === "object") {
+            debugLog(
+              `Found additional metadata for rule ${
+                ruleConfig.name
+              }. Keys: ${Object.keys(originalItem).join(", ")}`
+            );
+            if ("alwaysApply" in originalItem) {
+              generatorOptions.alwaysApply = originalItem.alwaysApply;
+              debugLog(`Setting alwaysApply: ${originalItem.alwaysApply}`);
+            }
+            if ("globs" in originalItem) {
+              generatorOptions.globs = originalItem.globs;
+              debugLog(`Setting globs: ${JSON.stringify(originalItem.globs)}`);
+            }
+          }
+          debugLog(
+            `Applying rule ${ruleConfig.name} with options: ${JSON.stringify(
+              generatorOptions
+            )}`
+          );
+          if (isDebugEnabled) {
+            if (generatorOptions.globs) {
+              console.log(
+                chalk.blue(
+                  `Rule "${ruleConfig.name}" has globs: ${
+                    Array.isArray(generatorOptions.globs)
+                      ? generatorOptions.globs.join(", ")
+                      : generatorOptions.globs
+                  }`
+                )
+              );
+            }
+            if (generatorOptions.alwaysApply !== undefined) {
+              console.log(
+                chalk.blue(
+                  `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
+                )
+              );
+            }
+          }
+          try {
+            const success = await provider.appendFormattedRule(
+              ruleConfig,
+              finalTargetPath,
+              installOptions.global,
+              generatorOptions
+            );
+            if (success) {
+              rulesSuccessfullyAppliedCount++;
+              if (isDebugEnabled) {
+                console.log(
+                  chalk.green(
+                    `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
+                  )
+                );
+              }
+            } else {
+              console.error(
+                chalk.red(
+                  `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
+                )
+              );
+            }
+          } catch (ruleApplyError) {
+            console.error(
+              chalk.red(
+                `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${
+                  ruleApplyError instanceof Error
+                    ? ruleApplyError.message
+                    : ruleApplyError
+                }`
+              )
+            );
+          }
+        } catch (ruleError) {
+          console.error(
+            chalk.red(
+              `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${
+                ruleError instanceof Error ? ruleError.message : ruleError
+              }`
+            )
+          );
+        }
+      }
+    } else {
+      debugLog(`No valid rules found or processed from ${pkgName}.`);
+    }
+  } catch (error: any) {
+    if (
+      error.code === "MODULE_NOT_FOUND" ||
+      error.code === "ERR_MODULE_NOT_FOUND" ||
+      error.code === "ERR_PACKAGE_PATH_NOT_EXPORTED"
+    ) {
+      const msg = `Skipping package ${pkgName}: Rules module ('${pkgName}/llms') not found or not exported.`;
+      debugLog(`${msg} Error: ${error.message}`);
+      debugLog(`Stack: ${error.stack}`);
+    } else if (error instanceof SyntaxError) {
+      console.error(
+        chalk.red(
+          `Error in package '${pkgName}': Syntax error found in its rule module ('${pkgName}/llms').`
+        )
+      );
+      console.error(
+        chalk.red(
+          "Please check the syntax of the rules module in this package."
+        )
+      );
+      debugLog(`SyntaxError details: ${error.message}`);
+      debugLog(`Stack: ${error.stack}`);
+    } else {
+      console.error(
+        chalk.red(
+          `Error from package '${pkgName}': Its rule module ('${pkgName}/llms') was found but failed during its own initialization.`
+        )
+      );
+      console.error(
+        chalk.yellow(
+          `This often indicates an issue within the '${pkgName}' package itself (e.g., trying to access files with incorrect paths post-build, or other internal errors).`
+        )
+      );
+      console.error(
+        chalk.red(`Original error from '${pkgName}': ${error.message}`)
+      );
+      debugLog(`Full error trace from '${pkgName}' to help its developers:`);
+      debugLog(error.stack);
+    }
+  }
+  return rulesSuccessfullyAppliedCount;
+}
+/**
+ * Handles the 'install' command logic.
+ * Installs rules from an NPM package or all dependencies into an editor configuration.
+ * @param editor Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)
+ * @param packageName Optional NPM package name to install rules from
+ * @param options Command options including global, target, and debug
+ */
+export async function installCommandAction(
+  editor: string,
+  packageName: string | undefined,
+  options: { global?: boolean; target?: string; debug?: boolean }
+): Promise<void> {
+  const editorType = editor.toLowerCase() as RuleType;
+  let provider: RuleProvider;
+  const combinedOptions = { ...options, debug: isDebugEnabled }; // Use isDebugEnabled from cli.ts
+  try {
+    provider = getRuleProvider(editorType);
+  } catch (e) {
+    console.error(chalk.red(`Invalid editor type specified: ${editor}`));
+    process.exit(1);
+  }
+  if (packageName) {
+    const count = await installSinglePackage(
+      packageName,
+      editorType,
+      provider,
+      combinedOptions
+    );
+    if (!isDebugEnabled && count > 0) {
+      console.log(
+        chalk.green(
+          `[vibe-rules] Successfully installed ${count} rule(s) from package '${packageName}'.`
+        )
+      );
+    }
+  } else {
+    console.log(
+      chalk.blue(
+        `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
+      )
+    );
+    try {
+      const pkgJsonPath = path.join(process.cwd(), "package.json");
+      if (!fs.existsSync(pkgJsonPath)) {
+        console.error(
+          chalk.red("package.json not found in the current directory.")
+        );
+        process.exit(1);
+      }
+      const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
+      const { dependencies = {}, devDependencies = {} } =
+        JSON.parse(pkgJsonContent);
+      const allDeps = [
+        ...Object.keys(dependencies),
+        ...Object.keys(devDependencies),
+      ];
+      if (allDeps.length === 0) {
+        console.log(chalk.yellow("No dependencies found in package.json."));
+        return;
+      }
+      debugLog(
+        chalk.blue(
+          `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
+        )
+      );
+      let totalRulesInstalled = 0;
+      for (const depName of allDeps) {
+        totalRulesInstalled += await installSinglePackage(
+          depName,
+          editorType,
+          provider,
+          combinedOptions
+        );
+      }
+      if (!isDebugEnabled && totalRulesInstalled > 0) {
+        console.log(
+          chalk.green(
+            `[vibe-rules] Finished installing rules from dependencies. Total rules installed: ${totalRulesInstalled}.`
+          )
+        );
+      } else if (
+        !isDebugEnabled &&
+        totalRulesInstalled === 0 &&
+        allDeps.length > 0
+      ) {
+        console.log(
+          chalk.yellow(
+            "[vibe-rules] No rules found to install from dependencies."
+          )
+        );
+      }
+      debugLog(chalk.green("Finished checking all dependencies."));
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `Error processing package.json: ${
+            error instanceof Error ? error.message : error
+          }`
+        )
+      );
+      process.exit(1);
+    }
+  }
+}
 </file>
 
 <file path="src/llms/index.ts">
@@ -257,526 +851,6 @@ vibe-rules install [packageName]
 - Expects the default export to be an array conforming to the VibeRulesSchema (array of { name, content, description? }).
 - Saves each valid rule found into the common local store (~/.vibe-rules/rules/).
 `,
-</file>
-
-<file path="src/utils/rule-formatter.ts">
-import { RuleConfig, RuleGeneratorOptions } from "../types";
-/**
- * Formats rule content for non-cursor providers that use XML-like tags.
- * Includes additional metadata like alwaysApply and globs in a human-readable format
- * within the rule content.
- */
-export function formatRuleWithMetadata(
-  config: RuleConfig,
-  options?: RuleGeneratorOptions
-): string {
-  let formattedContent = config.content;
-  // Add metadata lines at the beginning of content if they exist
-  const metadataLines = [];
-  // Add alwaysApply information if provided
-  if (options?.alwaysApply !== undefined) {
-    metadataLines.push(
-      `Always Apply: ${options.alwaysApply ? "true" : "false"} - ${
-        options.alwaysApply
-          ? "This rule should ALWAYS be applied by the AI"
-          : "This rule should only be applied when relevant files are open"
-      }`
-    );
-  }
-  // Add globs information if provided
-  if (options?.globs) {
-    const globsStr = Array.isArray(options.globs)
-      ? options.globs.join(", ")
-      : options.globs;
-    // Skip adding the glob info if it's just a generic catch-all pattern
-    const isCatchAllPattern =
-      globsStr === "**/*" ||
-      (Array.isArray(options.globs) &&
-        options.globs.length === 1 &&
-        options.globs[0] === "**/*");
-    if (!isCatchAllPattern) {
-      metadataLines.push(`Always apply this rule in these files: ${globsStr}`);
-    }
-  }
-  // If we have metadata, add it to the beginning of the content
-  if (metadataLines.length > 0) {
-    formattedContent = `${metadataLines.join("\n")}\n\n${config.content}`;
-  }
-  return formattedContent;
-}
-/**
- * Creates a complete XML-like block for a rule, including start/end tags
- * and formatted content with metadata
- */
-export function createTaggedRuleBlock(
-  config: RuleConfig,
-  options?: RuleGeneratorOptions
-): string {
-  const formattedContent = formatRuleWithMetadata(config, options);
-  const startTag = `<${config.name}>`;
-  const endTag = `</${config.name}>`;
-  return `${startTag}\n${formattedContent}\n${endTag}`;
-}
-</file>
-
-<file path="src/utils/similarity.ts">
-/**
- * Text similarity utilities for finding similar rule names
- */
-/**
- * Calculate Levenshtein distance between two strings
- * @param a First string
- * @param b Second string
- * @returns Distance score (lower means more similar)
- */
-export function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = [];
-  // Initialize matrix
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
-  }
-  // Fill matrix
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      const cost = a[j - 1] === b[i - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1, // deletion
-        matrix[i][j - 1] + 1, // insertion
-        matrix[i - 1][j - 1] + cost // substitution
-      );
-    }
-  }
-  return matrix[b.length][a.length];
-}
-/**
- * Calculate similarity score between two strings (0-1, higher means more similar)
- * @param a First string
- * @param b Second string
- * @returns Similarity score between 0 and 1
- */
-export function calculateSimilarity(a: string, b: string): number {
-  if (a === b) return 1; // Exact match
-  if (!a || !b) return 0; // Handle empty strings
-  const distance = levenshteinDistance(a.toLowerCase(), b.toLowerCase());
-  const maxLength = Math.max(a.length, b.length);
-  // Convert distance to similarity score (1 - normalized distance)
-  return 1 - distance / maxLength;
-}
-/**
- * Find similar rule names to the given name
- * @param notFoundName The rule name that wasn't found
- * @param availableRules List of available rule names
- * @param limit Maximum number of similar rules to return
- * @returns Array of similar rule names sorted by similarity (most similar first)
- */
-export function findSimilarRules(
-  notFoundName: string,
-  availableRules: string[],
-  limit: number = 5
-): string[] {
-  if (!availableRules.length) return [];
-  // Calculate similarity for each rule
-  const scoredRules = availableRules.map((ruleName) => ({
-    name: ruleName,
-    score: calculateSimilarity(notFoundName, ruleName),
-  }));
-  // Sort by similarity score (highest first) and take the top n
-  return scoredRules
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((rule) => rule.name);
-}
-</file>
-
-<file path="src/index.ts">
-// Export all types and utilities
-export * from "./types";
-export * from "./utils/path";
-export * from "./utils/similarity";
-export * from "./providers";
-// Import providers
-import { CursorRuleProvider } from "./providers/cursor-provider";
-import { WindsurfRuleProvider } from "./providers/windsurf-provider";
-// Export concrete implementations
-export { CursorRuleProvider, WindsurfRuleProvider };
-</file>
-
-<file path="src/schemas.ts">
-import { z } from "zod";
-export const RuleConfigSchema = z.object({
-  name: z.string().min(1, "Rule name cannot be empty"),
-  content: z.string().min(1, "Rule content cannot be empty"),
-  description: z.string().optional(),
-  // Add other fields from RuleConfig if they exist and need validation
-});
-// Original schema for reference (might still be used elsewhere, e.g., save command)
-export const VibeRulesSchema = z.array(RuleConfigSchema);
-// --- Schemas for Package Exports (`<packageName>/llms`) ---
-// Schema for the flexible rule object format within packages
-export const PackageRuleObjectSchema = z.object({
-  name: z.string().min(1, "Rule name cannot be empty"),
-  rule: z.string().min(1, "Rule content cannot be empty"), // Renamed from content
-  description: z.string().optional(),
-  alwaysApply: z.boolean().optional(),
-  globs: z.union([z.string(), z.array(z.string())]).optional(), // Allow string or array
-});
-// Schema for a single item in the package export (either a string or the object)
-export const PackageRuleItemSchema = z.union([
-  z.string().min(1, "Rule string cannot be empty"),
-  PackageRuleObjectSchema, // Defined above now
-]);
-// Schema for the default export of package/llms (array of strings or objects)
-export const VibePackageRulesSchema = z.array(PackageRuleItemSchema);
-// --- Type Helpers ---
-// Basic RuleConfig type
-export type RuleConfig = z.infer<typeof RuleConfigSchema>;
-// Type for the flexible package rule object
-export type PackageRuleObject = z.infer<typeof PackageRuleObjectSchema>;
-// Type for a single item in the package export array
-export type PackageRuleItem = z.infer<typeof PackageRuleItemSchema>;
-</file>
-
-<file path="src/text.d.ts">
-declare module "*.txt" {
-  const content: string;
-  export default content;
-}
-</file>
-
-<file path=".gitignore">
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-
-# TypeScript
-dist/
-*.tsbuildinfo
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Testing
-coverage/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local 
-
-.repomix-*
-</file>
-
-<file path=".npmignore">
-node_modules
-src
-tsconfig.json
-*.log
-.DS_Store
-examples
-ARCHITECTURE.md
-.vscode
-.idea
-</file>
-
-<file path="LICENSE">
-MIT License
-
-Copyright (c) 2025 Artem Murzin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-</file>
-
-<file path="README.md">
-# vibe-rules
-
-A powerful CLI tool for managing and sharing AI rules (prompts, configurations) across different editors and tools.
-
-✨ **Supercharge your workflow!** ✨
-
-Quickly save your favorite prompts and apply them to any supported editor:
-
-```bash
-# 1. Save your prompt locally
-vibe-rules save my-react-helper -f ./prompts/react-helper.md
-
-# 2. Apply it to Cursor
-vibe-rules load my-react-helper cursor
-```
-
-Or, automatically install shared prompts from your project's NPM packages:
-
-```bash
-# Find packages with 'llms' exports in node_modules and install for Cursor
-vibe-rules install cursor
-```
-
-(See full command details below.)
-
-## Installation
-
-```bash
-# Install globally (bun recommended, npm/yarn also work)
-bun i -g vibe-rules
-```
-
-## Usage
-
-`vibe-rules` helps you save, list, load, and install AI rules.
-
-### Save a Rule Locally
-
-Store a rule for later use in the common `vibe-rules` store (`~/.vibe-rules/rules/`).
-
-```bash
-# Save from a file (e.g., .mdc, .md, or plain text)
-vibe-rules save my-rule-name -f ./path/to/rule-content.md
-
-# Save directly from content string
-vibe-rules save another-rule -c "This is the rule content."
-
-# Add/update a description
-vibe-rules save my-rule-name -d "A concise description of what this rule does."
-```
-
-Options:
-
-- `-f, --file <file>`: Path to the file containing the rule content.
-- `-c, --content <content>`: Rule content provided as a string. (One of `-f` or `-c` is required).
-- `-d, --description <desc>`: An optional description for the rule.
-
-### List Saved Rules
-
-See all the rules you've saved to the common local store.
-
-```bash
-vibe-rules list
-```
-
-### Load (Apply) a Saved Rule to an Editor
-
-Apply a rule _from your local store_ (`~/.vibe-rules/rules/`) to a specific editor's configuration file. `vibe-rules` handles the formatting.
-
-```bash
-# Load 'my-rule-name' for Cursor (creates/updates .cursor/rules/my-rule-name.mdc)
-vibe-rules load my-rule-name cursor
-# Alias: vibe-rules add my-rule-name cursor
-
-# Load 'my-rule-name' for Claude Code IDE globally (updates ~/.claude/CLAUDE.md)
-vibe-rules load my-rule-name claude-code --global
-# Alias: vibe-rules add my-rule-name claude-code -g
-
-# Load 'my-rule-name' for Windsurf (appends to ./.windsurfrules)
-vibe-rules load my-rule-name windsurf
-
-# Load into a specific custom target path
-vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.mdc
-```
-
-Arguments:
-
-- `<name>`: The name of the rule saved in the local store (`~/.vibe-rules/rules/`).
-- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
-
-Options:
-
-- `-g, --global`: Apply to the editor's global configuration path (if supported, e.g., `claude-code`, `codex`). Defaults to project-local.
-- `-t, --target <path>`: Specify a custom target file path or directory, overriding default/global paths.
-
-### Sharing and Installing Rules via NPM
-
-In the evolving AI landscape, prompts and context are becoming increasingly crucial components of development workflows. Just like code libraries, reusable AI rules and prompts are emerging as shareable assets.
-
-We anticipate more NPM packages will begin exporting standardized AI configurations, often via a `llms` entry point (e.g., `my-package/llms`). `vibe-rules` embraces this trend with the `install` command.
-
-### Install Rules from NPM Packages
-
-⚡ **The easiest way to integrate shared rule sets!** ⚡
-
-Install rules _directly from NPM packages_ into an editor's configuration. `vibe-rules` automatically scans your project's dependencies or a specified package for compatible rule exports.
-
-```bash
-# Most common: Install rules from ALL dependencies/devDependencies for Cursor
-# Scans package.json, finds packages with 'llms' export, applies rules.
-vibe-rules install cursor
-
-# Install rules from a specific package for Cursor
-# (Assumes 'my-rule-package' is in node_modules)
-vibe-rules install cursor my-rule-package
-
-# Install rules from a specific package into a custom target dir for Roo/Cline
-vibe-rules install roo my-rule-package -t ./custom-ruleset/
-```
-
-Arguments:
-
-- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
-- `[packageName]` (Optional): The specific NPM package name to install rules from. If omitted, `vibe-rules` scans all dependencies and devDependencies in your project's `package.json`.
-
-Options:
-
-- `-g, --global`: Apply to the editor's global configuration path (if supported).
-- `-t, --target <path>`: Specify a custom target file path or directory.
-
-**How `install` finds rules:**
-
-1.  Looks for installed NPM packages (either the specified one or all dependencies based on whether `[packageName]` is provided).
-2.  Attempts to dynamically import a module named `llms` from the package root (e.g., `require('my-rule-package/llms')` or `import('my-rule-package/llms')`). Handles both CommonJS and ESM.
-3.  Examines the `default export` of the `llms` module:
-    - **If it's a string:** Treats it as a single rule's content.
-    - **If it's an array:** Expects an array of rule strings or rule objects.
-      - Rule Object Shape: `{ name: string, rule: string, description?: string, alwaysApply?: boolean, globs?: string | string[] }` (Validated using Zod). Note the use of `rule` for content.
-4.  Uses the appropriate editor provider (`cursor`, `windsurf`, etc.) to format and apply each found rule to the correct target path (respecting `-g` and `-t` options). Metadata like `alwaysApply` and `globs` is passed to the provider if present in a rule object.
-5.  **Important:** Rules installed this way are applied _directly_ to the editor configuration; they are **not** saved to the common local store (`~/.vibe-rules/rules/`). Use `vibe-rules save` for that.
-
-## Supported Editors & Formats
-
-`vibe-rules` automatically handles formatting for:
-
-- **Cursor (`cursor`)**:
-  - Creates/updates individual `.mdc` files in `./.cursor/rules/` (local) or `~/.cursor/rules/` (global, if supported via `-t`).
-  - Uses frontmatter for metadata (`description`, `alwaysApply`, `globs`).
-- **Windsurf (`windsurf`)**:
-  - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
-- **Claude Code (`claude-code`)**:
-  - Appends/updates rules within a `<vibe-tools Integration>` block in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
-- **Codex (`codex`)**:
-  - Appends/updates rules within a `<vibe-tools Integration>` block in `./codex.md` (local) or `~/.codex/instructions.md` (global).
-- **Cline/Roo (`clinerules`, `roo`)**:
-  - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
-
-## Development
-
-```bash
-# Clone the repo
-git clone https://github.com/your-username/vibe-rules.git
-cd vibe-rules
-
-# Install dependencies
-bun install
-
-# Run tests (if any)
-bun test
-
-# Build the project
-bun run build
-
-# Link for local development testing
-bun link
-# Now you can use 'vibe-rules' command locally
-```
-
-## License
-
-MIT
-</file>
-
-<file path="TODO.md">
-For cursor add manual header for autoapply
-export vibe-rules llms.txt
-proprely handle array with object structure - support for globs
-llms.txt same way as sitemap.xml/sitemap_index.xml
-</file>
-
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "outDir": "dist",
-    "rootDir": "src",
-    "strict": true,
-    "esModuleInterop": true,
-    "declaration": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.test.ts"]
-}
-</file>
-
-<file path="vibe-tools.config.json">
-{
-  "web": {
-    "provider": "perplexity",
-    "model": "sonar-pro"
-  },
-  "plan": {
-    "fileProvider": "openrouter",
-    "thinkingProvider": "openrouter",
-    "fileModel": "google/gemini-2.5-flash-preview",
-    "thinkingModel": "google/gemini-2.5-flash-preview"
-  },
-  "repo": {
-    "provider": "gemini",
-    "model": "gemini-2.5-flash-preview"
-  },
-  "doc": {
-    "provider": "openrouter",
-    "model": "google/gemini-2.5-flash-preview"
-  },
-  "ide": "cursor"
-}
-</file>
-
-<file path=".cursor/rules/good-behaviour.mdc">
----
-description: 
-globs: 
-alwaysApply: true
----
-In the beginning of each task, always use vibe-tools repo. ENSURE 100% you use vibe-tools repo before writing any code. DO NOT look up any files before you vibe-tools repo.
-
-Keep the code changes as minimal as you can, only changing the absolute necessary parts. Do not change anything directly unrelated to what user asked.  
-
-Keep it as simple as possible, fewest lines of code as possible, as clean as possible
-</file>
-
-<file path=".cursor/rules/yo.mdc">
----
-description: 
-globs: 
-alwaysApply: true
----
-If you need my input to answer a question or when you finish a task and want to know what to do next you must send me a yo using the yo-mcp MCP tool.
-
-In the yo you MUST provide ONLY a very short message (think like an email subject line) for why you need my attention / input.
-
-Then reply with your update / question to the normal chat.
-
-This mcp server should be called with this tool name: "mcp_yo-mcp_com_yo"
 </file>
 
 <file path="src/providers/claude-code-provider.ts">
@@ -1194,39 +1268,6 @@ export class CodexRuleProvider implements RuleProvider {
 }
 </file>
 
-<file path="src/providers/index.ts">
-import { RuleProvider, RuleType } from "../types";
-import { CursorRuleProvider } from "./cursor-provider";
-import { WindsurfRuleProvider } from "./windsurf-provider";
-import { ClaudeCodeRuleProvider } from "./claude-code-provider";
-import { CodexRuleProvider } from "./codex-provider";
-import { ClinerulesRuleProvider } from "./clinerules-provider";
-import { ZedRuleProvider } from "./zed-provider";
-/**
- * Factory function to get the appropriate rule provider based on rule type
- */
-export function getRuleProvider(ruleType: RuleType): RuleProvider {
-  switch (ruleType) {
-    case RuleType.CURSOR:
-      return new CursorRuleProvider();
-    case RuleType.WINDSURF:
-      return new WindsurfRuleProvider();
-    case RuleType.CLAUDE_CODE:
-      return new ClaudeCodeRuleProvider();
-    case RuleType.CODEX:
-      return new CodexRuleProvider();
-    case RuleType.CLINERULES:
-    case RuleType.ROO:
-      return new ClinerulesRuleProvider();
-    case RuleType.ZED:
-      return new ZedRuleProvider();
-    case RuleType.CUSTOM:
-    default:
-      throw new Error(`Unsupported rule type: ${ruleType}`);
-  }
-}
-</file>
-
 <file path="src/providers/windsurf-provider.ts">
 import * as fs from "fs-extra";
 import * as path from "path";
@@ -1326,72 +1367,63 @@ export class WindsurfRuleProvider implements RuleProvider {
 }
 </file>
 
-<file path="src/providers/zed-provider.ts">
-import path from "path";
-import fs from "fs-extra";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleType,
-  RuleGeneratorOptions,
-} from "../types";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage";
-import { createTaggedRuleBlock } from "../utils/rule-formatter";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
-import { getDefaultTargetPath } from "../utils/path";
-export class ZedRuleProvider implements RuleProvider {
-  async saveRule(config: RuleConfig): Promise<string> {
-    return saveInternalRule(RuleType.ZED, config);
-  }
-  async loadRule(name: string): Promise<RuleConfig | null> {
-    return loadInternalRule(RuleType.ZED, name);
-  }
-  async listRules(): Promise<string[]> {
-    return listInternalRules(RuleType.ZED);
-  }
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
-    // Zed .rules files are expected to be plain text or use a format
-    // compatible with simple tagged blocks if we are managing multiple rules within it.
-    // For consistency with Windsurf and other single-file providers, we use tagged blocks.
-    return createTaggedRuleBlock(config, options);
-  }
-  async appendRule(
-    name: string,
-    targetPath?: string,
-    isGlobal?: boolean, // isGlobal is not typically used for Zed's .rules
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    const ruleConfig = await this.loadRule(name);
-    if (!ruleConfig) {
-      console.error(`Rule "${name}" not found in internal ZED storage.`);
-      return false;
-    }
-    const finalTargetPath =
-      targetPath || getDefaultTargetPath(RuleType.ZED, isGlobal);
-    return this.appendFormattedRule(
-      ruleConfig,
-      finalTargetPath,
-      isGlobal,
-      options
+<file path="src/utils/rule-formatter.ts">
+import { RuleConfig, RuleGeneratorOptions } from "../types";
+/**
+ * Formats rule content for non-cursor providers that use XML-like tags.
+ * Includes additional metadata like alwaysApply and globs in a human-readable format
+ * within the rule content.
+ */
+export function formatRuleWithMetadata(
+  config: RuleConfig,
+  options?: RuleGeneratorOptions
+): string {
+  let formattedContent = config.content;
+  // Add metadata lines at the beginning of content if they exist
+  const metadataLines = [];
+  // Add alwaysApply information if provided
+  if (options?.alwaysApply !== undefined) {
+    metadataLines.push(
+      `Always Apply: ${options.alwaysApply ? "true" : "false"} - ${
+        options.alwaysApply
+          ? "This rule should ALWAYS be applied by the AI"
+          : "This rule should only be applied when relevant files are open"
+      }`
     );
   }
-  async appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal?: boolean, // isGlobal is not typically used for Zed's .rules
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    // Zed .rules files are at the root of the worktree, so isGlobal is likely false.
-    // We don't append inside a specific <vibe-tools Integration> block by default for .rules
-    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  // Add globs information if provided
+  if (options?.globs) {
+    const globsStr = Array.isArray(options.globs)
+      ? options.globs.join(", ")
+      : options.globs;
+    // Skip adding the glob info if it's just a generic catch-all pattern
+    const isCatchAllPattern =
+      globsStr === "**/*" ||
+      (Array.isArray(options.globs) &&
+        options.globs.length === 1 &&
+        options.globs[0] === "**/*");
+    if (!isCatchAllPattern) {
+      metadataLines.push(`Always apply this rule in these files: ${globsStr}`);
+    }
   }
+  // If we have metadata, add it to the beginning of the content
+  if (metadataLines.length > 0) {
+    formattedContent = `${metadataLines.join("\n")}\n\n${config.content}`;
+  }
+  return formattedContent;
+}
+/**
+ * Creates a complete XML-like block for a rule, including start/end tags
+ * and formatted content with metadata
+ */
+export function createTaggedRuleBlock(
+  config: RuleConfig,
+  options?: RuleGeneratorOptions
+): string {
+  const formattedContent = formatRuleWithMetadata(config, options);
+  const startTag = `<${config.name}>`;
+  const endTag = `</${config.name}>`;
+  return `${startTag}\n${formattedContent}\n${endTag}`;
 }
 </file>
 
@@ -1479,70 +1511,565 @@ export async function listInternalRules(ruleType: RuleType): Promise<string[]> {
 }
 </file>
 
-<file path="src/types.ts">
+<file path="src/utils/similarity.ts">
 /**
- * Rule type definitions for the vibe-rules utility
+ * Text similarity utilities for finding similar rule names
  */
-export type * from "./schemas";
-export interface RuleConfig {
-  name: string;
-  content: string;
-  description?: string;
-  // Additional properties can be added as needed
+/**
+ * Calculate Levenshtein distance between two strings
+ * @param a First string
+ * @param b Second string
+ * @returns Distance score (lower means more similar)
+ */
+export function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  // Initialize matrix
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  // Fill matrix
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      const cost = a[j - 1] === b[i - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1, // deletion
+        matrix[i][j - 1] + 1, // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+  return matrix[b.length][a.length];
 }
-export const RuleType = {
-  CURSOR: "cursor",
-  WINDSURF: "windsurf",
-  CLAUDE_CODE: "claude-code",
-  CODEX: "codex",
-  CLINERULES: "clinerules",
-  ROO: "roo",
-  ZED: "zed",
-  CUSTOM: "custom",
-} as const;
-export type RuleTypeArray = (typeof RuleType)[keyof typeof RuleType][];
-export type RuleType = (typeof RuleType)[keyof typeof RuleType];
-export interface RuleProvider {
+/**
+ * Calculate similarity score between two strings (0-1, higher means more similar)
+ * @param a First string
+ * @param b Second string
+ * @returns Similarity score between 0 and 1
+ */
+export function calculateSimilarity(a: string, b: string): number {
+  if (a === b) return 1; // Exact match
+  if (!a || !b) return 0; // Handle empty strings
+  const distance = levenshteinDistance(a.toLowerCase(), b.toLowerCase());
+  const maxLength = Math.max(a.length, b.length);
+  // Convert distance to similarity score (1 - normalized distance)
+  return 1 - distance / maxLength;
+}
+/**
+ * Find similar rule names to the given name
+ * @param notFoundName The rule name that wasn't found
+ * @param availableRules List of available rule names
+ * @param limit Maximum number of similar rules to return
+ * @returns Array of similar rule names sorted by similarity (most similar first)
+ */
+export function findSimilarRules(
+  notFoundName: string,
+  availableRules: string[],
+  limit: number = 5
+): string[] {
+  if (!availableRules.length) return [];
+  // Calculate similarity for each rule
+  const scoredRules = availableRules.map((ruleName) => ({
+    name: ruleName,
+    score: calculateSimilarity(notFoundName, ruleName),
+  }));
+  // Sort by similarity score (highest first) and take the top n
+  return scoredRules
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((rule) => rule.name);
+}
+</file>
+
+<file path="src/index.ts">
+// Export all types and utilities
+export * from "./types";
+export * from "./utils/path";
+export * from "./utils/similarity";
+export * from "./providers";
+// Import providers
+import { CursorRuleProvider } from "./providers/cursor-provider";
+import { WindsurfRuleProvider } from "./providers/windsurf-provider";
+// Export concrete implementations
+export { CursorRuleProvider, WindsurfRuleProvider };
+</file>
+
+<file path="src/schemas.ts">
+import { z } from "zod";
+export const RuleConfigSchema = z.object({
+  name: z.string().min(1, "Rule name cannot be empty"),
+  content: z.string().min(1, "Rule content cannot be empty"),
+  description: z.string().optional(),
+  // Add other fields from RuleConfig if they exist and need validation
+});
+// Original schema for reference (might still be used elsewhere, e.g., save command)
+export const VibeRulesSchema = z.array(RuleConfigSchema);
+// --- Schemas for Package Exports (`<packageName>/llms`) ---
+// Schema for the flexible rule object format within packages
+export const PackageRuleObjectSchema = z.object({
+  name: z.string().min(1, "Rule name cannot be empty"),
+  rule: z.string().min(1, "Rule content cannot be empty"), // Renamed from content
+  description: z.string().optional(),
+  alwaysApply: z.boolean().optional(),
+  globs: z.union([z.string(), z.array(z.string())]).optional(), // Allow string or array
+});
+// Schema for a single item in the package export (either a string or the object)
+export const PackageRuleItemSchema = z.union([
+  z.string().min(1, "Rule string cannot be empty"),
+  PackageRuleObjectSchema, // Defined above now
+]);
+// Schema for the default export of package/llms (array of strings or objects)
+export const VibePackageRulesSchema = z.array(PackageRuleItemSchema);
+// --- Type Helpers ---
+// Basic RuleConfig type
+export type RuleConfig = z.infer<typeof RuleConfigSchema>;
+// Type for the flexible package rule object
+export type PackageRuleObject = z.infer<typeof PackageRuleObjectSchema>;
+// Type for a single item in the package export array
+export type PackageRuleItem = z.infer<typeof PackageRuleItemSchema>;
+</file>
+
+<file path="src/text.d.ts">
+declare module "*.txt" {
+  const content: string;
+  export default content;
+}
+</file>
+
+<file path=".gitignore">
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local 
+
+.repomix-*
+</file>
+
+<file path=".npmignore">
+node_modules
+src
+tsconfig.json
+*.log
+.DS_Store
+examples
+ARCHITECTURE.md
+.vscode
+.idea
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 Artem Murzin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="TODO.md">
+For cursor add manual header for autoapply
+export vibe-rules llms.txt
+proprely handle array with object structure - support for globs
+llms.txt same way as sitemap.xml/sitemap_index.xml
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}
+</file>
+
+<file path="vibe-tools.config.json">
+{
+  "web": {
+    "provider": "perplexity",
+    "model": "sonar-pro"
+  },
+  "plan": {
+    "fileProvider": "openrouter",
+    "thinkingProvider": "openrouter",
+    "fileModel": "google/gemini-2.5-flash-preview",
+    "thinkingModel": "google/gemini-2.5-flash-preview"
+  },
+  "repo": {
+    "provider": "gemini",
+    "model": "gemini-2.5-flash-preview"
+  },
+  "doc": {
+    "provider": "openrouter",
+    "model": "google/gemini-2.5-flash-preview"
+  },
+  "ide": "cursor"
+}
+</file>
+
+<file path=".cursor/rules/yo.mdc">
+---
+description: 
+globs: 
+alwaysApply: true
+---
+If you need my input to answer a question or when you finish a task and want to know what to do next you must send me a yo using the yo-mcp MCP tool.
+
+In the yo you MUST provide ONLY a very short message (think like an email subject line) for why you need my attention / input.
+
+Then reply with your update / question to the normal chat.
+
+This mcp server should be called with this tool name: "mcp_yo-mcp_com_yo"
+</file>
+
+<file path="src/providers/cursor-provider.ts">
+import * as fs from "fs-extra";
+import * as path from "path";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleGeneratorOptions,
+  RuleType,
+} from "../types";
+import {
+  getRulePath,
+  getInternalRuleStoragePath,
+  getDefaultTargetPath,
+  slugifyRuleName,
+} from "../utils/path";
+import {
+  formatRuleWithMetadata,
+  createTaggedRuleBlock,
+} from "../utils/rule-formatter";
+import chalk from "chalk";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
+// Custom function to format frontmatter simply
+const formatFrontmatter = (fm: Record<string, any>): string => {
+  let result = "";
+  if (fm.description) {
+    result += `description: ${fm.description}\n`;
+  }
+  if (fm.globs) {
+    if (fm.debug) {
+      console.log(`[Debug] Formatting globs: ${JSON.stringify(fm.globs)}`);
+    }
+    const globsString = Array.isArray(fm.globs) ? fm.globs.join(",") : fm.globs;
+    if (globsString) {
+      result += `globs: ${globsString}\n`;
+    }
+  }
+  if (fm.alwaysApply === false) {
+    result += `alwaysApply: false\n`;
+  } else if (fm.alwaysApply === true) {
+    result += `alwaysApply: true\n`;
+  }
+  return result.trim();
+};
+export class CursorRuleProvider implements RuleProvider {
   /**
-   * Creates a new rule file with the given content
-   */
-  saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>;
-  /**
-   * Loads a rule from storage
-   */
-  loadRule(name: string): Promise<RuleConfig | null>;
-  /**
-   * Lists all available rules
-   */
-  listRules(): Promise<string[]>;
-  /**
-   * Appends a rule to an existing file
-   */
-  appendRule(name: string, targetPath?: string): Promise<boolean>;
-  /**
-   * Formats and appends a rule directly from a RuleConfig object
-   */
-  appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal?: boolean,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean>;
-  /**
-   * Generates formatted rule content with editor-specific formatting
+   * Generate cursor rule content with frontmatter
    */
   generateRuleContent(
     config: RuleConfig,
     options?: RuleGeneratorOptions
-  ): string;
+  ): string {
+    const frontmatter: Record<string, any> = {};
+    if (options?.description ?? config.description) {
+      frontmatter.description = options?.description ?? config.description;
+    }
+    if (options?.globs) {
+      frontmatter.globs = options.globs;
+    }
+    if (options?.alwaysApply !== undefined) {
+      frontmatter.alwaysApply = options.alwaysApply;
+    }
+    if (options?.debug) {
+      frontmatter.debug = options.debug;
+    }
+    const frontmatterString =
+      Object.keys(frontmatter).length > 0
+        ? `---\n${formatFrontmatter(frontmatter)}\n---\n`
+        : "";
+    return `${frontmatterString}${config.content}`;
+  }
+  /**
+   * Saves a rule definition to internal storage for later use.
+   * @param config - The rule configuration.
+   * @returns Path where the rule definition was saved internally.
+   */
+  async saveRule(config: RuleConfig): Promise<string> {
+    // Use the utility function to save to internal storage
+    return saveInternalRule(RuleType.CURSOR, config);
+  }
+  /**
+   * Loads a rule definition from internal storage.
+   * @param name - The name of the rule to load.
+   * @returns The RuleConfig if found, otherwise null.
+   */
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    // Use the utility function to load from internal storage
+    return loadInternalRule(RuleType.CURSOR, name);
+  }
+  /**
+   * Lists rule definitions available in internal storage.
+   * @returns An array of rule names.
+   */
+  async listRules(): Promise<string[]> {
+    // Use the utility function to list rules from internal storage
+    return listInternalRules(RuleType.CURSOR);
+  }
+  /**
+   * Append a cursor rule to a target file
+   */
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal Cursor storage.`);
+      return false;
+    }
+    const finalTargetPath =
+      targetPath || getRulePath(RuleType.CURSOR, name, isGlobal);
+    return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal);
+  }
+  /**
+   * Formats and applies a rule directly from a RuleConfig object.
+   * Creates the .cursor/rules directory if it doesn't exist.
+   * Uses slugified rule name for the filename.
+   */
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal: boolean = false,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const fullPath = targetPath;
+    const dir = path.dirname(fullPath);
+    try {
+      await fs.ensureDir(dir); // Ensure the PARENT directory exists
+      const formattedContent = this.generateRuleContent(config, options); // Pass options
+      await fs.writeFile(fullPath, formattedContent, "utf-8");
+      return true;
+    } catch (error) {
+      console.error(
+        `Error applying Cursor rule "${config.name}" to ${fullPath}:`,
+        error
+      );
+      return false;
+    }
+  }
 }
-export interface RuleGeneratorOptions {
-  description?: string;
-  isGlobal?: boolean;
-  alwaysApply?: boolean;
-  globs?: string | string[];
-  debug?: boolean;
-  // Additional options for specific rule types
+</file>
+
+<file path="src/providers/unified-provider.ts">
+import fs from "fs-extra";
+import path from "path";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleType,
+  RuleGeneratorOptions,
+} from "../types";
+import {
+  getInternalRuleStoragePath,
+  getRulePath,
+  slugifyRuleName,
+} from "../utils/path";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import { createTaggedRuleBlock } from "../utils/rule-formatter";
+import {
+  saveInternalRule as saveRuleToInternalStorage,
+  loadInternalRule as loadRuleFromInternalStorage,
+  listInternalRules as listRulesFromInternalStorage,
+} from "../utils/rule-storage";
+const UNIFIED_RULE_FILENAME = ".rules";
+export class UnifiedRuleProvider implements RuleProvider {
+  private getRuleFilePath(
+    ruleName: string,
+    isGlobal: boolean = false,
+    projectRoot: string = process.cwd()
+  ): string {
+    // For unified provider, ruleName is not used in the path, always '.rules'
+    // isGlobal might determine if it's in projectRoot or user's global .rules, but for now, always project root.
+    if (isGlobal) {
+      // Potentially handle a global ~/.rules file in the future
+      // For now, global unified rules are not distinct from project unified rules
+      // console.warn('Global unified rules are not yet uniquely supported, using project .rules');
+      return path.join(projectRoot, UNIFIED_RULE_FILENAME);
+    }
+    return path.join(projectRoot, UNIFIED_RULE_FILENAME);
+  }
+  async saveRule(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): Promise<string> {
+    return saveRuleToInternalStorage(RuleType.UNIFIED, config);
+  }
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    return loadRuleFromInternalStorage(RuleType.UNIFIED, name);
+  }
+  async listRules(): Promise<string[]> {
+    return listRulesFromInternalStorage(RuleType.UNIFIED);
+  }
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    // For .rules, we use the tagged block format directly
+    return createTaggedRuleBlock(config, options);
+  }
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in local unified store.`);
+      return false;
+    }
+    const filePath = targetPath || this.getRuleFilePath(name, isGlobal);
+    return this.appendFormattedRule(ruleConfig, filePath, isGlobal, options);
+  }
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string, // This will be the path to the .rules file
+    _isGlobal?: boolean, // isGlobal might be less relevant here if .rules is always project-based
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    // The 'targetPath' for unified provider should directly be the path to the '.rules' file.
+    // The 'config.name' is used for the tag name within the '.rules' file.
+    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+}
+</file>
+
+<file path="src/providers/zed-provider.ts">
+import path from "path";
+import fs from "fs-extra";
+import {
+  RuleConfig,
+  RuleProvider,
+  RuleType,
+  RuleGeneratorOptions,
+} from "../types";
+import {
+  saveInternalRule,
+  loadInternalRule,
+  listInternalRules,
+} from "../utils/rule-storage";
+import { createTaggedRuleBlock } from "../utils/rule-formatter";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import { getDefaultTargetPath } from "../utils/path";
+export class ZedRuleProvider implements RuleProvider {
+  async saveRule(config: RuleConfig): Promise<string> {
+    return saveInternalRule(RuleType.ZED, config);
+  }
+  async loadRule(name: string): Promise<RuleConfig | null> {
+    return loadInternalRule(RuleType.ZED, name);
+  }
+  async listRules(): Promise<string[]> {
+    return listInternalRules(RuleType.ZED);
+  }
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string {
+    // Zed .rules files are expected to be plain text or use a format
+    // compatible with simple tagged blocks if we are managing multiple rules within it.
+    // For consistency with Windsurf and other single-file providers, we use tagged blocks.
+    return createTaggedRuleBlock(config, options);
+  }
+  async appendRule(
+    name: string,
+    targetPath?: string,
+    isGlobal?: boolean, // isGlobal is not typically used for Zed's .rules
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    const ruleConfig = await this.loadRule(name);
+    if (!ruleConfig) {
+      console.error(`Rule "${name}" not found in internal ZED storage.`);
+      return false;
+    }
+    const finalTargetPath =
+      targetPath || getDefaultTargetPath(RuleType.ZED, isGlobal);
+    return this.appendFormattedRule(
+      ruleConfig,
+      finalTargetPath,
+      isGlobal,
+      options
+    );
+  }
+  async appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean, // isGlobal is not typically used for Zed's .rules
+    options?: RuleGeneratorOptions
+  ): Promise<boolean> {
+    // Zed .rules files are at the root of the worktree, so isGlobal is likely false.
+    // We don't append inside a specific <vibe-tools Integration> block by default for .rules
+    return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
 }
 </file>
 
@@ -1721,293 +2248,378 @@ If people say "ask Gemini" or "ask Perplexity" or "ask Stagehand" they mean to u
 </vibe-tools>\n
 </file>
 
-<file path="src/providers/cursor-provider.ts">
-import * as fs from "fs-extra";
-import * as path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types";
-import {
-  getRulePath,
-  getInternalRuleStoragePath,
-  getDefaultTargetPath,
-  slugifyRuleName,
-} from "../utils/path";
-import {
-  formatRuleWithMetadata,
-  createTaggedRuleBlock,
-} from "../utils/rule-formatter";
-import chalk from "chalk";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage";
-// Custom function to format frontmatter simply
-const formatFrontmatter = (fm: Record<string, any>): string => {
-  let result = "";
-  if (fm.description) {
-    result += `description: ${fm.description}\n`;
-  }
-  if (fm.globs) {
-    if (fm.debug) {
-      console.log(`[Debug] Formatting globs: ${JSON.stringify(fm.globs)}`);
-    }
-    const globsString = Array.isArray(fm.globs) ? fm.globs.join(",") : fm.globs;
-    if (globsString) {
-      result += `globs: ${globsString}\n`;
-    }
-  }
-  if (fm.alwaysApply === false) {
-    result += `alwaysApply: false\n`;
-  } else if (fm.alwaysApply === true) {
-    result += `alwaysApply: true\n`;
-  }
-  return result.trim();
-};
-export class CursorRuleProvider implements RuleProvider {
-  /**
-   * Generate cursor rule content with frontmatter
-   */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
-    const frontmatter: Record<string, any> = {};
-    if (options?.description ?? config.description) {
-      frontmatter.description = options?.description ?? config.description;
-    }
-    if (options?.globs) {
-      frontmatter.globs = options.globs;
-    }
-    if (options?.alwaysApply !== undefined) {
-      frontmatter.alwaysApply = options.alwaysApply;
-    }
-    if (options?.debug) {
-      frontmatter.debug = options.debug;
-    }
-    const frontmatterString =
-      Object.keys(frontmatter).length > 0
-        ? `---\n${formatFrontmatter(frontmatter)}\n---\n`
-        : "";
-    return `${frontmatterString}${config.content}`;
-  }
-  /**
-   * Saves a rule definition to internal storage for later use.
-   * @param config - The rule configuration.
-   * @returns Path where the rule definition was saved internally.
-   */
-  async saveRule(config: RuleConfig): Promise<string> {
-    // Use the utility function to save to internal storage
-    return saveInternalRule(RuleType.CURSOR, config);
-  }
-  /**
-   * Loads a rule definition from internal storage.
-   * @param name - The name of the rule to load.
-   * @returns The RuleConfig if found, otherwise null.
-   */
-  async loadRule(name: string): Promise<RuleConfig | null> {
-    // Use the utility function to load from internal storage
-    return loadInternalRule(RuleType.CURSOR, name);
-  }
-  /**
-   * Lists rule definitions available in internal storage.
-   * @returns An array of rule names.
-   */
-  async listRules(): Promise<string[]> {
-    // Use the utility function to list rules from internal storage
-    return listInternalRules(RuleType.CURSOR);
-  }
-  /**
-   * Append a cursor rule to a target file
-   */
-  async appendRule(
-    name: string,
-    targetPath?: string,
-    isGlobal?: boolean
-  ): Promise<boolean> {
-    const ruleConfig = await this.loadRule(name);
-    if (!ruleConfig) {
-      console.error(`Rule "${name}" not found in internal Cursor storage.`);
-      return false;
-    }
-    const finalTargetPath =
-      targetPath || getRulePath(RuleType.CURSOR, name, isGlobal);
-    return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal);
-  }
-  /**
-   * Formats and applies a rule directly from a RuleConfig object.
-   * Creates the .cursor/rules directory if it doesn't exist.
-   * Uses slugified rule name for the filename.
-   */
-  async appendFormattedRule(
-    config: RuleConfig,
-    targetPath: string,
-    isGlobal: boolean = false,
-    options?: RuleGeneratorOptions
-  ): Promise<boolean> {
-    const fullPath = targetPath;
-    const dir = path.dirname(fullPath);
-    try {
-      await fs.ensureDir(dir); // Ensure the PARENT directory exists
-      const formattedContent = this.generateRuleContent(config, options); // Pass options
-      await fs.writeFile(fullPath, formattedContent, "utf-8");
-      return true;
-    } catch (error) {
-      console.error(
-        `Error applying Cursor rule "${config.name}" to ${fullPath}:`,
-        error
-      );
-      return false;
-    }
-  }
-}
+<file path="README.md">
+# vibe-rules
+
+A powerful CLI tool for managing and sharing AI rules (prompts, configurations) across different editors and tools.
+
+✨ **Supercharge your workflow!** ✨
+
+Quickly save your favorite prompts and apply them to any supported editor:
+
+```bash
+# 1. Save your prompt locally
+vibe-rules save my-react-helper -f ./prompts/react-helper.md
+
+# 2. Apply it to Cursor
+vibe-rules load my-react-helper cursor
+```
+
+Or, automatically install shared prompts from your project's NPM packages:
+
+```bash
+# Find packages with 'llms' exports in node_modules and install for Cursor
+vibe-rules install cursor
+```
+
+(See full command details below.)
+
+## Installation
+
+```bash
+# Install globally (bun recommended, npm/yarn also work)
+bun i -g vibe-rules
+```
+
+## Usage
+
+`vibe-rules` helps you save, list, load, and install AI rules.
+
+### Save a Rule Locally
+
+Store a rule for later use in the common `vibe-rules` store (`~/.vibe-rules/rules/`).
+
+```bash
+# Save from a file (e.g., .mdc, .md, or plain text)
+vibe-rules save my-rule-name -f ./path/to/rule-content.md
+
+# Save directly from content string
+vibe-rules save another-rule -c "This is the rule content."
+
+# Add/update a description
+vibe-rules save my-rule-name -d "A concise description of what this rule does."
+```
+
+Options:
+
+- `-f, --file <file>`: Path to the file containing the rule content.
+- `-c, --content <content>`: Rule content provided as a string. (One of `-f` or `-c` is required).
+- `-d, --description <desc>`: An optional description for the rule.
+
+### List Saved Rules
+
+See all the rules you've saved to the common local store.
+
+```bash
+vibe-rules list
+```
+
+### Load (Apply) a Saved Rule to an Editor
+
+Apply a rule _from your local store_ (`~/.vibe-rules/rules/`) to a specific editor's configuration file. `vibe-rules` handles the formatting.
+
+```bash
+# Load 'my-rule-name' for Cursor (creates/updates .cursor/rules/my-rule-name.mdc)
+vibe-rules load my-rule-name cursor
+# Alias: vibe-rules add my-rule-name cursor
+
+# Load 'my-rule-name' for Claude Code IDE globally (updates ~/.claude/CLAUDE.md)
+vibe-rules load my-rule-name claude-code --global
+# Alias: vibe-rules add my-rule-name claude-code -g
+
+# Load 'my-rule-name' for Windsurf (appends to ./.windsurfrules)
+vibe-rules load my-rule-name windsurf
+
+# Load into the project's unified .rules file
+vibe-rules load unified my-unified-rule
+
+# Load into a specific custom target path
+vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.mdc
+```
+
+Arguments:
+
+- `<name>`: The name of the rule saved in the local store (`~/.vibe-rules/rules/`).
+- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
+
+Options:
+
+- `-g, --global`: Apply to the editor's global configuration path (if supported, e.g., `claude-code`, `codex`). Defaults to project-local.
+- `-t, --target <path>`: Specify a custom target file path or directory, overriding default/global paths.
+
+### Sharing and Installing Rules via NPM
+
+In the evolving AI landscape, prompts and context are becoming increasingly crucial components of development workflows. Just like code libraries, reusable AI rules and prompts are emerging as shareable assets.
+
+We anticipate more NPM packages will begin exporting standardized AI configurations, often via a `llms` entry point (e.g., `my-package/llms`). `vibe-rules` embraces this trend with the `install` command.
+
+### Install Rules from NPM Packages
+
+⚡ **The easiest way to integrate shared rule sets!** ⚡
+
+Install rules _directly from NPM packages_ into an editor's configuration. `vibe-rules` automatically scans your project's dependencies or a specified package for compatible rule exports.
+
+```bash
+# Most common: Install rules from ALL dependencies/devDependencies for Cursor
+# Scans package.json, finds packages with 'llms' export, applies rules.
+vibe-rules install cursor
+
+# Install rules from a specific package for Cursor
+# (Assumes 'my-rule-package' is in node_modules)
+vibe-rules install cursor my-rule-package
+
+# Install rules from a specific package into a custom target dir for Roo/Cline
+vibe-rules install roo my-rule-package -t ./custom-ruleset/
+
+# Install rules into the project's unified .rules file
+vibe-rules install unified my-awesome-prompts
+```
+
+Arguments:
+
+- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
+- `[packageName]` (Optional): The specific NPM package name to install rules from. If omitted, `vibe-rules` scans all dependencies and devDependencies in your project's `package.json`.
+
+Options:
+
+- `-g, --global`: Apply to the editor's global configuration path (if supported).
+- `-t, --target <path>`: Specify a custom target file path or directory.
+
+**How `install` finds rules:**
+
+1.  Looks for installed NPM packages (either the specified one or all dependencies based on whether `[packageName]` is provided).
+2.  Attempts to dynamically import a module named `llms` from the package root (e.g., `require('my-rule-package/llms')` or `import('my-rule-package/llms')`). Handles both CommonJS and ESM.
+3.  Examines the `default export` of the `llms` module:
+    - **If it's a string:** Treats it as a single rule's content.
+    - **If it's an array:** Expects an array of rule strings or rule objects.
+      - Rule Object Shape: `{ name: string, rule: string, description?: string, alwaysApply?: boolean, globs?: string | string[] }` (Validated using Zod). Note the use of `rule` for content.
+4.  Uses the appropriate editor provider (`cursor`, `windsurf`, etc.) to format and apply each found rule to the correct target path (respecting `-g` and `-t` options). Metadata like `alwaysApply` and `globs` is passed to the provider if present in a rule object.
+5.  **Important:** Rules installed this way are applied _directly_ to the editor configuration; they are **not** saved to the common local store (`~/.vibe-rules/rules/`). Use `vibe-rules save` for that.
+
+## Supported Editors & Formats
+
+`vibe-rules` automatically handles formatting for:
+
+- **Cursor (`cursor`)**:
+  - Creates/updates individual `.mdc` files in `./.cursor/rules/` (local) or `~/.cursor/rules/` (global, if supported via `-t`).
+  - Uses frontmatter for metadata (`description`, `alwaysApply`, `globs`).
+- **Windsurf (`windsurf`)**:
+  - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
+- **Claude Code (`claude-code`)**:
+  - Appends/updates rules within a `<vibe-tools Integration>` block in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+- **Codex (`codex`)**:
+  - Appends/updates rules within a `<vibe-tools Integration>` block in `./codex.md` (local) or `~/.codex/instructions.md` (global).
+- **Cline/Roo (`clinerules`, `roo`)**:
+  - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
+- **Unified (`unified`)**:
+  - Manages rules within a single `.rules` file in the project root.
+  - Ideal for project-specific, centralized rule management.
+  - See the [Unified .rules File Convention](./UNIFIED_RULES_CONVENTION.md) for detailed format and usage.
+
+## Development
+
+```bash
+# Clone the repo
+git clone https://github.com/your-username/vibe-rules.git
+cd vibe-rules
+
+# Install dependencies
+bun install
+
+# Run tests (if any)
+bun test
+
+# Build the project
+bun run build
+
+# Link for local development testing
+bun link
+# Now you can use 'vibe-rules' command locally
+```
+
+## License
+
+MIT
 </file>
 
-<file path="src/utils/path.ts">
-import path from "path";
-import os from "os";
-import fs from "fs-extra";
-import { RuleType } from "../types";
-import { debugLog } from "../cli";
-// Base directory for storing internal rule definitions
-export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
-// Home directories for specific IDEs/Tools
-export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
-export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
-export const ZED_RULES_FILE = ".rules"; // Added for Zed
+<file path="UNIFIED_RULES_CONVENTION.md">
+# Unified .rules File Convention
+
+This document outlines the convention for the unified `.rules` file, a single file designed to store all your AI assistant/editor rules for a project in a centralized and portable manner.
+
+## Purpose
+
+The `.rules` file aims to:
+
+1.  **Simplify Rule Management**: Instead of scattering rules across various editor-specific files (e.g., `.cursor/rules/`, `.windsurfrules`, `CLAUDE.md`), you can keep them all in one place.
+2.  **Improve Portability**: Easily share and version control your project-specific rules along with your codebase.
+3.  **Standardize Format**: Provide a consistent way to define rules, including common metadata.
+
+### The Challenge: Rule File Proliferation
+
+Many development tools and AI assistants rely on specific configuration files for custom instructions or rules. While this allows for tailored behavior, it can lead to a multitude of rule files scattered across a project or system, each with its own format. This is the problem the `unified` provider and the `.rules` convention aim to simplify.
+
+![Image showing multiple editor-specific rule files like .cursorrules, .windsurfrules, CLAUDE.md, etc., circled in red and labeled "mental illnesses"](public/unified.png)
+_Image concept from a [tweet by @aidenybai](https://x.com/aidenybai/status/1923781810820968857/photo/1), illustrating the proliferation of rule files._
+
+## File Location
+
+The `.rules` file should be located in the root directory of your project.
+
+```
+my-project/
+├── .rules       <-- Your unified rules file
+├── src/
+└── package.json
+```
+
+## File Format
+
+The `.rules` file uses an XML-like tagged format to define individual rules. Each rule is enclosed in a tag named after the rule itself. This format is human-readable and easy to parse.
+
+### Structure of a Rule Block
+
+```xml
+<your-rule-name>
+  <!-- Optional: Human-readable metadata -->
+  <!-- Description: A brief explanation of what the rule does. -->
+  <!-- AlwaysApply: true/false (Cursor-specific, can be included for compatibility) -->
+  <!-- Globs: pattern1,pattern2 (Cursor-specific, can be included for compatibility) -->
+
+  Your actual rule content goes here.
+  This can be multi-line plain text, a prompt, or any specific syntax required by the target AI model or tool.
+
+</your-rule-name>
+```
+
+**Explanation:**
+
+- **`<your-rule-name>`**: This is the opening tag for the rule. The name should be unique within the `.rules` file and is used to identify the rule (e.g., by the `vibe-rules load unified <your-rule-name>` command).
+- **Metadata Comments (Optional)**:
+  - `<!-- Description: ... -->`: A description of the rule.
+  - `<!-- AlwaysApply: true/false -->`: Corresponds to Cursor's `alwaysApply` metadata. Useful if you intend to use these rules with Cursor or a system that understands this flag.
+  - `<!-- Globs: pattern1,pattern2 -->`: Corresponds to Cursor's `globs` metadata. Specify comma-separated glob patterns.
+- **Rule Content**: The actual text or prompt for the rule.
+- **`</your-rule-name>`**: The closing tag for the rule.
+
+### Example `.rules` File
+
+```xml
+<explain-code-snippet>
+  <!-- Description: Explains the selected code snippet. -->
+  Explain the following code snippet:
+```
+
+{{code}}
+
+```
+</explain-code-snippet>
+
+<generate-test-cases>
+<!-- Description: Generates test cases for the given function. -->
+<!-- Globs: *.test.js,*.spec.ts -->
+Given the following function, please generate a comprehensive set of unit test cases in Jest format:
+```
+
+{{code}}
+
+```
+</generate-test-cases>
+
+<my-custom-task-for-pkg>
+This is a rule installed from 'my-package'.
+It helps with a specific task related to this package.
+</my-custom-task-for-pkg>
+```
+
+## Using with `vibe-rules`
+
+### Saving Rules
+
+You can save rules to your local common store and then load them into the `.rules` file, or install them directly from packages.
+
+1.  **Save a rule to the local store (optional first step):**
+
+    ```bash
+    vibe-rules save my-new-rule -c "This is the content of my new rule."
+    ```
+
+2.  **Load a rule into the project's `.rules` file:**
+    ```bash
+    vibe-rules load unified my-new-rule
+    # This will create/update .rules in the current directory with the 'my-new-rule' block.
+    ```
+
+### Installing Rules from Packages
+
+When you install rules from an NPM package using the `unified` editor type, `vibe-rules` will add them to your project's `.rules` file. Rule names will be prefixed with the package name.
+
+```bash
+# Install rules from 'some-npm-package' into .rules
+vibe-rules install unified some-npm-package
+
+# Install rules from all dependencies into .rules
+vibe-rules install unified
+```
+
+This would result in entries like `<some-npm-package-rulename>...</some-npm-package-rulename>` in your `.rules` file.
+
+### Listing Rules
+
+To see rules specifically defined for the unified provider in your local store:
+
+```bash
+vibe-rules list --type unified
+```
+
+(Note: `list` command currently lists from the global store, not directly from a project's `.rules` file. To see rules in a project, open the `.rules` file.)
+
+## Benefits of the `.rules` Convention
+
+- **Centralization**: All project-specific AI prompts and rules in one predictable location.
+- **Version Control**: Easily track changes to your rules alongside your code.
+- **Collaboration**: Share rule configurations seamlessly with your team.
+- **Editor Agnostic (Conceptual)**: While `vibe-rules` helps manage this file, the raw `.rules` file can be understood or parsed by other tools or future IDE integrations that adopt this convention.
+
+## Future Considerations
+
+- **Global `.rules`**: Support for a global `~/.rules` file for user-wide rules.
+- **Enhanced Tooling**: IDE extensions or features that directly consume and suggest rules from the `.rules` file.
+</file>
+
+<file path="src/providers/index.ts">
+import { RuleProvider, RuleType } from "../types";
+import { CursorRuleProvider } from "./cursor-provider";
+import { WindsurfRuleProvider } from "./windsurf-provider";
+import { ClaudeCodeRuleProvider } from "./claude-code-provider";
+import { CodexRuleProvider } from "./codex-provider";
+import { ClinerulesRuleProvider } from "./clinerules-provider";
+import { ZedRuleProvider } from "./zed-provider";
+import { UnifiedRuleProvider } from "./unified-provider";
 /**
- * Get the common rules directory path
+ * Factory function to get the appropriate rule provider based on rule type
  */
-export function getCommonRulesDir(): string {
-  const rulesDir = path.join(RULES_BASE_DIR, "rules");
-  fs.ensureDirSync(rulesDir);
-  return rulesDir;
-}
-/**
- * Get path to store internal rule definitions based on rule type
- * (Not the actual target paths for IDEs)
- */
-export function getInternalRuleStoragePath(
-  ruleType: RuleType,
-  ruleName: string
-): string {
-  const typeDir = path.join(RULES_BASE_DIR, ruleType);
-  fs.ensureDirSync(typeDir);
-  // Internal storage uses a simple .txt for content
-  return path.join(typeDir, `${ruleName}.txt`);
-}
-/**
- * Get the expected file path for a rule based on its type and context (local/global).
- * This now returns the actual path where the rule should exist for the IDE/tool.
- * The 'isGlobal' flag determines if we should use the home directory path.
- */
-export function getRulePath(
-  ruleType: RuleType,
-  ruleName: string, // ruleName might not be relevant for some types like Claude/Codex global
-  isGlobal: boolean = false,
-  projectRoot: string = process.cwd()
-): string {
+export function getRuleProvider(ruleType: RuleType): RuleProvider {
   switch (ruleType) {
     case RuleType.CURSOR:
-      // Cursor rules are typically project-local in .cursor/rules/
-      const cursorDir = path.join(projectRoot, ".cursor", "rules");
-      // Use slugified name for the file
-      return path.join(cursorDir, `${slugifyRuleName(ruleName)}.mdc`);
+      return new CursorRuleProvider();
     case RuleType.WINDSURF:
-      // Windsurf rules are typically project-local .windsurfrules file
-      return path.join(projectRoot, ".windsurfrules"); // Single file, name not used for path
+      return new WindsurfRuleProvider();
     case RuleType.CLAUDE_CODE:
-      // Claude rules are CLAUDE.md, either global or local
-      return isGlobal
-        ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
-        : path.join(projectRoot, "CLAUDE.md");
+      return new ClaudeCodeRuleProvider();
     case RuleType.CODEX:
-      // Codex uses instructions.md (global) or codex.md (local)
-      return isGlobal
-        ? path.join(CODEX_HOME_DIR, "instructions.md")
-        : path.join(projectRoot, "codex.md");
+      return new CodexRuleProvider();
     case RuleType.CLINERULES:
     case RuleType.ROO:
-      // Cline/Roo rules are project-local files in .clinerules/
-      return path.join(
-        projectRoot,
-        ".clinerules",
-        slugifyRuleName(ruleName) + ".md" // Use .md extension
-      );
-    case RuleType.ZED: // Added for Zed
-      return path.join(projectRoot, ZED_RULES_FILE);
+      return new ClinerulesRuleProvider();
+    case RuleType.ZED:
+      return new ZedRuleProvider();
+    case RuleType.UNIFIED:
+      return new UnifiedRuleProvider();
     case RuleType.CUSTOM:
     default:
-      // Fallback for custom or unknown - store internally for now
-      // Or maybe this should throw an error?
-      return getInternalRuleStoragePath(ruleType, ruleName);
+      throw new Error(`Unsupported rule type: ${ruleType}`);
   }
-}
-/**
- * Get the default target path (directory or file) where a rule type is typically applied.
- * This is used by commands like 'apply' if no specific target is given.
- * Note: This might overlap with getRulePath for some types.
- * Returns potential paths based on convention.
- */
-export function getDefaultTargetPath(
-  ruleType: RuleType,
-  isGlobalHint: boolean = false // Hint for providers like Claude/Codex
-): string {
-  switch (ruleType) {
-    case RuleType.CURSOR:
-      // Default target is the rules directory within .cursor
-      return path.join(process.cwd(), ".cursor", "rules");
-    case RuleType.WINDSURF:
-      // Default target is the .windsurfrules file
-      return path.join(process.cwd(), ".windsurfrules");
-    case RuleType.CLAUDE_CODE:
-      // Default target depends on global hint
-      return isGlobalHint
-        ? CLAUDE_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local CLAUDE.md)
-    case RuleType.CODEX:
-      // Default target depends on global hint
-      return isGlobalHint
-        ? CODEX_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local codex.md)
-    case RuleType.CLINERULES:
-    case RuleType.ROO:
-      // Default target is the .clinerules directory
-      return path.join(process.cwd(), ".clinerules");
-    case RuleType.ZED: // Added for Zed
-      return path.join(process.cwd(), ZED_RULES_FILE);
-    default:
-      // Default to current working directory for unknown types
-      return process.cwd();
-  }
-}
-/**
- * Ensures that a specific directory exists, creating it if necessary.
- *
- * @param dirPath The absolute or relative path to the directory to ensure.
- */
-export function ensureDirectoryExists(dirPath: string): void {
-  try {
-    fs.ensureDirSync(dirPath);
-    debugLog(`Ensured directory exists: ${dirPath}`);
-  } catch (err: any) {
-    console.error(`Failed to ensure directory ${dirPath}:`, err);
-    // Depending on the desired behavior, you might want to re-throw or exit
-    // throw err;
-  }
-}
-/**
- * Convert a rule name to a filename-safe slug.
- */
-export function slugifyRuleName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 </file>
 
@@ -2150,34 +2762,236 @@ export async function appendOrUpdateTaggedBlock(
 }
 </file>
 
+<file path="src/types.ts">
+/**
+ * Rule type definitions for the vibe-rules utility
+ */
+export type * from "./schemas";
+export interface RuleConfig {
+  name: string;
+  content: string;
+  description?: string;
+  // Additional properties can be added as needed
+}
+export const RuleType = {
+  CURSOR: "cursor",
+  WINDSURF: "windsurf",
+  CLAUDE_CODE: "claude-code",
+  CODEX: "codex",
+  CLINERULES: "clinerules",
+  ROO: "roo",
+  ZED: "zed",
+  UNIFIED: "unified",
+  CUSTOM: "custom",
+} as const;
+export type RuleTypeArray = (typeof RuleType)[keyof typeof RuleType][];
+export type RuleType = (typeof RuleType)[keyof typeof RuleType];
+export interface RuleProvider {
+  /**
+   * Creates a new rule file with the given content
+   */
+  saveRule(config: RuleConfig, options?: RuleGeneratorOptions): Promise<string>;
+  /**
+   * Loads a rule from storage
+   */
+  loadRule(name: string): Promise<RuleConfig | null>;
+  /**
+   * Lists all available rules
+   */
+  listRules(): Promise<string[]>;
+  /**
+   * Appends a rule to an existing file
+   */
+  appendRule(name: string, targetPath?: string): Promise<boolean>;
+  /**
+   * Formats and appends a rule directly from a RuleConfig object
+   */
+  appendFormattedRule(
+    config: RuleConfig,
+    targetPath: string,
+    isGlobal?: boolean,
+    options?: RuleGeneratorOptions
+  ): Promise<boolean>;
+  /**
+   * Generates formatted rule content with editor-specific formatting
+   */
+  generateRuleContent(
+    config: RuleConfig,
+    options?: RuleGeneratorOptions
+  ): string;
+}
+export interface RuleGeneratorOptions {
+  description?: string;
+  isGlobal?: boolean;
+  alwaysApply?: boolean;
+  globs?: string | string[];
+  debug?: boolean;
+  // Additional options for specific rule types
+}
+</file>
+
+<file path="src/utils/path.ts">
+import path from "path";
+import os from "os";
+import fs from "fs-extra";
+import { RuleType } from "../types";
+import { debugLog } from "../cli";
+// Base directory for storing internal rule definitions
+export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
+// Home directories for specific IDEs/Tools
+export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
+export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
+export const ZED_RULES_FILE = ".rules"; // Added for Zed
+/**
+ * Get the common rules directory path
+ */
+export function getCommonRulesDir(): string {
+  const rulesDir = path.join(RULES_BASE_DIR, "rules");
+  fs.ensureDirSync(rulesDir);
+  return rulesDir;
+}
+/**
+ * Get path to store internal rule definitions based on rule type
+ * (Not the actual target paths for IDEs)
+ */
+export function getInternalRuleStoragePath(
+  ruleType: RuleType,
+  ruleName: string
+): string {
+  const typeDir = path.join(RULES_BASE_DIR, ruleType);
+  fs.ensureDirSync(typeDir);
+  // Internal storage uses a simple .txt for content
+  return path.join(typeDir, `${ruleName}.txt`);
+}
+/**
+ * Get the expected file path for a rule based on its type and context (local/global).
+ * This now returns the actual path where the rule should exist for the IDE/tool.
+ * The 'isGlobal' flag determines if we should use the home directory path.
+ */
+export function getRulePath(
+  ruleType: RuleType,
+  ruleName: string, // ruleName might not be relevant for some types like Claude/Codex global
+  isGlobal: boolean = false,
+  projectRoot: string = process.cwd()
+): string {
+  switch (ruleType) {
+    case RuleType.CURSOR:
+      // Cursor rules are typically project-local in .cursor/rules/
+      const cursorDir = path.join(projectRoot, ".cursor", "rules");
+      // Use slugified name for the file
+      return path.join(cursorDir, `${slugifyRuleName(ruleName)}.mdc`);
+    case RuleType.WINDSURF:
+      // Windsurf rules are typically project-local .windsurfrules file
+      return path.join(projectRoot, ".windsurfrules"); // Single file, name not used for path
+    case RuleType.CLAUDE_CODE:
+      // Claude rules are CLAUDE.md, either global or local
+      return isGlobal
+        ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
+        : path.join(projectRoot, "CLAUDE.md");
+    case RuleType.CODEX:
+      // Codex uses instructions.md (global) or codex.md (local)
+      return isGlobal
+        ? path.join(CODEX_HOME_DIR, "instructions.md")
+        : path.join(projectRoot, "codex.md");
+    case RuleType.CLINERULES:
+    case RuleType.ROO:
+      // Cline/Roo rules are project-local files in .clinerules/
+      return path.join(
+        projectRoot,
+        ".clinerules",
+        slugifyRuleName(ruleName) + ".md" // Use .md extension
+      );
+    case RuleType.ZED: // Added for Zed
+      return path.join(projectRoot, ZED_RULES_FILE);
+    case RuleType.UNIFIED:
+      return path.join(projectRoot, ".rules"); // Unified also uses .rules in project root
+    case RuleType.CUSTOM:
+    default:
+      // Fallback for custom or unknown - store internally for now
+      // Or maybe this should throw an error?
+      return getInternalRuleStoragePath(ruleType, ruleName);
+  }
+}
+/**
+ * Get the default target path (directory or file) where a rule type is typically applied.
+ * This is used by commands like 'apply' if no specific target is given.
+ * Note: This might overlap with getRulePath for some types.
+ * Returns potential paths based on convention.
+ */
+export function getDefaultTargetPath(
+  ruleType: RuleType,
+  isGlobalHint: boolean = false // Hint for providers like Claude/Codex
+): string {
+  switch (ruleType) {
+    case RuleType.CURSOR:
+      // Default target is the rules directory within .cursor
+      return path.join(process.cwd(), ".cursor", "rules");
+    case RuleType.WINDSURF:
+      // Default target is the .windsurfrules file
+      return path.join(process.cwd(), ".windsurfrules");
+    case RuleType.CLAUDE_CODE:
+      // Default target depends on global hint
+      return isGlobalHint
+        ? CLAUDE_HOME_DIR // Directory
+        : process.cwd(); // Project root (for local CLAUDE.md)
+    case RuleType.CODEX:
+      // Default target depends on global hint
+      return isGlobalHint
+        ? CODEX_HOME_DIR // Directory
+        : process.cwd(); // Project root (for local codex.md)
+    case RuleType.CLINERULES:
+    case RuleType.ROO:
+      // Default target is the .clinerules directory
+      return path.join(process.cwd(), ".clinerules");
+    case RuleType.ZED: // Added for Zed
+      return path.join(process.cwd(), ZED_RULES_FILE);
+    case RuleType.UNIFIED:
+      return path.join(process.cwd(), ".rules");
+    default:
+      console.warn(
+        `Default target path not defined for rule type: ${ruleType}, defaulting to CWD.`
+      );
+      return process.cwd();
+  }
+}
+/**
+ * Ensures that a specific directory exists, creating it if necessary.
+ *
+ * @param dirPath The absolute or relative path to the directory to ensure.
+ */
+export function ensureDirectoryExists(dirPath: string): void {
+  try {
+    fs.ensureDirSync(dirPath);
+    debugLog(`Ensured directory exists: ${dirPath}`);
+  } catch (err: any) {
+    console.error(`Failed to ensure directory ${dirPath}:`, err);
+    // Depending on the desired behavior, you might want to re-throw or exit
+    // throw err;
+  }
+}
+/**
+ * Convert a rule name to a filename-safe slug.
+ */
+export function slugifyRuleName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+</file>
+
 <file path="src/cli.ts">
 #!/usr/bin/env node
 import { Command } from "commander";
 import fs from "fs-extra";
 import path from "path";
 import chalk from "chalk";
-import {
-  RuleType,
-  RuleConfig,
-  RuleGeneratorOptions,
-  RuleProvider,
-  RuleTypeArray,
-} from "./types";
+import { RuleType, RuleConfig } from "./types";
 import { getRuleProvider } from "./providers";
-import {
-  getDefaultTargetPath,
-  getInternalRuleStoragePath,
-  getCommonRulesDir,
-  getRulePath,
-  slugifyRuleName,
-} from "./utils/path";
+import { getCommonRulesDir, getRulePath } from "./utils/path";
 import { findSimilarRules } from "./utils/similarity";
-import {
-  RuleConfigSchema,
-  VibeRulesSchema,
-  VibePackageRulesSchema,
-  PackageRuleObjectSchema,
-} from "./schemas";
+import { RuleConfigSchema } from "./schemas";
+import { installCommandAction } from "./commands/install";
 // Simple debug logger
 export let isDebugEnabled = false;
 export const debugLog = (message: string, ...optionalParams: any[]) => {
@@ -2188,8 +3002,7 @@ export const debugLog = (message: string, ...optionalParams: any[]) => {
 // Helper function to install/save a single rule
 async function installRule(ruleConfig: RuleConfig): Promise<void> {
   try {
-    // Validate the rule config using the Zod schema
-    RuleConfigSchema.parse(ruleConfig); // Throws error if invalid
+    RuleConfigSchema.parse(ruleConfig);
     const commonRulePath = path.join(
       getCommonRulesDir(),
       `${ruleConfig.name}.txt`
@@ -2198,169 +3011,19 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
     await fs.writeFile(commonRulePath, ruleConfig.content);
     console.log(
       chalk.green(
-        `Rule "${ruleConfig.name}" saved successfully to ${commonRulePath}`
+        `Rule \"${ruleConfig.name}\" saved successfully to ${commonRulePath}`
       )
     );
   } catch (error) {
     console.error(
       chalk.red(
-        `Error saving rule "${ruleConfig.name}": ${error instanceof Error ? error.message : error}`
-      )
-    );
-    // Optionally re-throw or handle differently depending on desired flow
-    // For now, just log and continue if part of a batch install
-  }
-}
-// Helper function to clear existing rules installed from a package
-async function clearExistingRules(
-  pkgName: string,
-  editorType: RuleType,
-  options: { global?: boolean }
-): Promise<void> {
-  debugLog(
-    `Clearing existing rules for package "${pkgName}" and editor "${editorType}" with options ${JSON.stringify(options)}...`
-  );
-  let targetDir: string;
-  const singleFileProviders: RuleTypeArray = [
-    RuleType.WINDSURF,
-    RuleType.CLAUDE_CODE,
-    RuleType.CODEX,
-  ];
-  let isSingleFileProvider = singleFileProviders.includes(editorType);
-  // Get default path from provider logic
-  const defaultPath = getDefaultTargetPath(editorType, options.global);
-  try {
-    // Check if path exists first
-    if (await fs.pathExists(defaultPath)) {
-      const stats = await fs.stat(defaultPath);
-      if (stats.isDirectory()) {
-        targetDir = defaultPath;
-      } else {
-        targetDir = path.dirname(defaultPath);
-      }
-    } else {
-      // Default path doesn't exist. Create it.
-      await fs.ensureDir(defaultPath);
-      targetDir = defaultPath;
-    }
-  } catch (error: any) {
-    console.error(
-      chalk.red(`Error checking default path ${defaultPath}: ${error.message}`)
-    );
-    return; // Cannot determine target directory
-  }
-  debugLog(
-    `Determined target directory: ${targetDir}. Single File Provider Mode: ${isSingleFileProvider} for ${editorType}.`
-  );
-  // If it's a known single file provider, remove matching XML blocks instead of deleting files
-  if (isSingleFileProvider) {
-    const potentialTargetFile = getRulePath(editorType, "", options.global);
-    if (!(await fs.pathExists(potentialTargetFile))) {
-      debugLog(
-        `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
-      );
-      return;
-    }
-    if (!potentialTargetFile) {
-      debugLog(
-        `Cannot clear rules for single file provider ${editorType} as target file path could not be determined.`
-      );
-      return;
-    }
-    try {
-      if (!(await fs.pathExists(potentialTargetFile))) {
-        debugLog(
-          `Target file ${potentialTargetFile} does not exist. No rules to clear.`
-        );
-        return;
-      }
-      const content = await fs.readFile(potentialTargetFile, "utf-8");
-      // Regex to match <pkgName_ruleName ...>...</pkgName_ruleName> blocks
-      // It captures the tag name (pkgName_ruleName) in group 1 to ensure start and end tags match.
-      // It handles potential attributes in the opening tag.
-      // 's' flag allows '.' to match newlines. 'g' flag finds all matches.
-      const removalRegex = new RegExp(
-        `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\s*\n?`,
-        "gs"
-      );
-      let removedCount = 0;
-      const newContent = content.replace(removalRegex, (match) => {
-        removedCount++;
-        debugLog(
-          `Removing block matching pattern: ${match.substring(0, 100)}...`
-        ); // Log beginning of removed block
-        return ""; // Replace with empty string
-      });
-      if (removedCount > 0) {
-        await fs.writeFile(potentialTargetFile, newContent, "utf-8");
-        debugLog(
-          chalk.blue(
-            `Removed ${removedCount} existing rule block(s) matching prefix "${pkgName}_" from ${potentialTargetFile}.`
-          )
-        );
-      } else {
-        debugLog(
-          `No rule blocks found with prefix "${pkgName}_" in ${potentialTargetFile}.`
-        );
-      }
-    } catch (error: any) {
-      console.error(
-        chalk.red(
-          `Error clearing rule blocks from ${potentialTargetFile}: ${error.message}`
-        )
-      );
-    }
-    return; // Stop here for single file providers
-  }
-  // Proceed with deleting files by prefix only for multi-file providers (like Cursor, Clinerules)
-  try {
-    if (!(await fs.pathExists(targetDir))) {
-      debugLog(
-        `Target directory ${targetDir} does not exist. No rules to clear.`
-      );
-      return;
-    }
-    const files = await fs.readdir(targetDir);
-    const prefix = `${pkgName}_`;
-    let deletedCount = 0;
-    debugLog(
-      `Scanning ${targetDir} for files starting with prefix "${prefix}"...`
-    );
-    for (const file of files) {
-      // Consider adding file extension check based on editorType if needed for robustness
-      if (file.startsWith(prefix)) {
-        const filePath = path.join(targetDir, file);
-        try {
-          await fs.remove(filePath);
-          debugLog(chalk.grey(`Deleted existing rule file: ${filePath}`));
-          deletedCount++;
-        } catch (deleteError: any) {
-          console.error(
-            chalk.red(
-              `Failed to delete rule file ${filePath}: ${deleteError.message}`
-            )
-          );
-        }
-      }
-    }
-    if (deletedCount > 0) {
-      debugLog(
-        chalk.blue(
-          `Cleared ${deletedCount} existing rule file(s) matching prefix "${prefix}" in ${targetDir}.`
-        )
-      );
-    } else {
-      debugLog(`No rule files found with prefix "${prefix}" in ${targetDir}.`);
-    }
-  } catch (error: any) {
-    console.error(
-      chalk.red(
-        `Error clearing existing rules in ${targetDir}: ${error.message}`
+        `Error saving rule \"${ruleConfig.name}\": ${
+          error instanceof Error ? error.message : error
+        }`
       )
     );
   }
 }
-// Initialize CLI
 const program = new Command();
 program
   .name("vibe-rules")
@@ -2368,13 +3031,11 @@ program
     "A utility for managing Cursor rules, Windsurf rules, and other AI prompts"
   )
   .version("0.1.0")
-  .option("--debug", "Enable debug logging", false); // Add global debug option
-// Add a hook to capture the global debug option
+  .option("--debug", "Enable debug logging", false);
 program.on("option:debug", () => {
   isDebugEnabled = program.opts().debug;
   debugLog("Debug logging enabled.");
 });
-// Command to save a rule
 program
   .command("save")
   .description("Save a rule to the local store")
@@ -2400,19 +3061,18 @@ program
         content,
         description: options.description,
       };
-      // Use the new installRule function
       await installRule(ruleConfig);
     } catch (error) {
-      // Catch errors specific to file reading or argument parsing for the save command
       console.error(
         chalk.red(
-          `Error during save command: ${error instanceof Error ? error.message : error}`
+          `Error during save command: ${
+            error instanceof Error ? error.message : error
+          }`
         )
       );
       process.exit(1);
     }
   });
-// Command to list rules
 program
   .command("list")
   .description("List all saved rules from the common store")
@@ -2436,13 +3096,14 @@ program
     } catch (error) {
       console.error(
         chalk.red(
-          `Error listing rules: ${error instanceof Error ? error.message : error}`
+          `Error listing rules: ${
+            error instanceof Error ? error.message : error
+          }`
         )
       );
       process.exit(1);
     }
   });
-// Command to load a rule
 program
   .command("load")
   .alias("add")
@@ -2463,13 +3124,11 @@ program
   )
   .action(async (name, editor, options) => {
     try {
-      // Load rule from the common storage location
       const commonRulePath = path.join(getCommonRulesDir(), `${name}.txt`);
       if (!(await fs.pathExists(commonRulePath))) {
         console.error(
-          chalk.red(`Rule "${name}" not found in the common store`)
+          chalk.red(`Rule \"${name}\" not found in the common store`)
         );
-        // Suggest similar rules from the common store
         const commonRulesDir = getCommonRulesDir();
         if (await fs.pathExists(commonRulesDir)) {
           const files = await fs.readdir(commonRulesDir);
@@ -2486,28 +3145,21 @@ program
         }
         process.exit(1);
       }
-      // Read the content from the common store
       const content = await fs.readFile(commonRulePath, "utf-8");
       const ruleType = editor.toLowerCase() as RuleType;
       const provider = getRuleProvider(ruleType);
-      // Create rule config
       const ruleConfig = {
         name,
         content,
-        description: name, // Using name as default description
+        description: name,
       };
-      // Determine the final target path
       let finalTargetPath: string;
       if (options.target) {
-        finalTargetPath = options.target; // Explicit target path takes precedence
+        finalTargetPath = options.target;
       } else {
-        // Use getRulePath which respects the 'isGlobal' flag
         finalTargetPath = getRulePath(ruleType, name, options.global);
       }
-      // Ensure the target directory exists
       fs.ensureDirSync(path.dirname(finalTargetPath));
-      // Apply the rule using the provider
-      // The provider receives the final target path determined by cli
       const success = await provider.appendFormattedRule(
         ruleConfig,
         finalTargetPath,
@@ -2520,25 +3172,26 @@ program
       if (success) {
         console.log(
           chalk.green(
-            `Rule "${name}" applied successfully for ${editor} at ${finalTargetPath}`
+            `Rule \"${name}\" applied successfully for ${editor} at ${finalTargetPath}`
           )
         );
       } else {
         console.error(
-          chalk.red(`Failed to apply rule "${name}" for ${editor}.`)
+          chalk.red(`Failed to apply rule \"${name}\" for ${editor}.`)
         );
         process.exit(1);
       }
     } catch (error) {
       console.error(
         chalk.red(
-          `Error loading rule: ${error instanceof Error ? error.message : error}`
+          `Error loading rule: ${
+            error instanceof Error ? error.message : error
+          }`
         )
       );
       process.exit(1);
     }
   });
-// Command to install rules from NPM packages
 program
   .command("install")
   .description(
@@ -2558,481 +3211,10 @@ program
     "-t, --target <path>",
     "Custom target path (overrides default and global)"
   )
-  .action(async (editor, packageName, options) => {
-    const editorType = editor.toLowerCase() as RuleType;
-    let provider: RuleProvider; // Define provider here
-    // isDebugEnabled should be set by the global option hook now
-    // Pass the combined options (command-specific + global) down if needed
-    const combinedOptions = { ...options, debug: isDebugEnabled };
-    try {
-      provider = getRuleProvider(editorType); // Get provider once
-    } catch (e) {
-      console.error(chalk.red(`Invalid editor type specified: ${editor}`));
-      // Potentially list valid types here
-      process.exit(1);
-    }
-    const installSinglePackage = async (
-      pkgName: string,
-      editorType: RuleType,
-      provider: RuleProvider,
-      installOptions: { global?: boolean; target?: string; debug?: boolean }
-    ) => {
-      if (isDebugEnabled) {
-        console.log(
-          chalk.blue(`Attempting to install rules from ${pkgName}...`)
-        );
-      }
-      let rulesSuccessfullyAppliedCount = 0;
-      try {
-        // Dynamically import the expected rules module
-        const ruleModulePath = `${pkgName}/llms`;
-        debugLog(`Importing module ${ruleModulePath}`);
-        const defaultExport = await importModuleFromCwd(ruleModulePath);
-        if (!defaultExport) {
-          debugLog(
-            chalk.yellow(
-              `No default export or module found in ${ruleModulePath} after import attempt. Skipping ${pkgName}.`
-            )
-          );
-          return;
-        }
-        await clearExistingRules(pkgName, editorType, installOptions);
-        let rulesToInstall: RuleConfig[] = [];
-        // Handle if default export is a string
-        if (typeof defaultExport === "string") {
-          debugLog(
-            `Found rule content as string in ${pkgName}. Preparing to install...`
-          );
-          let ruleName = slugifyRuleName(pkgName); // Start with slugified name
-          // Ensure the name starts with the package name prefix
-          if (!ruleName.startsWith(`${pkgName}_`)) {
-            ruleName = `${pkgName}_${ruleName}`;
-          }
-          const ruleContent = defaultExport;
-          rulesToInstall.push({ name: ruleName, content: ruleContent });
-        }
-        // Handle if default export is an array (existing logic, adapted)
-        else {
-          debugLog(`Found array export in ${pkgName}. Validating...`);
-          const validationResult =
-            VibePackageRulesSchema.safeParse(defaultExport);
-          if (!validationResult.success) {
-            console.error(
-              chalk.red(`Validation failed for rules from ${pkgName}:`),
-              validationResult.error.errors
-            );
-            debugLog(
-              chalk.yellow(
-                `Skipping installation from ${pkgName} due to validation failure.`
-              )
-            );
-            return;
-          }
-          // Process the validated items
-          const items = validationResult.data;
-          debugLog(`Found ${items.length} valid items in ${pkgName}`);
-          for (const [index, item] of items.entries()) {
-            if (typeof item === "string") {
-              // Handle string item - name already includes pkgName-index via slugify
-              const ruleName = slugifyRuleName(`${pkgName}_${index}`);
-              rulesToInstall.push({
-                name: ruleName,
-                content: item,
-                description: `Rule from ${pkgName}`,
-              });
-            } else {
-              // Handle object item - map 'rule' to 'content'
-              let ruleName = item.name;
-              // Ensure the name starts with the package name prefix
-              if (!ruleName.startsWith(`${pkgName}_`)) {
-                ruleName = `${pkgName}_${ruleName}`;
-              }
-              debugLog(`Processing object rule: ${item.name} with properties:
-                alwaysApply: ${item.alwaysApply !== undefined ? item.alwaysApply : "undefined"}
-                globs: ${item.globs ? (Array.isArray(item.globs) ? item.globs.join(",") : item.globs) : "undefined"}
-              `);
-              rulesToInstall.push({
-                name: ruleName, // Use potentially prefixed name
-                content: item.rule, // Map rule to content
-                description: item.description,
-              });
-            }
-          }
-        }
-        // Now, install the gathered rules using the provider
-        if (rulesToInstall.length > 0) {
-          if (isDebugEnabled) {
-            console.log(
-              chalk.blue(
-                `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
-              )
-            );
-          }
-          for (const ruleConfig of rulesToInstall) {
-            try {
-              // Determine the final target path (logic copied from 'load' command)
-              let finalTargetPath: string;
-              if (installOptions.target) {
-                finalTargetPath = installOptions.target; // Explicit target path takes precedence
-              } else {
-                finalTargetPath = getRulePath(
-                  editorType,
-                  ruleConfig.name,
-                  installOptions.global
-                );
-              }
-              // Ensure the target directory exists
-              fs.ensureDirSync(path.dirname(finalTargetPath));
-              // Find any metadata for this rule from the original module
-              const generatorOptions: RuleGeneratorOptions = {
-                description: ruleConfig.description,
-                isGlobal: installOptions.global,
-                debug: installOptions.debug,
-              };
-              // Add additional options from the original rules if they exist
-              // This handles the case where we processed a rule object with additional metadata
-              let originalName = ruleConfig.name;
-              // Remove the package prefix to match against the original item
-              if (originalName.startsWith(`${pkgName}_`)) {
-                originalName = originalName.substring(pkgName.length + 1);
-              }
-              debugLog(
-                `Looking for metadata with original name: ${originalName} (from ${ruleConfig.name})`
-              );
-              const originalItem =
-                typeof defaultExport === "string"
-                  ? null
-                  : Array.isArray(defaultExport)
-                    ? defaultExport.find(
-                        (item: any) =>
-                          typeof item === "object" &&
-                          (item.name === originalName ||
-                            item.name === ruleConfig.name)
-                      )
-                    : null;
-              if (originalItem && typeof originalItem === "object") {
-                debugLog(
-                  `Found additional metadata for rule ${ruleConfig.name}. Keys: ${Object.keys(originalItem).join(", ")}`
-                );
-                if ("alwaysApply" in originalItem) {
-                  generatorOptions.alwaysApply = originalItem.alwaysApply;
-                  debugLog(`Setting alwaysApply: ${originalItem.alwaysApply}`);
-                }
-                if ("globs" in originalItem) {
-                  generatorOptions.globs = originalItem.globs;
-                  debugLog(
-                    `Setting globs: ${JSON.stringify(originalItem.globs)}`
-                  );
-                }
-              }
-              // Apply the rule using the provider
-              debugLog(
-                `Applying rule ${ruleConfig.name} with options: ${JSON.stringify(generatorOptions)}`
-              );
-              if (isDebugEnabled) {
-                if (generatorOptions.globs) {
-                  console.log(
-                    chalk.blue(
-                      `Rule "${ruleConfig.name}" has globs: ${
-                        Array.isArray(generatorOptions.globs)
-                          ? generatorOptions.globs.join(", ")
-                          : generatorOptions.globs
-                      }`
-                    )
-                  );
-                }
-                if (generatorOptions.alwaysApply !== undefined) {
-                  console.log(
-                    chalk.blue(
-                      `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
-                    )
-                  );
-                }
-              }
-              try {
-                const success = await provider.appendFormattedRule(
-                  ruleConfig,
-                  finalTargetPath,
-                  installOptions.global,
-                  generatorOptions
-                );
-                if (success) {
-                  rulesSuccessfullyAppliedCount++;
-                  if (isDebugEnabled) {
-                    console.log(
-                      chalk.green(
-                        `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
-                      )
-                    );
-                  }
-                } else {
-                  console.error(
-                    chalk.red(
-                      `Failed to apply rule "${ruleConfig.name}" from ${pkgName} for ${editorType}.`
-                    )
-                  );
-                }
-              } catch (ruleApplyError) {
-                console.error(
-                  chalk.red(
-                    `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${
-                      ruleApplyError instanceof Error
-                        ? ruleApplyError.message
-                        : ruleApplyError
-                    }`
-                  )
-                );
-              }
-            } catch (ruleError) {
-              console.error(
-                chalk.red(
-                  `Error applying rule "${ruleConfig.name}" from ${pkgName}: ${ruleError instanceof Error ? ruleError.message : ruleError}`
-                )
-              );
-            }
-          }
-        } else {
-          debugLog(`No valid rules found or processed from ${pkgName}.`);
-        }
-      } catch (error: any) {
-        // Error handling for module import issues (MODULE_NOT_FOUND, SyntaxError, initialization errors)
-        // This section already uses debugLog for non-critical issues or console.error for critical ones.
-        // No changes needed here for this refactor, as per previous discussions.
-        if (
-          error.code === "MODULE_NOT_FOUND" ||
-          error.code === "ERR_MODULE_NOT_FOUND" || // Added for ESM import errors from importModuleFromCwd
-          error.code === "ERR_PACKAGE_PATH_NOT_EXPORTED"
-        ) {
-          const msg = `Skipping package ${pkgName}: Rules module ('${pkgName}/llms') not found or not exported.`;
-          debugLog(`${msg} Error: ${error.message}`);
-          debugLog(`Stack: ${error.stack}`);
-        } else if (error instanceof SyntaxError) {
-          console.error(
-            chalk.red(
-              `Error in package '${pkgName}': Syntax error found in its rule module ('${pkgName}/llms').`
-            )
-          );
-          console.error(
-            chalk.red(
-              "Please check the syntax of the rules module in this package."
-            )
-          );
-          debugLog(`SyntaxError details: ${error.message}`);
-          debugLog(`Stack: ${error.stack}`);
-        } else {
-          // This is the case for errors during the imported module's own initialization
-          console.error(
-            chalk.red(
-              `Error from package '${pkgName}': Its rule module ('${pkgName}/llms') was found but failed during its own initialization.`
-            )
-          );
-          console.error(
-            chalk.yellow(
-              `This often indicates an issue within the '${pkgName}' package itself (e.g., trying to access files with incorrect paths post-build, or other internal errors).`
-            )
-          );
-          console.error(
-            chalk.red(`Original error from '${pkgName}': ${error.message}`)
-          );
-          debugLog(
-            `Full error trace from '${pkgName}' to help its developers:`
-          );
-          debugLog(error.stack);
-        }
-      }
-      // Final summary log for non-debug mode
-      if (!isDebugEnabled && rulesSuccessfullyAppliedCount > 0) {
-        console.log(
-          chalk.green(
-            `[vibe-rules] Successfully installed ${rulesSuccessfullyAppliedCount} rule(s) from package '${pkgName}'.`
-          )
-        );
-      }
-    };
-    if (packageName) {
-      // Install from a specific package
-      await installSinglePackage(
-        packageName,
-        editorType,
-        provider,
-        combinedOptions
-      );
-    } else {
-      // Install from all dependencies in package.json
-      console.log(
-        chalk.blue(
-          `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
-        )
-      );
-      try {
-        const pkgJsonPath = path.join(process.cwd(), "package.json");
-        if (!fs.existsSync(pkgJsonPath)) {
-          console.error(
-            chalk.red("package.json not found in the current directory.")
-          );
-          process.exit(1);
-        }
-        const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
-        const { dependencies = {}, devDependencies = {} } =
-          JSON.parse(pkgJsonContent);
-        const allDeps = [
-          ...Object.keys(dependencies),
-          ...Object.keys(devDependencies),
-        ];
-        if (allDeps.length === 0) {
-          console.log(chalk.yellow("No dependencies found in package.json."));
-          return;
-        }
-        debugLog(
-          chalk.blue(
-            `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
-          )
-        );
-        for (const depName of allDeps) {
-          await installSinglePackage(
-            depName,
-            editorType,
-            provider,
-            combinedOptions
-          );
-        }
-        debugLog(chalk.green("Finished checking all dependencies."));
-      } catch (error) {
-        console.error(
-          chalk.red(
-            `Error processing package.json: ${error instanceof Error ? error.message : error}`
-          )
-        );
-        process.exit(1);
-      }
-    }
-  });
+  .action(installCommandAction);
 program.parse(process.argv);
-// If no arguments provided, show help
 if (process.argv.length <= 2) {
   program.help();
-}
-async function importModuleFromCwd(ruleModulePath: string) {
-  debugLog(`Attempting to import module: ${ruleModulePath}`);
-  let module: any;
-  try {
-    // Attempt 1: Use createRequire for CommonJS compatibility
-    debugLog(`Trying require for ${ruleModulePath}...`);
-    // Use eval to construct the require call dynamically based on CWD
-    // This allows importing modules relative to the project running vibe-rules
-    module = await eval(
-      `require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`
-    );
-    debugLog(`Successfully imported using require.`);
-  } catch (error: any) {
-    // Check if the error is specifically because we tried to require an ES module
-    if (error.code === "ERR_REQUIRE_ESM") {
-      debugLog(
-        `Require failed (ERR_REQUIRE_ESM). Falling back to dynamic import()...`
-      );
-      try {
-        // Attempt 2: Use dynamic import() for ES Modules
-        // Construct the file path more reliably for dynamic import
-        let absolutePath: string;
-        try {
-          absolutePath = require.resolve(ruleModulePath, {
-            paths: [process.cwd()],
-          });
-        } catch (resolveError: any) {
-          debugLog(
-            `Could not resolve path for dynamic import of ${ruleModulePath}: ${resolveError.message}`
-          );
-          throw resolveError; // Propagate error if path resolution fails
-        }
-        debugLog(`Resolved path for import(): ${absolutePath}`);
-        // Use pathToFileURL to ensure correct format for import() esp on Windows
-        const fileUrl = require("url").pathToFileURL(absolutePath).href;
-        debugLog(`Trying dynamic import('${fileUrl}')...`);
-        // Prefer direct dynamic import over eval if possible for clarity and security
-        // const module = await import(fileUrl);
-        // For now, keeping eval to match original structure
-        module = await eval(`import('${fileUrl}')`);
-        debugLog(`Successfully imported using dynamic import().`);
-      } catch (importError: any) {
-        debugLog(
-          `Dynamic import() failed for ${ruleModulePath}: ${importError.message}`
-        );
-        // Re-throw the *import* error if dynamic import also fails
-        // This will be caught by the handler in installSinglePackage
-        throw importError;
-      }
-    } else {
-      // Error from require was not ERR_REQUIRE_ESM
-      debugLog(
-        `Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
-      );
-      // Re-throw the error if require failed for other reasons
-      // This will be caught by the handler in installSinglePackage
-      throw error;
-    }
-  }
-  // Extract the default export if it exists, otherwise use the whole module
-  const defaultExport = module?.default || module;
-  debugLog(`Module imported. Type: ${typeof defaultExport}`);
-  // Avoid logging potentially large module content by default
-  // console.log(chalk.dim(`[Debug] Module content (keys): ${Object.keys(defaultExport || {}).join(', ')}`));
-  return defaultExport;
-}
-</file>
-
-<file path="package.json">
-{
-  "name": "vibe-rules",
-  "version": "0.2.52",
-  "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
-  "main": "dist/index.js",
-  "bin": {
-    "vibe-rules": "dist/cli.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "exports": {
-    ".": "./dist/index.js",
-    "./llms": "./dist/llms/index.js"
-  },
-  "scripts": {
-    "build": "tsc",
-    "start": "node dist/cli.js",
-    "dev": "ts-node src/cli.ts",
-    "publish": "bun run build && npm publish",
-    "prepare": "vibe-rules install cursor"
-  },
-  "keywords": [
-    "cursor",
-    "windsurf",
-    "rules",
-    "ai",
-    "prompts"
-  ],
-  "author": "Artem Murzin <hello@jart.lol>",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/flowisgreat/vibe-rules.git"
-  },
-  "bugs": {
-    "url": "https://github.com/flowisgreat/vibe-rules/issues"
-  },
-  "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
-  "dependencies": {
-    "chalk": "^4.1.2",
-    "commander": "^11.1.0",
-    "fs-extra": "^11.3.0"
-  },
-  "devDependencies": {
-    "@types/fs-extra": "^11.0.4",
-    "@types/node": "^20.10.4",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.3.3"
-  }
 }
 </file>
 
@@ -3049,34 +3231,38 @@ This document outlines the architecture of the vibe-rules utility - a tool for m
 vibe-rules/
 ├── src/                   # Source code
 │   ├── cli.ts             # Command-line interface
+│   ├── commands/          # CLI command action handlers (Added)
+│   │   └── install.ts     # Action handler for the 'install' command (Added)
 │   ├── index.ts           # Main exports
-│   ├── types.ts           # Type definitions
-│   ├── schemas.ts         # Zod schema definitions (Added)
-│   ├── llms/              # Rule definitions for package export (Added)
+│   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED)
+│   ├── schemas.ts         # Zod schema definitions
+│   ├── llms/              # Rule definitions for package export
 │   │   ├── index.ts       # Public rule export (intentionally empty)
 │   │   └── internal.ts    # Internal rule definitions (not exported)
 │   ├── providers/         # Provider implementations
-│   │   ├── index.ts       # Provider factory
-│   │   ├── cursor-provider.ts  # Cursor editor provider (Refactored)
-│   │   ├── windsurf-provider.ts # Windsurf editor provider (Refactored)
-│   │   ├── claude-code-provider.ts # Claude Code provider (Refactored)
-│   │   ├── codex-provider.ts       # Codex provider (Refactored)
-│   │   ├── clinerules-provider.ts  # Clinerules/Roo provider (Refactored)
-│   │   └── zed-provider.ts         # Zed editor provider (Added)
+│   │   ├── index.ts       # Provider factory (Updated: UnifiedRuleProvider)
+│   │   ├── cursor-provider.ts  # Cursor editor provider
+│   │   ├── windsurf-provider.ts # Windsurf editor provider
+│   │   ├── claude-code-provider.ts # Claude Code provider
+│   │   ├── codex-provider.ts       # Codex provider
+│   │   ├── clinerules-provider.ts  # Clinerules/Roo provider
+│   │   ├── zed-provider.ts         # Zed editor provider
+│   │   └── unified-provider.ts     # Unified .rules provider (Added)
 │   └── utils/             # Utility functions
-│       ├── path.ts        # Path helpers
+│       ├── path.ts        # Path helpers (Updated: UNIFIED paths)
 │       ├── similarity.ts  # Text similarity utilities
-│       └── rule-formatter.ts # Rule formatting utilities for metadata (Added)
-│       └── single-file-helpers.ts # Helpers for single-file providers (Added)
-│       └── rule-storage.ts # Helpers for internal rule storage (Added)
+│       └── rule-formatter.ts # Rule formatting utilities for metadata
+│       └── single-file-helpers.ts # Helpers for single-file providers
+│       └── rule-storage.ts # Helpers for internal rule storage
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
 │   ├── public/            # Public assets
 │   └── nuxt.config.ts     # Nuxt configuration
-├── package.json           # Project metadata and dependencies (Updated scripts)
-└── README.md              # Project documentation (Updated examples)
-└── ARCHITECTURE.md        # This file
+├── package.json           # Project metadata and dependencies
+├── README.md              # Project documentation (Updated: Unified convention)
+├── ARCHITECTURE.md        # This file (Being updated)
+├── UNIFIED_RULES_CONVENTION.md # Documentation for .rules (Added)
 ```
 
 ## File Descriptions
@@ -3084,10 +3270,18 @@ vibe-rules/
 ### src/cli.ts
 
 Defines the command-line interface using `commander`.
+It handles parsing of command-line arguments, options, and delegates the execution of command actions to handlers in `src/commands/`.
 
-#### Helper Functions
+#### Global Variables/Functions
 
-- `installRule(ruleConfig: RuleConfig): Promise<void>` (Added)
+- `isDebugEnabled: boolean` (Exported)
+  - A global flag indicating if debug logging is active. Controlled by the `--debug` CLI option.
+- `debugLog(message: string, ...optionalParams: any[]): void` (Exported)
+  - A global function for logging debug messages. Output is conditional based on `isDebugEnabled`.
+
+#### Helper Functions (Internal to cli.ts)
+
+- `installRule(ruleConfig: RuleConfig): Promise<void>`
   - Validates a `RuleConfig` object against `RuleConfigSchema`.
   - Saves the rule content to the common internal storage (`~/.vibe-rules/rules/<name>.txt`).
   - Handles errors during validation or saving.
@@ -3106,7 +3300,6 @@ Defines the command-line interface using `commander`.
 
 - `save <name> [options]`
   - Saves a rule to the local store (`~/.vibe-rules/rules/<name>.txt`).
-  - Options: `-c, --content`, `-f, --file`, `-d, --description`.
   - Uses the `installRule` helper function.
 - `list`
   - Lists all rules saved in the common local store (`~/.vibe-rules/rules`).
@@ -3116,35 +3309,39 @@ Defines the command-line interface using `commander`.
   - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
   - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
   - Suggests similar rule names if the requested rule is not found.
-- `install <editor> [packageName] [options]` (Updated)
-  - Installs rules exported from an NPM package directly into an editor configuration.
-  - Arguments:
-    - `<editor>`: Target editor type (mandatory).
-    - `[packageName]`: Specific package to install from (optional, defaults to all deps).
-  - Options:
-    - `-g, --global`: Apply to global config path (similar to `load`).
-    - `-t, --target <path>`: Custom target path (similar to `load`).
-    - `--debug`: Enable verbose debug logging for the install process.
-  - Behavior:
-    - Determines the package(s) to process (specific one or all dependencies).
-    - For each package, dynamically imports `<packageName>/llms`.
-      - **Cleanup:** Calls `clearExistingRules` to remove rule files potentially installed previously from the same package (for multi-file providers like Cursor) or to remove corresponding XML blocks (for single-file providers).
-      - **Module Loading:** Uses `require('module').createRequire` based on the CWD first for CommonJS compatibility. If that fails with `ERR_REQUIRE_ESM`, it falls back to using dynamic `import()` to support ES Modules.
-    - Checks the default export:
-      - If it's a **string**: Creates a single `RuleConfig` using the package name and content.
-      - If it's an **array**: Validates against `VibePackageRulesSchema` (using `PackageRuleItemSchema` for flexibility) and uses the valid rule definitions (mapping `rule` to `content` if necessary).
-    - For each valid `RuleConfig` obtained:
-      - **Name Prefixing:** Ensures the `name` property of the `RuleConfig` starts with `${pkgName}-`. If the original name (from an object export or derived from the package name) doesn't have this prefix, it's added.
-      - Gets the appropriate `RuleProvider` for the specified `<editor>`.
-      - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
-      - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
-    - Does **not** save rules to the common local store (`~/.vibe-rules/rules`).
-    - **Error Handling (Updated):**
-      - When attempting to import `<packageName>/llms`:
-        - **Module Not Found/Not Exported:** Errors like `MODULE_NOT_FOUND`, `ERR_MODULE_NOT_FOUND`, or `ERR_PACKAGE_PATH_NOT_EXPORTED` are logged with a descriptive message if `--debug` is enabled. Otherwise, the package is typically skipped silently to avoid excessive output when checking many dependencies.
-        - **Syntax Errors:** If a `SyntaxError` occurs in the imported module, an error message is printed to the console, clearly indicating that the issue lies within the syntax of the rule module of the specified package.
-        - **Initialization Errors (Client-Side Errors):** If the module is found and parsed but throws an error during its own initialization phase (e.g., internal file access errors like `ENOENT`, or other runtime errors within the module's top-level code), a detailed error message is printed. This message explicitly suggests that the problem likely originates from within the imported package itself, providing the original error message from the package for easier debugging by the package maintainers or users.
-      - Other errors during the rule application process for a specific rule are logged, but the `install` command will attempt to continue with other rules or packages.
+- `install <editor> [packageName] [options]`
+  - Defines the CLI options and arguments for the install command.
+  - Delegates the action to `installCommandAction` from `src/commands/install.ts`.
+
+### src/commands/install.ts (Added)
+
+Contains the action handler for the `vibe-rules install` command.
+
+#### Functions
+
+- `installCommandAction(editor: string, packageName: string | undefined, options: { global?: boolean; target?: string; debug?: boolean }): Promise<void>` (Exported)
+  - Main handler for the `install` command.
+  - If `packageName` is provided, it calls `installSinglePackage` for that specific package.
+  - If `packageName` is not provided, it reads `package.json`, gets all dependencies and devDependencies, and calls `installSinglePackage` for each.
+  - Uses `getRuleProvider` to get the appropriate provider for the editor.
+  - Handles overall error reporting for the command.
+- `installSinglePackage(pkgName: string, editorType: RuleType, provider: RuleProvider, installOptions: { global?: boolean; target?: string; debug?: boolean }): Promise<number>`
+  - Installs rules from a single specified NPM package.
+  - Dynamically imports `<pkgName>/llms` using `importModuleFromCwd`.
+  - Calls `clearExistingRules` before processing new rules.
+  - Validates the imported module content (string or array of rules/rule objects) using `VibePackageRulesSchema`.
+  - For each rule, determines the final target path and uses `provider.appendFormattedRule` to apply it.
+  - Prefixes rule names with `${pkgName}_` if not already present.
+  - Handles metadata (`alwaysApply`, `globs`) from rule objects.
+  - Returns the count of successfully applied rules.
+- `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean }): Promise<void>`
+  - Clears previously installed rules for a given package and editor type.
+  - For single-file providers (Windsurf, Claude Code, Codex), removes XML-like blocks matching `<pkgName_ruleName>...</pkgName_ruleName>` from the target file.
+  - For multi-file providers (Cursor, Clinerules), deletes files starting with `${pkgName}_` in the target directory.
+- `importModuleFromCwd(ruleModulePath: string): Promise<any>`
+  - Dynamically imports a module from the current working directory's `node_modules`.
+  - Attempts `require` first for CommonJS compatibility.
+  - Falls back to dynamic `import()` if `ERR_REQUIRE_ESM` is encountered.
 
 ### src/types.ts
 
@@ -3164,11 +3361,12 @@ Defines the core types and interfaces used throughout the application.
 - Values:
   - `CURSOR`: "cursor" - For Cursor editor
   - `WINDSURF`: "windsurf" - For Windsurf editor
-  - `CLAUDE_CODE`: "claude-code" - For Claude Code IDE (Added)
-  - `CODEX`: "codex" - For Codex IDE (Added)
-  - `CLINERULES`: "clinerules" - For Cline/Roo IDEs (Added)
-  - `ROO`: "roo" - Alias for CLINERULES (Added)
-  - `ZED`: "zed" - For Zed editor (Added)
+  - `CLAUDE_CODE`: "claude-code" - For Claude Code IDE
+  - `CODEX`: "codex" - For Codex IDE
+  - `CLINERULES`: "clinerules" - For Cline/Roo IDEs
+  - `ROO`: "roo" - Alias for CLINERULES
+  - `ZED`: "zed" - For Zed editor
+  - `UNIFIED`: "unified" - For the unified `.rules` file convention (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
@@ -3231,7 +3429,7 @@ Defines Zod schemas for validating rule configurations.
 ### src/utils/path.ts
 
 Provides utility functions for managing file paths related to rules and IDE configurations.
-Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExists` (Updated).
+Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExists`.
 
 #### `RULES_BASE_DIR`
 
@@ -3262,7 +3460,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
   - `ruleName`: The name of the rule (used by some types like Cursor)
   - `isGlobal`: Flag indicating global context (uses home dir paths for Claude/Codex)
   - `projectRoot`: The root directory for local project paths
-- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`, `./.rules` for Zed)
+- Returns: The specific path (e.g., `~/.claude/CLAUDE.md`, `./.cursor/rules/my-rule.mdc`, `./.clinerules`, `./.rules` for Zed and Unified)
 
 #### `getDefaultTargetPath(ruleType: RuleType, isGlobalHint: boolean = false): string`
 
@@ -3270,7 +3468,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
 - Parameters:
   - `ruleType`: The type of rule/editor
   - `isGlobalHint`: Hint for global context
-- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed)
+- Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed and Unified)
 
 #### `slugifyRuleName(name: string): string`
 
@@ -3379,7 +3577,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
-Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, and `ZED` (Added).
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, `ZED`, and `UNIFIED` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 
@@ -3400,6 +3598,97 @@ Implementation of the `RuleProvider` interface for Cursor editor.
 - **`appendFormattedRule` (Updated):**
   - Now accepts `RuleGeneratorOptions`.
   - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install`
+
+### src/providers/zed-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for Zed editor.
+
+#### `ZedRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `.rules` file in the project root.
+- Uses `appendOrUpdateTaggedBlock` from `single-file-helpers.ts` for file operations.
+- Uses `createTaggedRuleBlock` from `rule-formatter.ts` to generate rule content with metadata.
+- Delegates rule definition storage (`saveRule`, `loadRule`, `listRules`) to `src/utils/rule-storage.ts` using `RuleType.ZED`.
+
+### src/providers/unified-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for the unified `.rules` file convention.
+
+#### `UnifiedRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `.rules` file located in the project root (by convention).
+- Uses `appendOrUpdateTaggedBlock` from `src/utils/single-file-helpers.ts` to read, update, or append tagged rule blocks within the `.rules` file.
+- Uses `createTaggedRuleBlock` from `src/utils/rule-formatter.ts` to generate the XML-like tagged content for each rule, including any metadata provided.
+- Delegates the storage of rule definitions (when using `vibe-rules save unified <name> ...`) to the common internal storage via `src/utils/rule-storage.ts`, using `RuleType.UNIFIED`.
+- The `targetPath` for `appendFormattedRule` is expected to be the path to the `.rules` file itself (e.g., `./.rules`).
+
+## New Documentation Files
+
+### UNIFIED_RULES_CONVENTION.md (Added)
+
+- Describes the purpose, location, format, and usage of the `.rules` file.
+- Provides examples of the tagged rule block structure and how to interact with it using `vibe-rules` commands (`load unified`, `install unified`).
+</file>
+
+<file path="package.json">
+{
+  "name": "vibe-rules",
+  "version": "0.2.55",
+  "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
+  "main": "dist/index.js",
+  "bin": {
+    "vibe-rules": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./llms": "./dist/llms/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "ts-node src/cli.ts",
+    "publish:npm": "bun run build && npm publish",
+    "prepare": "vibe-rules install cursor"
+  },
+  "keywords": [
+    "cursor",
+    "windsurf",
+    "rules",
+    "ai",
+    "prompts"
+  ],
+  "author": "Artem Murzin <hello@jart.lol>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flowisgreat/vibe-rules.git"
+  },
+  "bugs": {
+    "url": "https://github.com/flowisgreat/vibe-rules/issues"
+  },
+  "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "fs-extra": "^11.3.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.10.4",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  }
+}
 </file>
 
 </files>

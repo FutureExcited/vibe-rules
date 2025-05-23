@@ -10,6 +10,8 @@ This document outlines the architecture of the vibe-rules utility - a tool for m
 vibe-rules/
 ├── src/                   # Source code
 │   ├── cli.ts             # Command-line interface
+│   ├── commands/          # CLI command action handlers (Added)
+│   │   └── install.ts     # Action handler for the 'install' command (Added)
 │   ├── index.ts           # Main exports
 │   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED)
 │   ├── schemas.ts         # Zod schema definitions
@@ -47,10 +49,18 @@ vibe-rules/
 ### src/cli.ts
 
 Defines the command-line interface using `commander`.
+It handles parsing of command-line arguments, options, and delegates the execution of command actions to handlers in `src/commands/`.
 
-#### Helper Functions
+#### Global Variables/Functions
 
-- `installRule(ruleConfig: RuleConfig): Promise<void>` (Added)
+- `isDebugEnabled: boolean` (Exported)
+  - A global flag indicating if debug logging is active. Controlled by the `--debug` CLI option.
+- `debugLog(message: string, ...optionalParams: any[]): void` (Exported)
+  - A global function for logging debug messages. Output is conditional based on `isDebugEnabled`.
+
+#### Helper Functions (Internal to cli.ts)
+
+- `installRule(ruleConfig: RuleConfig): Promise<void>`
   - Validates a `RuleConfig` object against `RuleConfigSchema`.
   - Saves the rule content to the common internal storage (`~/.vibe-rules/rules/<name>.txt`).
   - Handles errors during validation or saving.
@@ -69,7 +79,6 @@ Defines the command-line interface using `commander`.
 
 - `save <name> [options]`
   - Saves a rule to the local store (`~/.vibe-rules/rules/<name>.txt`).
-  - Options: `-c, --content`, `-f, --file`, `-d, --description`.
   - Uses the `installRule` helper function.
 - `list`
   - Lists all rules saved in the common local store (`~/.vibe-rules/rules`).
@@ -79,35 +88,39 @@ Defines the command-line interface using `commander`.
   - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
   - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
   - Suggests similar rule names if the requested rule is not found.
-- `install <editor> [packageName] [options]` (Updated)
-  - Installs rules exported from an NPM package directly into an editor configuration.
-  - Arguments:
-    - `<editor>`: Target editor type (mandatory).
-    - `[packageName]`: Specific package to install from (optional, defaults to all deps).
-  - Options:
-    - `-g, --global`: Apply to global config path (similar to `load`).
-    - `-t, --target <path>`: Custom target path (similar to `load`).
-    - `--debug`: Enable verbose debug logging for the install process.
-  - Behavior:
-    - Determines the package(s) to process (specific one or all dependencies).
-    - For each package, dynamically imports `<packageName>/llms`.
-      - **Cleanup:** Calls `clearExistingRules` to remove rule files potentially installed previously from the same package (for multi-file providers like Cursor) or to remove corresponding XML blocks (for single-file providers).
-      - **Module Loading:** Uses `require('module').createRequire` based on the CWD first for CommonJS compatibility. If that fails with `ERR_REQUIRE_ESM`, it falls back to using dynamic `import()` to support ES Modules.
-    - Checks the default export:
-      - If it's a **string**: Creates a single `RuleConfig` using the package name and content.
-      - If it's an **array**: Validates against `VibePackageRulesSchema` (using `PackageRuleItemSchema` for flexibility) and uses the valid rule definitions (mapping `rule` to `content` if necessary).
-    - For each valid `RuleConfig` obtained:
-      - **Name Prefixing:** Ensures the `name` property of the `RuleConfig` starts with `${pkgName}-`. If the original name (from an object export or derived from the package name) doesn't have this prefix, it's added.
-      - Gets the appropriate `RuleProvider` for the specified `<editor>`.
-      - Determines the target file path based on editor type, rule name, and options (`-g`, `-t`).
-      - Uses the provider's `appendFormattedRule` to apply the rule to the target path.
-    - Does **not** save rules to the common local store (`~/.vibe-rules/rules`).
-    - **Error Handling (Updated):**
-      - When attempting to import `<packageName>/llms`:
-        - **Module Not Found/Not Exported:** Errors like `MODULE_NOT_FOUND`, `ERR_MODULE_NOT_FOUND`, or `ERR_PACKAGE_PATH_NOT_EXPORTED` are logged with a descriptive message if `--debug` is enabled. Otherwise, the package is typically skipped silently to avoid excessive output when checking many dependencies.
-        - **Syntax Errors:** If a `SyntaxError` occurs in the imported module, an error message is printed to the console, clearly indicating that the issue lies within the syntax of the rule module of the specified package.
-        - **Initialization Errors (Client-Side Errors):** If the module is found and parsed but throws an error during its own initialization phase (e.g., internal file access errors like `ENOENT`, or other runtime errors within the module's top-level code), a detailed error message is printed. This message explicitly suggests that the problem likely originates from within the imported package itself, providing the original error message from the package for easier debugging by the package maintainers or users.
-      - Other errors during the rule application process for a specific rule are logged, but the `install` command will attempt to continue with other rules or packages.
+- `install <editor> [packageName] [options]`
+  - Defines the CLI options and arguments for the install command.
+  - Delegates the action to `installCommandAction` from `src/commands/install.ts`.
+
+### src/commands/install.ts (Added)
+
+Contains the action handler for the `vibe-rules install` command.
+
+#### Functions
+
+- `installCommandAction(editor: string, packageName: string | undefined, options: { global?: boolean; target?: string; debug?: boolean }): Promise<void>` (Exported)
+  - Main handler for the `install` command.
+  - If `packageName` is provided, it calls `installSinglePackage` for that specific package.
+  - If `packageName` is not provided, it reads `package.json`, gets all dependencies and devDependencies, and calls `installSinglePackage` for each.
+  - Uses `getRuleProvider` to get the appropriate provider for the editor.
+  - Handles overall error reporting for the command.
+- `installSinglePackage(pkgName: string, editorType: RuleType, provider: RuleProvider, installOptions: { global?: boolean; target?: string; debug?: boolean }): Promise<number>`
+  - Installs rules from a single specified NPM package.
+  - Dynamically imports `<pkgName>/llms` using `importModuleFromCwd`.
+  - Calls `clearExistingRules` before processing new rules.
+  - Validates the imported module content (string or array of rules/rule objects) using `VibePackageRulesSchema`.
+  - For each rule, determines the final target path and uses `provider.appendFormattedRule` to apply it.
+  - Prefixes rule names with `${pkgName}_` if not already present.
+  - Handles metadata (`alwaysApply`, `globs`) from rule objects.
+  - Returns the count of successfully applied rules.
+- `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean }): Promise<void>`
+  - Clears previously installed rules for a given package and editor type.
+  - For single-file providers (Windsurf, Claude Code, Codex), removes XML-like blocks matching `<pkgName_ruleName>...</pkgName_ruleName>` from the target file.
+  - For multi-file providers (Cursor, Clinerules), deletes files starting with `${pkgName}_` in the target directory.
+- `importModuleFromCwd(ruleModulePath: string): Promise<any>`
+  - Dynamically imports a module from the current working directory's `node_modules`.
+  - Attempts `require` first for CommonJS compatibility.
+  - Falls back to dynamic `import()` if `ERR_REQUIRE_ESM` is encountered.
 
 ### src/types.ts
 
