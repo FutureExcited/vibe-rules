@@ -1,5 +1,7 @@
 # vibe-rules
 
+[![npm downloads](https://img.shields.io/npm/dm/vibe-rules?style=flat)](https://www.npmjs.com/package/vibe-rules)
+
 A powerful CLI tool for managing and sharing AI rules (prompts, configurations) across different editors and tools.
 
 ✨ **Supercharge your workflow!** ✨
@@ -9,6 +11,8 @@ A powerful CLI tool for managing and sharing AI rules (prompts, configurations) 
 This guide highlights the essential parts of the codebase and how you can quickly start working with **vibe-rules**.
 
 [![View context.json](https://img.shields.io/badge/View-context.json-blue?logo=JSON)](https://contextjson.com/futureexcited/vibe-rules)
+
+# Guide
 
 Quickly save your favorite prompts and apply them to any supported editor:
 
