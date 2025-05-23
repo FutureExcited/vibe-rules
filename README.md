@@ -4,6 +4,12 @@ A powerful CLI tool for managing and sharing AI rules (prompts, configurations) 
 
 ✨ **Supercharge your workflow!** ✨
 
+## Quick Context Guide
+
+This guide highlights the essential parts of the codebase and how you can quickly start working with **vibe-rules**.
+
+[![View context.json](https://img.shields.io/badge/View-context.json-blue?logo=JSON)](https://contextjson.com/futureexcited/vibe-rules)
+
 Quickly save your favorite prompts and apply them to any supported editor:
 
 ```bash

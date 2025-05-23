@@ -15,12 +15,6 @@
         "src/providers/**/*",
         "UNIFIED_RULES_CONVENTION.md"
       ],
-      "excludePathPatterns": [
-        "**/test/**",
-        "**/*.test.ts",
-        "dist/**",
-        "node_modules/**"
-      ],
       "maxFileSize": [200000]
     },
     "authoring-package-support": {
@@ -35,7 +29,6 @@
         "src/llms/index.ts",
         "src/llms/internal.ts"
       ],
-      "excludePathPatterns": ["dist/**", "node_modules/**"],
       "maxFileSize": [40000]
     },
     "core-architecture": {
@@ -50,7 +43,6 @@
         "src/schemas.ts",
         "ARCHITECTURE.md"
       ],
-      "excludePathPatterns": ["dist/**", "node_modules/**"],
       "maxFileSize": [200000]
     },
     "rules-formatting": {
@@ -63,7 +55,6 @@
         "src/providers/unified-provider.ts",
         "UNIFIED_RULES_CONVENTION.md"
       ],
-      "excludePathPatterns": ["dist/**", "node_modules/**"],
       "maxFileSize": [100000]
     },
     "package-rules-installation": {
@@ -71,7 +62,6 @@
       "prompt": "Describe how vibe-rules install command dynamically imports npm packages' llms export, validates rule configurations, and applies them to editors.",
       "basePath": [""],
       "pathPatterns": ["src/cli.ts", "src/schemas.ts", "src/types.ts"],
-      "excludePathPatterns": ["dist/**", "node_modules/**"],
       "maxFileSize": [50000]
     }
   },
