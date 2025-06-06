@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.2.55",
+  "version": "0.2.56",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "bin": {
@@ -33,12 +33,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flowisgreat/vibe-rules.git"
+    "url": "git+https://github.com/FutureExcited/vibe-rules.git"
   },
   "bugs": {
-    "url": "https://github.com/flowisgreat/vibe-rules/issues"
+    "url": "https://github.com/FutureExcited/vibe-rules/issues"
   },
-  "homepage": "https://github.com/flowisgreat/vibe-rules#readme",
+  "homepage": "https://github.com/FutureExcited/vibe-rules#readme",
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.1.0",

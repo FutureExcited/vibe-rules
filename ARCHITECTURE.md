@@ -39,7 +39,7 @@ vibe-rules/
 │   ├── public/            # Public assets
 │   └── nuxt.config.ts     # Nuxt configuration
 ├── package.json           # Project metadata and dependencies
-├── README.md              # Project documentation (Updated: Unified convention)
+├── README.md              # Project documentation (Updated: Unified convention, Added note about --debug flag)
 ├── ARCHITECTURE.md        # This file (Being updated)
 ├── UNIFIED_RULES_CONVENTION.md # Documentation for .rules (Added)
 ```

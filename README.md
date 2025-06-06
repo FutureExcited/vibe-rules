@@ -134,6 +134,8 @@ vibe-rules install roo my-rule-package -t ./custom-ruleset/
 vibe-rules install unified my-awesome-prompts
 ```
 
+Add the `--debug` global option to any `vibe-rules` command to enable detailed debug logging during execution. This can be helpful for troubleshooting installation issues.
+
 Arguments:
 
 - `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
