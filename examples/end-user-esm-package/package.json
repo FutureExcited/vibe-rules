@@ -15,9 +15,7 @@
     },
     "dependencies": {
         "esm-package": "file:../library-esm-package",
-        "cjs-package": "file:../library-cjs-package",
-        "@vibe-rules/esm-package": "file:../library-esm-package-scoped",
-        "@tanstack/react-router": "file:../../../router/packages/react-router"
+        "cjs-package": "file:../library-cjs-package"
     },
     "engines": {
         "node": ">=22"

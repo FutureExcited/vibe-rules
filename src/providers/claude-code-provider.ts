@@ -25,7 +25,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
 
   /**
    * Generates formatted content for Claude Code including metadata.
-   * This content is intended to be placed within the <vibe-tools Integration> block.
+   * This content is intended to be placed within the <!-- vibe-tools Integration --> block.
    */
   generateRuleContent(
     config: RuleConfig,
@@ -124,9 +124,9 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
       updatedContent = fileContent.replace(regex, newBlock);
     } else {
       // Rule doesn't exist, append it
-      // Attempt to append within <vibe-tools Integration> if possible
-      const integrationStartTag = "<vibe-tools Integration>";
-      const integrationEndTag = "</vibe-tools Integration>";
+      // Attempt to append within <!-- vibe-tools Integration --> if possible
+      const integrationStartTag = "<!-- vibe-tools Integration -->";
+      const integrationEndTag = "<!-- /vibe-tools Integration -->";
       const startIndex = fileContent.indexOf(integrationStartTag);
       const endIndex = fileContent.indexOf(integrationEndTag);
 
@@ -146,10 +146,10 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
         // Create the vibe-tools Integration block if it doesn't exist
         if (fileContent.trim().length > 0) {
           // File has content but no integration block, wrap everything
-          updatedContent = `<vibe-tools Integration>\n\n${fileContent.trim()}\n\n${newBlock}\n\n</vibe-tools Integration>`;
+          updatedContent = `<!-- vibe-tools Integration -->\n\n${fileContent.trim()}\n\n${newBlock}\n\n<!-- /vibe-tools Integration -->`;
         } else {
           // New/empty file, create integration block with the new rule
-          updatedContent = `<vibe-tools Integration>\n\n${newBlock}\n\n</vibe-tools Integration>`;
+          updatedContent = `<!-- vibe-tools Integration -->\n\n${newBlock}\n\n<!-- /vibe-tools Integration -->`;
         }
       }
     }

@@ -103,22 +103,16 @@ export async function appendOrUpdateTaggedBlock(
         `Appending new block for rule "${config.name}" to ${targetPath}`
       );
       
-      // Check for both XML-style and comment-style integration blocks
-      const xmlIntegrationEndTag = "</vibe-tools Integration>";
+      // Check for comment-style integration blocks
       const commentIntegrationEndTag = "<!-- /vibe-tools Integration -->";
       
-      const xmlEndIndex = currentContent.lastIndexOf(xmlIntegrationEndTag);
       const commentEndIndex = currentContent.lastIndexOf(commentIntegrationEndTag);
       
       let integrationEndIndex = -1;
       let integrationStartTag = "";
       let integrationEndTag = "";
       
-      if (xmlEndIndex !== -1) {
-        integrationEndIndex = xmlEndIndex;
-        integrationStartTag = "<vibe-tools Integration>";
-        integrationEndTag = xmlIntegrationEndTag;
-      } else if (commentEndIndex !== -1) {
+      if (commentEndIndex !== -1) {
         integrationEndIndex = commentEndIndex;
         integrationStartTag = "<!-- vibe-tools Integration -->";
         integrationEndTag = commentIntegrationEndTag;
@@ -137,10 +131,8 @@ export async function appendOrUpdateTaggedBlock(
       } else if (appendInsideVibeToolsBlock && integrationEndIndex === -1) {
         // Create the integration block if it doesn't exist and we want to append inside it
         const separator = currentContent.trim().length > 0 ? "\n\n" : "";
-        const startTag = targetPath.endsWith('.md') && !targetPath.includes('CLAUDE') ? 
-          "<!-- vibe-tools Integration -->" : "<vibe-tools Integration>";
-        const endTag = targetPath.endsWith('.md') && !targetPath.includes('CLAUDE') ? 
-          "<!-- /vibe-tools Integration -->" : "</vibe-tools Integration>";
+        const startTag = "<!-- vibe-tools Integration -->";
+        const endTag = "<!-- /vibe-tools Integration -->";
         
         updatedContent = currentContent.trimEnd() + separator + 
           startTag + "\n\n" + newBlock + "\n\n" + endTag;
