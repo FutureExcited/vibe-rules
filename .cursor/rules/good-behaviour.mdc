@@ -8,3 +8,5 @@ In the beginning of each task, always use vibe-tools repo. ENSURE 100% you use v
 Keep the code changes as minimal as you can, only changing the absolute necessary parts. Do not change anything directly unrelated to what user asked.  
 
 Keep it as simple as possible, fewest lines of code as possible, as clean as possible
+
+NEVER run `bun test` in the repo, run `bun run test` instead.

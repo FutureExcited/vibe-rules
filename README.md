@@ -167,11 +167,19 @@ Options:
 - **Windsurf (`windsurf`)**:
   - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
 - **Claude Code (`claude-code`)**:
-  - Appends/updates rules within a `<vibe-tools Integration>` block in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+  - Appends/updates rules within XML-like tagged blocks in a `<vibe-tools Integration>` section in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
+  - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Codex (`codex`)**:
-  - Appends/updates rules within a `<vibe-tools Integration>` block in `./codex.md` (local) or `~/.codex/instructions.md` (global).
+  - Appends/updates rules within XML-like tagged blocks in a `<vibe-tools Integration>` section in `./codex.md` (local) or `~/.codex/instructions.md` (global).
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
+  - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Cline/Roo (`clinerules`, `roo`)**:
   - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
+- **ZED (`zed`)**:
+  - Manages rules within a single `.rules` file in the project root using XML-like tagged blocks.
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` without requiring wrapper blocks.
+  - Follows the unified .rules convention and supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Unified (`unified`)**:
   - Manages rules within a single `.rules` file in the project root.
   - Ideal for project-specific, centralized rule management.

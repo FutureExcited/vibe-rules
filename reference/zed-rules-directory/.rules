@@ -1,0 +1,90 @@
+# ZED Editor AI Rules
+
+This file contains AI rules for ZED editor. Rules are managed by vibe-tools and stored in XML-like tagged blocks.
+
+<always-on>
+Always Apply: true - This rule should ALWAYS be applied by the AI
+
+Always do this
+</always-on>
+
+<glob>
+Always Apply: false - This rule should only be applied when relevant files are open
+Always apply this rule in these files: src/**/*.ts, package.json
+
+do this when editing files matching the glob
+</glob>
+
+<manual>
+do things when this rule is mentioned
+</manual>
+
+<model-decision>
+description for when the rule can be applied
+
+do this when the description matches the current task
+</model-decision>
+
+<react-component-patterns>
+React Component Development Guidelines
+
+Always Apply: true
+Globs: src/components/**/*.tsx, src/components/**/*.jsx
+
+When creating React components:
+1. Use functional components with hooks instead of class components
+2. Implement proper TypeScript interfaces for props
+3. Use descriptive component and prop names
+4. Extract complex logic into custom hooks
+5. Add proper JSDoc comments for complex components
+6. Use React.memo() for performance optimization when appropriate
+7. Implement proper error boundaries for critical components
+</react-component-patterns>
+
+<api-design-patterns>
+API Development Best Practices
+
+Always Apply: false
+Globs: src/api/**/*.ts, src/routes/**/*.ts
+
+For API development:
+1. Use consistent REST conventions (GET, POST, PUT, DELETE)
+2. Implement proper error handling with meaningful HTTP status codes
+3. Use middleware for authentication and validation
+4. Document APIs with OpenAPI/Swagger specifications
+5. Implement rate limiting and request validation
+6. Use proper TypeScript types for request/response objects
+7. Add comprehensive logging for debugging
+</api-design-patterns>
+
+<testing-guidelines>
+Testing and Quality Assurance
+
+Always Apply: true
+
+Testing best practices:
+1. Write unit tests for all business logic functions
+2. Use integration tests for API endpoints
+3. Implement end-to-end tests for critical user flows
+4. Maintain at least 80% code coverage
+5. Use descriptive test names that explain the scenario
+6. Mock external dependencies appropriately
+7. Test both success and error cases
+8. Use factories or fixtures for test data setup
+</testing-guidelines>
+
+<architecture-patterns>
+Software Architecture Guidelines
+
+Globs: src/models/**/*.ts, src/services/**/*.ts, src/utils/**/*.ts
+
+Architecture principles:
+1. Follow SOLID principles in class design
+2. Use dependency injection for better testability
+3. Implement proper separation of concerns
+4. Use design patterns appropriately (Factory, Strategy, Observer)
+5. Keep functions small and focused on single responsibility
+6. Implement proper error handling and logging
+7. Use TypeScript interfaces to define contracts
+8. Follow consistent naming conventions
+</architecture-patterns> 

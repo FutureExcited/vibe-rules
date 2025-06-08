@@ -1,7 +1,7 @@
 /**
  * Rule type definitions for the vibe-rules utility
  */
-export type * from "./schemas";
+export type * from "./schemas.js";
 export interface RuleConfig {
   name: string;
   content: string;

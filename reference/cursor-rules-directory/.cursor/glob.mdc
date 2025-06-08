@@ -1,0 +1,6 @@
+---
+description: 
+globs: src/**/*.ts,package.json
+alwaysApply: false
+---
+do this when editing files matching the glob

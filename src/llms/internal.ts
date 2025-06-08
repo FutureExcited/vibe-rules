@@ -1,5 +1,5 @@
-import { RuleConfig } from "../types"; // Keep RuleConfig if needed, or remove if not used
-import { PackageRuleItem } from "../schemas";
+import { RuleConfig } from "../types.js"; // Keep RuleConfig if needed, or remove if not used
+import { PackageRuleItem } from "../schemas.js";
 
 // Content from llms.txt
 const llmsTxtContent = `
@@ -73,13 +73,13 @@ const vibeRulesRepoRules: PackageRuleItem[] = [
     name: "vibe-rules-provider-impl",
     rule: "When adding a new RuleProvider implementation in `src/providers/`, ensure it correctly implements all methods defined in the `RuleProvider` interface (`src/types.ts`), handles both global and local paths appropriately using `src/utils/path.ts` utilities, and generates editor-specific formatting correctly.",
     alwaysApply: true,
-    globs: ["src/providers/*.ts", "src/providers/index.ts"],
+    globs: ["src/providers/*.js", "src/providers/index.js"],
   },
   {
     name: "vibe-rules-cli-commands",
     rule: "When adding new CLI commands or modifying existing ones in `src/cli.ts`, ensure comprehensive argument parsing using `commander`, validation using Zod schemas from `src/schemas.ts` (if applicable), clear user feedback using `chalk`, and robust error handling for file operations and external calls.",
     alwaysApply: true,
-    globs: ["src/cli.ts"],
+    globs: ["src/cli.js"],
   },
   // Add the content from llms.txt as a general info rule
   {

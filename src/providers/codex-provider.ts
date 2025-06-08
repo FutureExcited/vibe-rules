@@ -1,24 +1,22 @@
-import * as fs from "fs-extra";
-import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleGeneratorOptions,
   RuleType,
-} from "../types";
-import { getRulePath, getDefaultTargetPath } from "../utils/path";
+} from "../types.js";
+import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
-} from "../utils/rule-formatter";
+} from "../utils/rule-formatter.js";
 import chalk from "chalk";
 import * as fsPromises from "fs/promises";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import {
   saveInternalRule,
   loadInternalRule,
   listInternalRules,
-} from "../utils/rule-storage";
+} from "../utils/rule-storage.js";
 
 export class CodexRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CODEX;

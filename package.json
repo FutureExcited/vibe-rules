@@ -3,6 +3,7 @@
   "version": "0.2.56",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
+  "type": "module",
   "bin": {
     "vibe-rules": "dist/cli.js"
   },
@@ -19,8 +20,11 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
+    "test": "bun run test:examples",
     "publish:npm": "bun run build && npm publish",
-    "prepare": "vibe-rules install cursor"
+    "prepare": "vibe-rules install cursor || bun run src/cli.ts install cursor",
+    "build:examples": "bun run build && bun run scripts/build-examples.ts",
+    "test:examples": "bun run build:examples && bun run scripts/test-examples.ts"
   },
   "keywords": [
     "cursor",
@@ -43,6 +47,7 @@
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.3.0",
+    "import-meta-resolve": "^4.1.0",
     "zod": "^3.24.4"
   },
   "devDependencies": {
