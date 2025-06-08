@@ -1,6 +1,9 @@
 /**
  * Rule type definitions for the vibe-rules utility
  */
+import type { INSTALL_ALL_EXCLUDES, INSTALL_ALL_INCLUDES } from './commands/install';
+import type { AssertAreEqual, AssertIsEmpty, Intersection } from './genericTypeUtilities';
+
 export type * from "./schemas";
 export interface RuleConfig {
   name: string;
@@ -23,6 +26,23 @@ export const RuleType = {
 
 export type RuleTypeArray = (typeof RuleType)[keyof typeof RuleType][];
 export type RuleType = (typeof RuleType)[keyof typeof RuleType];
+
+/**
+ * TypeScript compile-time validation to ensure all editors are properly accounted for.
+ * Key benefit: When adding a new editor to RuleType, TypeScript will show a clear error
+ * indicating that the new editor must be added to either ALL_SUPPORTED_EDITORS or EXCLUDED_FROM_ALL_EDITORS.
+ */
+// Create type aliases for the array element unions
+type AllSupportedEditorsUnion = (typeof INSTALL_ALL_INCLUDES)[number];
+type ExcludedEditorsUnion = (typeof INSTALL_ALL_EXCLUDES)[number];
+type AllRuleTypes = (typeof RuleType)[keyof typeof RuleType];
+
+// Ensure the two editor arrays don't overlap (no editor should be in both lists)
+// The arrays are expected to have no overlap
+const _allEditorSetsDoNotOverlap: AssertIsEmpty<Intersection<AllSupportedEditorsUnion, ExcludedEditorsUnion>> = true;
+
+// Ensure the union of both arrays exactly equals all RuleType values  
+const _allEditorSetsIncludeAllEditors: AssertAreEqual<AllSupportedEditorsUnion | ExcludedEditorsUnion, AllRuleTypes> = true;
 
 export interface RuleProvider {
   /**
