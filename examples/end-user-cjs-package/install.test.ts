@@ -420,3 +420,83 @@ test("install should create rules in CLAUDE.md file", async () => {
   // Clean up CLAUDE.md file at the end of the test
   await $`rm -f CLAUDE.md`.quiet();
 });
+
+test("install should create rules in codex.md file", async () => {
+  // Import the llms modules from our dependencies
+  const cjsRules = require("cjs-package/llms");
+  const esmRules = await import("esm-package/llms");
+
+  // Clean up any existing codex.md file
+  await $`rm -f codex.md`.quiet();
+  
+  // Run npm install
+  console.log("Running npm install...");
+  await $`npm install`;
+  
+  // Run vibe-rules install codex command
+  console.log("Running vibe-rules install codex...");
+  await $`npm run vibe-rules install codex`;
+  
+  // Check that codex.md file exists
+  const codexFilePath = join(process.cwd(), "codex.md");
+  const codexFileStat = await stat(codexFilePath);
+  expect(codexFileStat.isFile()).toBe(true);
+  
+  // Read the codex.md file content
+  const codexFileContent = await readFile(codexFilePath, 'utf-8');
+  
+  console.log("Validating codex.md file content...");
+  
+  // Get expected rule names from the imported modules
+  const cjsRuleNames = cjsRules.map(r => r.name);
+  const esmRuleNames = esmRules.default.map(r => r.name);
+  const expectedRules = [...new Set([...cjsRuleNames, ...esmRuleNames])]; // Unique names
+  
+  // Count the number of rule blocks in the file
+  // Each rule should be wrapped in XML-like tags: <packageName_ruleName>...</packageName_ruleName>
+  const ruleBlockPattern = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
+  const ruleBlocks = codexFileContent.match(ruleBlockPattern) || [];
+  
+  console.log(`Found ${ruleBlocks.length} rule blocks in codex.md file`);
+  
+  // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
+  expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
+  
+  // Check for vibe-tools Integration block
+  expect(codexFileContent).toContain('<!-- vibe-tools Integration -->');
+  expect(codexFileContent).toContain('<!-- /vibe-tools Integration -->');
+  
+  // Validate that rules from both packages are present
+  for (const rule of expectedRules) {
+    const cjsRuleTag = `<cjs-package_${rule}>`;
+    const esmRuleTag = `<esm-package_${rule}>`;
+    
+    expect(codexFileContent).toContain(cjsRuleTag);
+    expect(codexFileContent).toContain(esmRuleTag);
+  }
+  
+  // Validate that the actual rule content from imported modules appears in the file
+  console.log("Validating rule content matches imported modules...");
+  
+  const allRules = [...cjsRules, ...esmRules.default];
+  for (const rule of allRules) {
+    // Check that the rule content appears in the file
+    expect(codexFileContent).toContain(rule.rule);
+    // Note: description is metadata and may not appear directly in the content
+  }
+  
+  // Validate that metadata is included (alwaysApply and globs)
+  for (const rule of allRules) {
+    if (rule.alwaysApply) {
+      expect(codexFileContent).toContain('Always Apply: true');
+    }
+    if (rule.globs && rule.globs.length > 0) {
+      expect(codexFileContent).toContain('Always apply this rule in these files:');
+    }
+  }
+  
+  console.log("✅ All Codex assertions passed! Rules properly installed in codex.md file.");
+  
+  // Clean up codex.md file at the end of the test
+  await $`rm -f codex.md`.quiet();
+});

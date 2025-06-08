@@ -56,7 +56,8 @@ vibe-rules/
 │   ├── cursor-rules-directory/     # Example Cursor workspace rules structure
 │   ├── windsurf-rules-directory/   # Example Windsurf workspace rules structure
 │   ├── cline-rules-directory/      # Example Cline workspace rules structure (Added)
-│   └── README.md               # Documentation of reference structures
+│   ├── codex-rules-directory/      # Example CODEX workspace rules structure (Added)
+│   └── README.md               # Documentation of reference structures (Updated: CODEX section)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -588,6 +589,26 @@ Implementation of the `RuleProvider` interface for Cursor editor.
   - Now accepts `RuleGeneratorOptions`.
   - Passes these options along to `generateRuleContent` to allow for dynamic frontmatter generation based on the source of the rule (e.g., from `install`
 
+### src/providers/claude-code-provider.ts
+
+Implementation of the `RuleProvider` interface for Claude Code IDE.
+
+#### `ClaudeCodeRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `CLAUDE.md` file with XML-like tagged blocks contained within a `<vibe-tools Integration>` wrapper.
+- **`saveRule`, `loadRule`, `listRules`:** Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`generateRuleContent`:** Formats rule content with metadata using `formatRuleWithMetadata`.
+- **`appendFormattedRule` (Updated):**
+  - Creates XML-like tagged blocks using `createTaggedRuleBlock` from `rule-formatter.ts`.
+  - **Integration Block Management:** When no existing `<vibe-tools Integration>` block is found:
+    - For new/empty files: Creates the integration block wrapper with the new rule inside.
+    - For files with existing content but no integration block: Wraps all existing content and the new rule within the integration block.
+  - **Rule Updating:** If a rule with the same name already exists, replaces its content.
+  - **Rule Insertion:** If an integration block exists, inserts new rules just before the closing `</vibe-tools Integration>` tag.
+  - Ensures all rules are properly contained within the integration wrapper for consistency with expected file format.
+
 ### src/providers/zed-provider.ts (Added)
 
 Implementation of the `RuleProvider` interface for Zed editor.
@@ -709,6 +730,42 @@ The test suite has been enhanced for maximum robustness:
 **Clinerules Format:**
 - **File Format:** All rules stored as separate `.md` files in `.clinerules/` directory
 - **Naming Pattern:** `{packageName}_{ruleName}.md` (e.g., `cjs-package_api.md`)
+- **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
+
+**Claude Code Installation Test:** (Added)
+- **Setup:** Cleans existing `CLAUDE.md` file to ensure fresh test environment
+- **Installation Process:**
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install claude-code` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `CLAUDE.md` file exists
+  - Counts generated rule blocks (expects exactly 8 tagged blocks)
+  - Validates XML-like tagged block structure with proper opening/closing tags
+  - Confirms presence of `<vibe-tools Integration>` wrapper block
+  - Validates rule content and metadata from both dependency packages
+
+**Claude Code Format:**
+- **File Format:** All rules stored as XML-like tagged blocks within a single `CLAUDE.md` file
+- **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
+- **Wrapper Block:** All rules are contained within a `<vibe-tools Integration>...</vibe-tools Integration>` block
+- **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
+
+**CODEX Installation Test:** (Added)
+- **Setup:** Cleans existing `codex.md` file to ensure fresh test environment
+- **Installation Process:**
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install codex` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `codex.md` file exists
+  - Counts generated rule blocks (expects exactly 8 tagged blocks)
+  - Validates XML-like tagged block structure with proper opening/closing tags
+  - Confirms presence of `<!-- vibe-tools Integration -->` comment wrapper block
+  - Validates rule content and metadata from both dependency packages
+
+**CODEX Format:**
+- **File Format:** All rules stored as XML-like tagged blocks within a single `codex.md` file
+- **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
+- **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` comment block
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
 ##### Test Implementation Details

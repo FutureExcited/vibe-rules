@@ -143,9 +143,14 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
         const after = fileContent.slice(insertionPoint);
         updatedContent = `${before.trimEnd()}\n\n${newBlock}\n\n${after.trimStart()}`;
       } else {
-        // Append to the end of the file if integration block not found or invalid
-        const separator = fileContent.trim().length > 0 ? "\n\n" : "";
-        updatedContent = fileContent + separator + newBlock;
+        // Create the vibe-tools Integration block if it doesn't exist
+        if (fileContent.trim().length > 0) {
+          // File has content but no integration block, wrap everything
+          updatedContent = `<vibe-tools Integration>\n\n${fileContent.trim()}\n\n${newBlock}\n\n</vibe-tools Integration>`;
+        } else {
+          // New/empty file, create integration block with the new rule
+          updatedContent = `<vibe-tools Integration>\n\n${newBlock}\n\n</vibe-tools Integration>`;
+        }
       }
     }
 

@@ -171,7 +171,9 @@ Options:
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Codex (`codex`)**:
-  - Appends/updates rules within a `<vibe-tools Integration>` block in `./codex.md` (local) or `~/.codex/instructions.md` (global).
+  - Appends/updates rules within XML-like tagged blocks in a `<vibe-tools Integration>` section in `./codex.md` (local) or `~/.codex/instructions.md` (global).
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
+  - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Cline/Roo (`clinerules`, `roo`)**:
   - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
 - **Unified (`unified`)**:
