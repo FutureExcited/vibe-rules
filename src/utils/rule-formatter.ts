@@ -26,7 +26,7 @@ export function formatRuleWithMetadata(
   }
 
   // Add globs information if provided
-  if (options?.globs) {
+  if (options?.globs && options.globs.length > 0) {
     const globsStr = Array.isArray(options.globs)
       ? options.globs.join(", ")
       : options.globs;
