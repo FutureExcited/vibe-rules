@@ -1,0 +1,6 @@
+---
+description: description for when the rule can be applied
+globs: 
+alwaysApply: false
+---
+do this when the description matches the current task

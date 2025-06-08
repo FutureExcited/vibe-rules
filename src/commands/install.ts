@@ -1,21 +1,26 @@
-import fs from "fs-extra";
+import fs, { pathExists } from "fs-extra/esm";
+import { stat, readFile, writeFile, readdir } from "fs/promises";
 import path from "path";
 import chalk from "chalk";
+import { createRequire } from "module";
+// This is required until --experimental-import-meta-resolve is supported by Node.js by default
+// https://nodejs.org/api/esm.html#importmetaresolvespecifier
+import { resolve as importMetaResolve } from "import-meta-resolve";
 import {
   RuleType,
   RuleConfig,
   RuleGeneratorOptions,
   RuleProvider,
   RuleTypeArray,
-} from "../types";
-import { getRuleProvider } from "../providers";
+} from "../types.js";
+import { getRuleProvider } from "../providers/index.js";
 import {
   getDefaultTargetPath,
   getRulePath,
   slugifyRuleName,
-} from "../utils/path";
-import { VibePackageRulesSchema } from "../schemas";
-import { isDebugEnabled, debugLog } from "../cli"; // Assuming these will be exported from cli.ts
+} from "../utils/path.js";
+import { VibePackageRulesSchema } from "../schemas.js";
+import { isDebugEnabled, debugLog } from "../cli.js"; // Assuming these will be exported from cli.ts
 
 // Helper function to clear existing rules installed from a package
 async function clearExistingRules(
@@ -41,7 +46,7 @@ async function clearExistingRules(
   try {
     // Check if path exists first
     if (await fs.pathExists(defaultPath)) {
-      const stats = await fs.stat(defaultPath);
+      const stats = await stat(defaultPath);
       if (stats.isDirectory()) {
         targetDir = defaultPath;
       } else {
@@ -86,13 +91,15 @@ async function clearExistingRules(
         return;
       }
 
-      const content = await fs.readFile(potentialTargetFile, "utf-8");
+      const content = await readFile(potentialTargetFile, "utf-8");
+      // Regex to match <pkgName_ruleName ...>...</pkgName_ruleName> blocks
       const removalRegex = new RegExp(
         `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\s*\n?`,
         "gs"
       );
 
       let removedCount = 0;
+
       const newContent = content.replace(removalRegex, (match) => {
         removedCount++;
         debugLog(
@@ -102,7 +109,7 @@ async function clearExistingRules(
       });
 
       if (removedCount > 0) {
-        await fs.writeFile(potentialTargetFile, newContent, "utf-8");
+        await writeFile(potentialTargetFile, newContent, "utf-8");
         debugLog(
           chalk.blue(
             `Removed ${removedCount} existing rule block(s) matching prefix "${pkgName}_" from ${potentialTargetFile}.`
@@ -131,7 +138,7 @@ async function clearExistingRules(
       return;
     }
 
-    const files = await fs.readdir(targetDir);
+    const files = await readdir(targetDir);
     const prefix = `${pkgName}_`;
     let deletedCount = 0;
 
@@ -178,32 +185,19 @@ async function importModuleFromCwd(ruleModulePath: string) {
   let module: any;
   try {
     debugLog(`Trying require for ${ruleModulePath}...`);
-    module = await eval(
-      `require('module').createRequire(require('path').join(process.cwd(), 'package.json'))('${ruleModulePath}')`
-    );
+    module = createRequire(path.join(process.cwd(), 'package.json'))(ruleModulePath);
     debugLog(`Successfully imported using require.`);
   } catch (error: any) {
-    if (error.code === "ERR_REQUIRE_ESM") {
+    
       debugLog(
-        `Require failed (ERR_REQUIRE_ESM). Falling back to dynamic import()...`
+        `Require failed (${error.code || 'ESM-related error'}). Falling back to dynamic import()...`
       );
-      try {
-        let absolutePath: string;
-        try {
-          absolutePath = require.resolve(ruleModulePath, {
-            paths: [process.cwd()],
-          });
-        } catch (resolveError: any) {
-          debugLog(
-            `Could not resolve path for dynamic import of ${ruleModulePath}: ${resolveError.message}`
-          );
-          throw resolveError;
-        }
-
-        debugLog(`Resolved path for import(): ${absolutePath}`);
-        const fileUrl = require("url").pathToFileURL(absolutePath).href;
-        debugLog(`Trying dynamic import('${fileUrl}')...`);
-        module = await eval(`import('${fileUrl}')`);
+      try{
+        const fileUrlString = `file://${process.cwd()}/package.json`;
+        debugLog(`trying to resolve ${ruleModulePath} with importMetaResolve`, fileUrlString);
+        const importPath = importMetaResolve(ruleModulePath, fileUrlString);
+        debugLog(`Falling back to dynamic import() path: ${importPath}`);
+        module = await import(importPath);
         debugLog(`Successfully imported using dynamic import().`);
       } catch (importError: any) {
         debugLog(
@@ -211,12 +205,7 @@ async function importModuleFromCwd(ruleModulePath: string) {
         );
         throw importError;
       }
-    } else {
-      debugLog(
-        `Require failed for ${ruleModulePath} with unexpected error: ${error.message}`
-      );
-      throw error;
-    }
+    
   }
 
   const defaultExport = module?.default || module;
@@ -565,13 +554,13 @@ export async function installCommandAction(
     );
     try {
       const pkgJsonPath = path.join(process.cwd(), "package.json");
-      if (!fs.existsSync(pkgJsonPath)) {
+      if (!(await pathExists(pkgJsonPath))) {
         console.error(
           chalk.red("package.json not found in the current directory.")
         );
         process.exit(1);
       }
-      const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
+      const pkgJsonContent = await readFile(pkgJsonPath, "utf-8");
       const { dependencies = {}, devDependencies = {} } =
         JSON.parse(pkgJsonContent);
       const allDeps = [

@@ -1,10 +1,10 @@
 import * as fs from "fs/promises";
-import * as fsExtra from "fs-extra";
+import * as fsExtra from "fs-extra/esm";
 import * as path from "path";
-import { RuleConfig, RuleGeneratorOptions } from "../types";
-import { createTaggedRuleBlock } from "./rule-formatter";
-import { ensureDirectoryExists } from "./path";
-import { debugLog } from "../cli";
+import { RuleConfig, RuleGeneratorOptions } from "../types.js";
+import { createTaggedRuleBlock } from "./rule-formatter.js";
+import { ensureDirectoryExists } from "./path.js";
+import { debugLog } from "../cli.js";
 
 /**
  * Appends or updates a tagged block within a single target file.
@@ -102,10 +102,27 @@ export async function appendOrUpdateTaggedBlock(
       debugLog(
         `Appending new block for rule "${config.name}" to ${targetPath}`
       );
-      const vibeToolsIntegrationEndTag = "</vibe-tools Integration>";
-      const integrationEndIndex = currentContent.lastIndexOf(
-        vibeToolsIntegrationEndTag
-      );
+      
+      // Check for both XML-style and comment-style integration blocks
+      const xmlIntegrationEndTag = "</vibe-tools Integration>";
+      const commentIntegrationEndTag = "<!-- /vibe-tools Integration -->";
+      
+      const xmlEndIndex = currentContent.lastIndexOf(xmlIntegrationEndTag);
+      const commentEndIndex = currentContent.lastIndexOf(commentIntegrationEndTag);
+      
+      let integrationEndIndex = -1;
+      let integrationStartTag = "";
+      let integrationEndTag = "";
+      
+      if (xmlEndIndex !== -1) {
+        integrationEndIndex = xmlEndIndex;
+        integrationStartTag = "<vibe-tools Integration>";
+        integrationEndTag = xmlIntegrationEndTag;
+      } else if (commentEndIndex !== -1) {
+        integrationEndIndex = commentEndIndex;
+        integrationStartTag = "<!-- vibe-tools Integration -->";
+        integrationEndTag = commentIntegrationEndTag;
+      }
 
       if (appendInsideVibeToolsBlock && integrationEndIndex !== -1) {
         // Append inside the vibe-tools block if requested and found
@@ -116,14 +133,25 @@ export async function appendOrUpdateTaggedBlock(
           newBlock +
           "\n\n" + // Ensure separation
           currentContent.slice(insertionPoint);
-        debugLog(`Appending rule inside <vibe-tools Integration> block.`);
+        debugLog(`Appending rule inside ${integrationStartTag} block.`);
+      } else if (appendInsideVibeToolsBlock && integrationEndIndex === -1) {
+        // Create the integration block if it doesn't exist and we want to append inside it
+        const separator = currentContent.trim().length > 0 ? "\n\n" : "";
+        const startTag = targetPath.endsWith('.md') && !targetPath.includes('CLAUDE') ? 
+          "<!-- vibe-tools Integration -->" : "<vibe-tools Integration>";
+        const endTag = targetPath.endsWith('.md') && !targetPath.includes('CLAUDE') ? 
+          "<!-- /vibe-tools Integration -->" : "</vibe-tools Integration>";
+        
+        updatedContent = currentContent.trimEnd() + separator + 
+          startTag + "\n\n" + newBlock + "\n\n" + endTag;
+        debugLog(`Created new ${startTag} block with rule.`);
       } else {
         // Append to the end
         const separator = currentContent.trim().length > 0 ? "\n\n" : ""; // Add separator if file not empty
         updatedContent = currentContent.trimEnd() + separator + newBlock;
         if (appendInsideVibeToolsBlock) {
           debugLog(
-            `Could not find <vibe-tools Integration> block, appending rule to the end.`
+            `Could not find vibe-tools Integration block, appending rule to the end.`
           );
         }
       }

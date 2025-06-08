@@ -1,4 +1,4 @@
-import { RuleConfig, RuleGeneratorOptions } from "../types";
+import { RuleConfig, RuleGeneratorOptions } from "../types.js";
 
 /**
  * Formats rule content for non-cursor providers that use XML-like tags.
@@ -26,7 +26,7 @@ export function formatRuleWithMetadata(
   }
 
   // Add globs information if provided
-  if (options?.globs) {
+  if (options?.globs && options.globs.length > 0) {
     const globsStr = Array.isArray(options.globs)
       ? options.globs.join(", ")
       : options.globs;

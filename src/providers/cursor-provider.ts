@@ -1,27 +1,28 @@
-import * as fs from "fs-extra";
 import * as path from "path";
+import { writeFile } from "fs/promises";
 import {
   RuleConfig,
   RuleProvider,
   RuleGeneratorOptions,
   RuleType,
-} from "../types";
+} from "../types.js";
 import {
   getRulePath,
   getInternalRuleStoragePath,
   getDefaultTargetPath,
   slugifyRuleName,
-} from "../utils/path";
+  ensureDirectoryExists,
+} from "../utils/path.js";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
-} from "../utils/rule-formatter";
+} from "../utils/rule-formatter.js";
 import chalk from "chalk";
 import {
   saveInternalRule,
   loadInternalRule,
   listInternalRules,
-} from "../utils/rule-storage";
+} from "../utils/rule-storage.js";
 
 // Custom function to format frontmatter simply
 const formatFrontmatter = (fm: Record<string, any>): string => {
@@ -138,9 +139,9 @@ export class CursorRuleProvider implements RuleProvider {
     const dir = path.dirname(fullPath);
 
     try {
-      await fs.ensureDir(dir); // Ensure the PARENT directory exists
+      await ensureDirectoryExists(dir); // Ensure the PARENT directory exists
       const formattedContent = this.generateRuleContent(config, options); // Pass options
-      await fs.writeFile(fullPath, formattedContent, "utf-8");
+      await writeFile(fullPath, formattedContent, "utf-8");
       return true;
     } catch (error) {
       console.error(

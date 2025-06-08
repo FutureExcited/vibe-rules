@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ '*' ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 🌿 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: 📥 Install root dependencies
+        run: bun install
+
+      - name: 🔨 Build main project
+        run: bun run build
+
+      - name: 🏗️ Build example projects
+        run: bun run build:examples
+
+      - name: 🧪 Run example tests
+        run: bun run test:examples
+
+      - name: ✅ CI completed successfully
+        run: echo "🎉 All CI steps passed!" 

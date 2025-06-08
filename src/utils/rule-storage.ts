@@ -1,7 +1,8 @@
-import * as fs from "fs-extra";
+import * as fs from "fs-extra/esm";
+import { writeFile, readFile, readdir } from "fs/promises";
 import * as path from "path";
-import { RuleConfig, RuleType } from "../types";
-import { getInternalRuleStoragePath } from "./path";
+import { RuleConfig, RuleType } from "../types.js";
+import { getInternalRuleStoragePath } from "./path.js";
 
 const RULE_EXTENSION = ".txt";
 
@@ -19,7 +20,7 @@ export async function saveInternalRule(
   const storagePath = getInternalRuleStoragePath(ruleType, config.name);
   const dir = path.dirname(storagePath);
   await fs.ensureDir(dir); // Ensure the directory exists
-  await fs.writeFile(storagePath, config.content, "utf-8");
+  await writeFile(storagePath, config.content, "utf-8");
   console.debug(`[Rule Storage] Saved internal rule: ${storagePath}`);
   return storagePath;
 }
@@ -40,7 +41,7 @@ export async function loadInternalRule(
       console.debug(`[Rule Storage] Internal rule not found: ${storagePath}`);
       return null;
     }
-    const content = await fs.readFile(storagePath, "utf-8");
+    const content = await readFile(storagePath, "utf-8");
     console.debug(`[Rule Storage] Loaded internal rule: ${storagePath}`);
     return { name, content };
   } catch (error: any) {
@@ -69,7 +70,7 @@ export async function listInternalRules(ruleType: RuleType): Promise<string[]> {
       );
       return []; // Directory doesn't exist, no rules
     }
-    const files = await fs.readdir(storageDir);
+    const files = await readdir(storageDir);
     const ruleNames = files
       .filter((file) => file.endsWith(RULE_EXTENSION))
       .map((file) => path.basename(file, RULE_EXTENSION));

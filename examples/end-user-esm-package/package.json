@@ -1,0 +1,25 @@
+{
+    "name": "end-user-esm-package",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "test": "bun test",
+        "vibe-rules": "vibe-rules"
+    },
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "devDependencies": {
+        "vibe-rules": "file:../..",
+        "@types/bun": "latest"
+    },
+    "dependencies": {
+        "esm-package": "file:../library-esm-package",
+        "cjs-package": "file:../library-cjs-package",
+        "@vibe-rules/esm-package": "file:../library-esm-package-scoped",
+        "@tanstack/react-router": "file:../../../router/packages/react-router"
+    },
+    "engines": {
+        "node": ">=22"
+    }
+}

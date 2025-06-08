@@ -1,11 +1,11 @@
-import { RuleProvider, RuleType } from "../types";
-import { CursorRuleProvider } from "./cursor-provider";
-import { WindsurfRuleProvider } from "./windsurf-provider";
-import { ClaudeCodeRuleProvider } from "./claude-code-provider";
-import { CodexRuleProvider } from "./codex-provider";
-import { ClinerulesRuleProvider } from "./clinerules-provider";
-import { ZedRuleProvider } from "./zed-provider";
-import { UnifiedRuleProvider } from "./unified-provider";
+import { RuleProvider, RuleType } from "../types.js";
+import { CursorRuleProvider } from "./cursor-provider.js";
+import { WindsurfRuleProvider } from "./windsurf-provider.js";
+import { ClaudeCodeRuleProvider } from "./claude-code-provider.js";
+import { CodexRuleProvider } from "./codex-provider.js";
+import { ClinerulesRuleProvider } from "./clinerules-provider.js";
+import { ZedRuleProvider } from "./zed-provider.js";
+import { UnifiedRuleProvider } from "./unified-provider.js";
 
 /**
  * Factory function to get the appropriate rule provider based on rule type
