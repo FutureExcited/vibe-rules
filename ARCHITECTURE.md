@@ -106,6 +106,7 @@ Contains the action handler for the `vibe-rules install` command.
   - Handles overall error reporting for the command.
 - `installSinglePackage(pkgName: string, editorType: RuleType, provider: RuleProvider, installOptions: { global?: boolean; target?: string; debug?: boolean }): Promise<number>`
   - Installs rules from a single specified NPM package.
+  - Creates the necessary directories for the specified editor type (e.g., `.cursor/` for Cursor, `.clinerules/` for Clinerules).
   - Dynamically imports `<pkgName>/llms` using `importModuleFromCwd`.
   - Calls `clearExistingRules` before processing new rules.
   - Validates the imported module content (string or array of rules/rule objects) using `VibePackageRulesSchema`.
@@ -248,6 +249,23 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
   - `ruleType`: The type of rule/editor
   - `isGlobalHint`: Hint for global context
 - Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed and Unified)
+
+#### `editorConfigExists(ruleType: RuleType, isGlobal: boolean, projectRoot: string = process.cwd()): Promise<boolean>` (Added)
+
+- Utility function that checks if the configuration for a given editor type exists in the project.
+- Currently available for potential future use but not actively used by install command.
+- Parameters:
+  - `ruleType`: The editor type to check
+  - `isGlobal`: Whether to check the global or local path
+  - `projectRoot`: The root directory of the project (defaults to current working directory)
+- Returns: A promise that resolves to `true` if the configuration exists, `false` otherwise
+- **Behavior by Editor Type:**
+  - `CURSOR`: Checks for `.cursor` directory
+  - `WINDSURF`: Checks for `.windsurfrules` file
+  - `CLINERULES`/`ROO`: Checks for `.clinerules` directory
+  - `ZED`/`UNIFIED`: Checks for `.rules` file
+  - `CLAUDE_CODE`: Checks for `CLAUDE.md` (global: `~/.claude/CLAUDE.md`, local: `./CLAUDE.md`)
+  - `CODEX`: Checks for instructions file (global: `~/.codex/instructions.md`, local: `./codex.md`)
 
 #### `slugifyRuleName(name: string): string`
 

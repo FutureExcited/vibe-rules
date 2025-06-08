@@ -29,5 +29,4 @@ coverage/
 .env.test.local
 .env.production.local 
 
-
-.repomix-output.txt
+.repomix-*

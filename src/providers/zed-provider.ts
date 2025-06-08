@@ -1,19 +1,17 @@
-import path from "path";
-import fs from "fs-extra";
 import {
   RuleConfig,
   RuleProvider,
   RuleType,
   RuleGeneratorOptions,
-} from "../types";
+} from "../types.js";
 import {
   saveInternalRule,
   loadInternalRule,
   listInternalRules,
-} from "../utils/rule-storage";
-import { createTaggedRuleBlock } from "../utils/rule-formatter";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
-import { getDefaultTargetPath } from "../utils/path";
+} from "../utils/rule-storage.js";
+import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { getDefaultTargetPath } from "../utils/path.js";
 
 export class ZedRuleProvider implements RuleProvider {
   async saveRule(config: RuleConfig): Promise<string> {

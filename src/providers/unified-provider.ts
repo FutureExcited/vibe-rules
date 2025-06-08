@@ -1,23 +1,22 @@
-import fs from "fs-extra";
 import path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleType,
   RuleGeneratorOptions,
-} from "../types";
+} from "../types.js";
 import {
   getInternalRuleStoragePath,
   getRulePath,
   slugifyRuleName,
-} from "../utils/path";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
-import { createTaggedRuleBlock } from "../utils/rule-formatter";
+} from "../utils/path.js";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import {
   saveInternalRule as saveRuleToInternalStorage,
   loadInternalRule as loadRuleFromInternalStorage,
   listInternalRules as listRulesFromInternalStorage,
-} from "../utils/rule-storage";
+} from "../utils/rule-storage.js";
 
 const UNIFIED_RULE_FILENAME = ".rules";
 

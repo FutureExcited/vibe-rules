@@ -1,22 +1,23 @@
-import * as fs from "fs-extra";
+import * as fs from "fs-extra/esm";
+import { readFile, writeFile } from "fs/promises";
 import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleGeneratorOptions,
   RuleType,
-} from "../types";
-import { getRulePath, getDefaultTargetPath } from "../utils/path";
+} from "../types.js";
+import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
-} from "../utils/rule-formatter";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+} from "../utils/rule-formatter.js";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import {
   saveInternalRule,
   loadInternalRule,
   listInternalRules,
-} from "../utils/rule-storage";
+} from "../utils/rule-storage.js";
 import chalk from "chalk";
 
 export class ClaudeCodeRuleProvider implements RuleProvider {
@@ -100,7 +101,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
 
     let fileContent = "";
     if (await fs.pathExists(destinationPath)) {
-      fileContent = await fs.readFile(destinationPath, "utf-8");
+      fileContent = await readFile(destinationPath, "utf-8");
     }
 
     // Escape rule name for regex
@@ -149,7 +150,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     }
 
     try {
-      await fs.writeFile(destinationPath, updatedContent.trim() + "\n");
+      await writeFile(destinationPath, updatedContent.trim() + "\n");
       return true;
     } catch (error) {
       console.error(

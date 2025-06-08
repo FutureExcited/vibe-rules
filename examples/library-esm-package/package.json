@@ -1,0 +1,26 @@
+{
+    "name": "esm-package",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc -b",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "dependencies": {
+    },
+    "devDependencies": {
+        "vibe-rules": "file:../../..",
+        "typescript": "^5.8.2"
+    },
+    "exports": {
+        "./llms": {
+            "import": {
+                "types": "./dist/llms.d.ts",
+                "default": "./dist/llms.js"
+            }
+        }
+    }
+}

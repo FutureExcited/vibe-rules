@@ -1,10 +1,10 @@
 import * as fs from "fs/promises";
-import * as fsExtra from "fs-extra";
+import * as fsExtra from "fs-extra/esm";
 import * as path from "path";
-import { RuleConfig, RuleGeneratorOptions } from "../types";
-import { createTaggedRuleBlock } from "./rule-formatter";
-import { ensureDirectoryExists } from "./path";
-import { debugLog } from "../cli";
+import { RuleConfig, RuleGeneratorOptions } from "../types.js";
+import { createTaggedRuleBlock } from "./rule-formatter.js";
+import { ensureDirectoryExists } from "./path.js";
+import { debugLog } from "../cli.js";
 
 /**
  * Appends or updates a tagged block within a single target file.

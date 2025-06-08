@@ -1,8 +1,8 @@
 import path from "path";
 import os from "os";
-import fs from "fs-extra";
-import { RuleType } from "../types";
-import { debugLog } from "../cli";
+import fs, { pathExists } from "fs-extra/esm";
+import { RuleType } from "../types.js";
+import { debugLog } from "../cli.js";
 
 // Base directory for storing internal rule definitions
 export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
@@ -142,6 +142,51 @@ export function ensureDirectoryExists(dirPath: string): void {
     // Depending on the desired behavior, you might want to re-throw or exit
     // throw err;
   }
+}
+
+/**
+ * Checks if the configuration for a given editor type exists.
+ * This is used to prevent the 'install' command from creating config files/dirs.
+ * @param ruleType The editor type to check.
+ * @param isGlobal Whether to check the global or local path.
+ * @param projectRoot The root directory of the project.
+ * @returns A promise that resolves to true if the configuration exists, false otherwise.
+ */
+export async function editorConfigExists(
+  ruleType: RuleType,
+  isGlobal: boolean,
+  projectRoot: string = process.cwd()
+): Promise<boolean> {
+  let checkPath: string;
+  switch (ruleType) {
+    case RuleType.CURSOR:
+      checkPath = path.join(projectRoot, ".cursor");
+      break;
+    case RuleType.WINDSURF:
+      checkPath = path.join(projectRoot, ".windsurfrules");
+      break;
+    case RuleType.CLINERULES:
+    case RuleType.ROO:
+      checkPath = path.join(projectRoot, ".clinerules");
+      break;
+    case RuleType.ZED:
+    case RuleType.UNIFIED:
+      checkPath = path.join(projectRoot, ".rules");
+      break;
+    case RuleType.CLAUDE_CODE:
+      checkPath = isGlobal
+        ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
+        : path.join(projectRoot, "CLAUDE.md");
+      break;
+    case RuleType.CODEX:
+      checkPath = isGlobal
+        ? path.join(CODEX_HOME_DIR, "instructions.md")
+        : path.join(projectRoot, "codex.md");
+      break;
+    default:
+      return false; // Unknown or unsupported for this check
+  }
+  return pathExists(checkPath);
 }
 
 /**

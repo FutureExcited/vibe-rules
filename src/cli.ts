@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import fs from "fs-extra";
+import fs from "fs-extra/esm";
+import { writeFile, readFile, readdir } from "fs/promises";
 import path from "path";
 import chalk from "chalk";
-import { RuleType, RuleConfig } from "./types";
-import { getRuleProvider } from "./providers";
-import { getCommonRulesDir, getRulePath } from "./utils/path";
-import { findSimilarRules } from "./utils/similarity";
-import { RuleConfigSchema } from "./schemas";
-import { installCommandAction } from "./commands/install";
+import { RuleType, RuleConfig } from "./types.js";
+import { getRuleProvider } from "./providers/index.js";
+import { ensureDirectoryExists, getCommonRulesDir, getRulePath } from "./utils/path.js";
+import { findSimilarRules } from "./utils/similarity.js";
+import { RuleConfigSchema } from "./schemas.js";
+import { installCommandAction } from "./commands/install.js";
 
 // Simple debug logger
 export let isDebugEnabled = false;
@@ -28,8 +29,8 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
       getCommonRulesDir(),
       `${ruleConfig.name}.txt`
     );
-    await fs.ensureDir(path.dirname(commonRulePath));
-    await fs.writeFile(commonRulePath, ruleConfig.content);
+    await ensureDirectoryExists(path.dirname(commonRulePath));
+    await writeFile(commonRulePath, ruleConfig.content);
     console.log(
       chalk.green(
         `Rule \"${ruleConfig.name}\" saved successfully to ${commonRulePath}`
@@ -72,7 +73,7 @@ program
     try {
       let content: string;
       if (options.file) {
-        content = await fs.readFile(options.file, "utf-8");
+        content = await readFile(options.file, "utf-8");
       } else if (options.content) {
         content = options.content;
       } else {
@@ -113,7 +114,7 @@ program
         return;
       }
 
-      const files = await fs.readdir(commonRulesDir);
+      const files = await readdir(commonRulesDir);
       const rules = files
         .filter((file) => file.endsWith(".txt"))
         .map((file) => path.basename(file, ".txt"));
@@ -166,7 +167,7 @@ program
 
         const commonRulesDir = getCommonRulesDir();
         if (await fs.pathExists(commonRulesDir)) {
-          const files = await fs.readdir(commonRulesDir);
+          const files = await readdir(commonRulesDir);
           const availableRules = files
             .filter((file) => file.endsWith(".txt"))
             .map((file) => path.basename(file, ".txt"));
@@ -182,7 +183,7 @@ program
         process.exit(1);
       }
 
-      const content = await fs.readFile(commonRulePath, "utf-8");
+      const content = await readFile(commonRulePath, "utf-8");
       const ruleType = editor.toLowerCase() as RuleType;
       const provider = getRuleProvider(ruleType);
 

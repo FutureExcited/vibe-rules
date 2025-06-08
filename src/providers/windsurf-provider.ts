@@ -1,23 +1,21 @@
-import * as fs from "fs-extra";
-import * as path from "path";
 import {
   RuleConfig,
   RuleProvider,
   RuleType,
   RuleGeneratorOptions,
-} from "../types";
-import { getRulePath, getDefaultTargetPath } from "../utils/path";
+} from "../types.js";
+import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
-} from "../utils/rule-formatter";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers";
+} from "../utils/rule-formatter.js";
+import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import chalk from "chalk";
 import {
   saveInternalRule,
   loadInternalRule,
   listInternalRules,
-} from "../utils/rule-storage";
+} from "../utils/rule-storage.js";
 
 export class WindsurfRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.WINDSURF;
