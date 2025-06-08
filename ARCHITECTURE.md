@@ -538,7 +538,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging (Updated).
 - Searches for an existing block using a regex based on the `config.name` (e.g., `<rule-name>...</rule-name>`).
 - **If found:** Replaces the existing block with the newly generated one.
 - **If not found:** Appends the new block.
-  - If `appendInsideVibeToolsBlock` is `true` (for Claude, Codex), it attempts to insert the block just before the `</vibe-tools Integration>` tag if present.
+  - If `appendInsideVibeToolsBlock` is `true` (for Claude, Codex), it attempts to insert the block just before the `<!-- /vibe-tools Integration -->` tag if present.
   - Otherwise (or if the integration block isn't found), it appends the block to the end of the file.
 - Writes the updated content back to the `targetPath`.
 - Ensures the parent directory exists using `ensureDirectoryExists`.
@@ -598,16 +598,16 @@ Implementation of the `RuleProvider` interface for Claude Code IDE.
 
 ##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
 
-- Manages rules within a single `CLAUDE.md` file with XML-like tagged blocks contained within a `<vibe-tools Integration>` wrapper.
+- Manages rules within a single `CLAUDE.md` file with XML-like tagged blocks contained within a `<!-- vibe-tools Integration -->` wrapper.
 - **`saveRule`, `loadRule`, `listRules`:** Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
 - **`generateRuleContent`:** Formats rule content with metadata using `formatRuleWithMetadata`.
 - **`appendFormattedRule` (Updated):**
   - Creates XML-like tagged blocks using `createTaggedRuleBlock` from `rule-formatter.ts`.
-  - **Integration Block Management:** When no existing `<vibe-tools Integration>` block is found:
+  - **Integration Block Management:** When no existing `<!-- vibe-tools Integration -->` block is found:
     - For new/empty files: Creates the integration block wrapper with the new rule inside.
     - For files with existing content but no integration block: Wraps all existing content and the new rule within the integration block.
   - **Rule Updating:** If a rule with the same name already exists, replaces its content.
-  - **Rule Insertion:** If an integration block exists, inserts new rules just before the closing `</vibe-tools Integration>` tag.
+  - **Rule Insertion:** If an integration block exists, inserts new rules just before the closing `<!-- /vibe-tools Integration -->` tag.
   - Ensures all rules are properly contained within the integration wrapper for consistency with expected file format.
 
 ### src/providers/zed-provider.ts (Added)
@@ -761,13 +761,13 @@ The test suite has been enhanced for maximum robustness:
   - Verifies `CLAUDE.md` file exists
   - Counts generated rule blocks (expects exactly 8 tagged blocks)
   - Validates XML-like tagged block structure with proper opening/closing tags
-  - Confirms presence of `<vibe-tools Integration>` wrapper block
+  - Confirms presence of `<!-- vibe-tools Integration -->` wrapper block
   - Validates rule content and metadata from both dependency packages
 
 **Claude Code Format:**
 - **File Format:** All rules stored as XML-like tagged blocks within a single `CLAUDE.md` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
-- **Wrapper Block:** All rules are contained within a `<vibe-tools Integration>...</vibe-tools Integration>` block
+- **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` block
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
 **CODEX Installation Test:** (Added)

@@ -402,8 +402,8 @@ test("install should create rules in CLAUDE.md file", async () => {
   expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
   
   // Check for vibe-tools Integration block
-  expect(claudeFileContent).toContain('<vibe-tools Integration>');
-  expect(claudeFileContent).toContain('</vibe-tools Integration>');
+  expect(claudeFileContent).toContain('<!-- vibe-tools Integration -->');
+  expect(claudeFileContent).toContain('<!-- /vibe-tools Integration -->');
   
   // Validate that rules from both packages are present
   for (const rule of expectedRules) {

@@ -10,3 +10,5 @@ Keep the code changes as minimal as you can, only changing the absolute necessar
 Keep it as simple as possible, fewest lines of code as possible, as clean as possible
 
 NEVER run `bun test` in the repo, run `bun run test` instead.
+ALWAYS run `bun run test` in the root of the repo after making changes to check that tests are passing.
+ALWAYS add tests to `examples/end-user-cjs-package/install.test.ts` when you add, remove or update functionality used in the vibe-rules install command.

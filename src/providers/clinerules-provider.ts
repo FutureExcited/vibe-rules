@@ -35,9 +35,9 @@ async function setupClinerulesDirectory(
   const vibeToolsRulePath = path.join(clinerulesDirPath, "vibe-tools.md");
   const rulesTemplate = rulesContent.replace(/\r\n/g, "\n").trim();
 
-  // Wrap content with <vibe-tools> tags if not already present
-  const startTag = "<vibe-tools Integration>";
-  const endTag = "</vibe-tools Integration>";
+  // Wrap content with <!-- vibe-tools --> tags if not already present
+  const startTag = "<!-- vibe-tools Integration -->";
+  const endTag = "<!-- /vibe-tools Integration -->";
   let contentToWrite = rulesTemplate;
   if (!contentToWrite.includes(startTag)) {
     contentToWrite = `${startTag}\n${rulesTemplate}\n${endTag}`;

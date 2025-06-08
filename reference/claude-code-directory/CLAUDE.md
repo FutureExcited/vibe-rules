@@ -2,7 +2,7 @@
 
 This file contains AI rules for Claude Code IDE. Rules are managed by vibe-tools and stored in XML-like tagged blocks.
 
-<vibe-tools Integration>
+<!-- vibe-tools Integration -->
 
 <always-on>
 Always Apply: true - This rule should ALWAYS be applied by the AI
@@ -27,4 +27,4 @@ description for when the rule can be applied
 do this when the description matches the current task
 </model-decision>
 
-</vibe-tools Integration> 
+<!-- /vibe-tools Integration --> 

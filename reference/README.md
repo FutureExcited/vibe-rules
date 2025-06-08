@@ -18,7 +18,7 @@ Cline supports both workspace and global rules:
 Claude Code uses a single file for all rules:
 - **Project rules**: Stored in `./CLAUDE.md` file in project root
 - **Global rules**: Stored in `~/.claude/CLAUDE.md` file (applies across all projects)
-- **Format**: Single markdown file with XML-like tagged blocks. When using vibe-rules, each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) within a `<vibe-tools Integration>...</vibe-tools Integration>` block for organization.
+- **Format**: Single markdown file with XML-like tagged blocks. When using vibe-rules, each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` block for organization.
 
 ## Windsurf 
 
