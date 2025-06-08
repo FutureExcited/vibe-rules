@@ -1,20 +1,22 @@
 {
     "name": "end-user-cjs-package",
+    "description": "Example of how to use vibe-rules to install rules from your project's dependencies",
     "version": "1.0.0",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "bun test",
+        "vibe-rules": "vibe-rules"
     },
-    "author": "",
-    "license": "ISC",
     "type": "commonjs",
     "dependencies": {
         "esm-package": "file:../library-esm-package",
-        "cjs-package": "file:../library-cjs-package",
-        "@vibe-rules/esm-package": "file:../library-esm-package-scoped",
-        "@tanstack/react-router": "file:../../../router/packages/react-router"
+        "cjs-package": "file:../library-cjs-package"
     },
     "devDependencies": {
-        "vibe-rules": "file:../../.."
+        "vibe-rules": "file:../..",
+        "@types/bun": "latest"
+    },
+    "engines": {
+        "node": ">=22"
     }
 }

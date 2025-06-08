@@ -1,33 +1,49 @@
 import type { PackageRuleObject } from "vibe-rules";
 
 const rules: PackageRuleObject[] = [
-{
+    {
+        name: 'usage',
+        // Use globs to specify when the rule should be applied
+        alwaysApply: true,
+        rule: `# Usage Rules
+    
+Use the client to fetch data from the API.
+        `,
+      },
+    {
     name: 'api',
-    description: 'TanStack Router: API',
-    rule: "Rules for API",
+    // Use globs to specify when the rule should be applied
     alwaysApply: false,
-    globs: ['src/**/*.ts', 'src/**/*.tsx'],
-    },
-    {
-    name: 'guide',
-    description: 'TanStack Router: Guide',
-    rule: "Rules for Guide",
+    globs: ['src/routes/**/*.tsx', 'src/api/**/*.ts'],
+    rule: `# API Rules
+
+Ensure that the API is designed according to the RESTful principles.
+    `,
+  },
+  {
+    name: 'architecture',
+    // Use a description to explain when the rule should be applied
     alwaysApply: false,
-    globs: ['src/**/*.ts', 'src/**/*.tsx'],
-    },
-    {
+    description: 'Use this rule when working on architecture or state management',
+    rule: `# Architecture Guide
+
+## Principles
+- Use composition over inheritance
+- Implement proper prop types
+`,
+  },
+  {
     name: 'routing',
-    description: 'TanStack Router: Routing',
-    rule: "Rules for Routing",
+    // Add a rule with no configuration for when the rule should be applied
     alwaysApply: false,
-    globs: ['src/**/*.ts', 'src/**/*.tsx'],
-    },
-    {
-    name: 'setup-and-architecture',
-    description: 'TanStack Router: Setup and Architecture',
-    rule: "Rules for Setup and Architecture",
-    alwaysApply: false,
-    globs: ['package.json', 'vite.config.ts', 'tsconfig.json', 'src/**/*.ts', 'src/**/*.tsx'],
-    }
-]
+    rule: `# Routing Instructions
+
+## Navigation Best Practices
+- Use type-safe navigation methods
+- Implement proper route validation
+- Handle dynamic route parameters
+- Support browser back/forward
+`,
+  },
+];
 export default rules;

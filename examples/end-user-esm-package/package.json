@@ -9,7 +9,7 @@
     "license": "ISC",
     "type": "module",
     "devDependencies": {
-        "vibe-rules": "file:../../.."
+        "vibe-rules": "file:../.."
     },
     "dependencies": {
         "esm-package": "file:../library-esm-package",
