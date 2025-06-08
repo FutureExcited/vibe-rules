@@ -99,7 +99,7 @@ vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.md
 Arguments:
 
 - `<name>`: The name of the rule saved in the local store (`~/.vibe-rules/rules/`).
-- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
+- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`, `unified`, `zed`, `all`.
 
 Options:
 
@@ -119,6 +119,12 @@ We anticipate more NPM packages will begin exporting standardized AI configurati
 Install rules _directly from NPM packages_ into an editor's configuration. `vibe-rules` automatically scans your project's dependencies or a specified package for compatible rule exports.
 
 ```bash
+# Install rules from ALL dependencies for ALL supported editors
+vibe-rules install all
+
+# Install rules from a specific package for ALL supported editors
+vibe-rules install all my-rule-package
+
 # Most common: Install rules from ALL dependencies/devDependencies for Cursor
 # Scans package.json, finds packages with 'llms' export, applies rules.
 vibe-rules install cursor
@@ -138,13 +144,16 @@ Add the `--debug` global option to any `vibe-rules` command to enable detailed d
 
 Arguments:
 
-- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
+- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`, `unified`, `zed`, `all`.
 - `[packageName]` (Optional): The specific NPM package name to install rules from. If omitted, `vibe-rules` scans all dependencies and devDependencies in your project's `package.json`.
 
 Options:
 
 - `-g, --global`: Apply to the editor's global configuration path (if supported).
-- `-t, --target <path>`: Specify a custom target file path or directory.
+- `-t, --target <path>`: Specify a custom target file path or directory. **Note:** Cannot be used with `all` editor option since each editor has different file structures.
+
+**Special Editor Option:**
+- `all`: Installs rules to ALL supported editors at once. This is perfect for setting up your entire development environment from a single command. When using `all`, rules are installed to each editor's default location using their respective formats.
 
 **How `install` finds rules:**
 
@@ -197,6 +206,24 @@ bun run build
 bun link
 # Now you can use 'vibe-rules' command locally
 ```
+
+### Adding Support for New Editors
+
+`vibe-rules` uses a robust system to ensure new editors are properly handled. When adding support for a new editor:
+
+1. **Add the editor to `RuleType`** in `src/types.ts`
+2. **Create a provider** implementing the `RuleProvider` interface in `src/providers/`
+3. **Update the provider factory** in `src/providers/index.ts`
+4. **Make a conscious decision** about "install all" behavior by adding the new editor to either:
+   - `ALL_SUPPORTED_EDITORS` (included in `vibe-rules install all`)
+   - `EXCLUDED_FROM_ALL_EDITORS` (excluded with documented reason)
+
+**TypeScript will enforce this workflow** - the build will fail with clear error messages if you forget to update the explicit editor lists. This ensures:
+- All editors are consciously included or excluded from "all" operations  
+- New editors don't accidentally break existing functionality
+- The reasoning for exclusions is documented
+
+See `ARCHITECTURE.md` for detailed information about the editor management system and provider interfaces.
 
 ## License
 

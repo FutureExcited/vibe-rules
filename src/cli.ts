@@ -242,7 +242,7 @@ program
   )
   .argument(
     "<editor>",
-    "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)"
+    "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo, unified, zed, all)"
   )
   .argument("[packageName]", "Optional NPM package name to install rules from")
   .option(

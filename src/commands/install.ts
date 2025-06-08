@@ -521,9 +521,34 @@ async function installSinglePackage(
 }
 
 /**
+ * Editors that should be included when using "install all"
+ * When adding a new editor to RuleType, you MUST decide whether to include it here.
+ * This explicit list ensures new editors are consciously included or excluded.
+ */
+export const INSTALL_ALL_INCLUDES = [
+  RuleType.CURSOR,
+  RuleType.WINDSURF,
+  RuleType.CLAUDE_CODE,
+  RuleType.CODEX,
+  RuleType.CLINERULES,
+  RuleType.ZED,
+  RuleType.UNIFIED,
+] as const satisfies RuleType[];
+
+/**
+ * Editors that are aliases or should not be included in "all" functionality
+ * These are explicitly excluded with documentation of why.
+ */
+export const INSTALL_ALL_EXCLUDES = [
+  RuleType.ROO,    // Alias for CLINERULES, avoid duplication
+  RuleType.CUSTOM, // Custom implementations, not standardized
+] as const satisfies RuleType[];
+
+
+/**
  * Handles the 'install' command logic.
  * Installs rules from an NPM package or all dependencies into an editor configuration.
- * @param editor Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)
+ * @param editor Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo, unified, zed, all)
  * @param packageName Optional NPM package name to install rules from
  * @param options Command options including global, target, and debug
  */
@@ -532,100 +557,180 @@ export async function installCommandAction(
   packageName: string | undefined,
   options: { global?: boolean; target?: string; debug?: boolean }
 ): Promise<void> {
-  const editorType = editor.toLowerCase() as RuleType;
-  let provider: RuleProvider;
+  const editorArg = editor.toLowerCase();
   const combinedOptions = { ...options, debug: isDebugEnabled }; // Use isDebugEnabled from cli.ts
 
-  try {
-    provider = getRuleProvider(editorType);
-  } catch (e) {
-    console.error(chalk.red(`Invalid editor type specified: ${editor}`));
+  // Guardrail: Disallow --target with 'all'
+  if (options.target && editorArg === 'all') {
+    console.error(chalk.red("The --target option cannot be used when installing for 'all' editors."));
+    console.error(chalk.yellow("Each editor has different file structures and target path conventions."));
     process.exit(1);
   }
 
-  if (packageName) {
-    const count = await installSinglePackage(
-      packageName,
-      editorType,
-      provider,
-      combinedOptions
-    );
-    if (!isDebugEnabled && count > 0) {
-      console.log(
-        chalk.green(
-          `[vibe-rules] Successfully installed ${count} rule(s) from package '${packageName}'.`
-        )
-      );
+  // 1. Identify which editors to process
+  const editorsToProcess: RuleType[] = [...INSTALL_ALL_INCLUDES];
+  if (editorArg === 'all') {
+      
+    console.log(chalk.blue(`Installing rules for all supported editors: ${editorsToProcess.join(', ')}`));
+    
+    if (packageName) {
+      console.log(chalk.blue(`Package: ${packageName}`));
+    } else {
+      console.log(chalk.blue(`Scanning all dependencies in package.json...`));
     }
   } else {
-    console.log(
-      chalk.blue(
-        `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
-      )
-    );
+    // Logic for a single, specified editor
+    const editorType = editorArg as RuleType;
+    
+    // Validate editor type
+    if (!Object.values(RuleType).includes(editorType)) {
+      console.error(chalk.red(`Invalid editor type specified: ${editor}`));
+      console.error(chalk.yellow(`Supported editors: ${Object.values(RuleType).join(', ')}`));
+      process.exit(1);
+    }
+    
+    editorsToProcess.push(editorType);
+  }
+
+  // 2. Loop through the list of editors
+  let totalRulesInstalled = 0;
+  const results: { editor: string; count: number; success: boolean }[] = [];
+
+  for (const editorType of editorsToProcess) {
+    if (editorsToProcess.length > 1) {
+      console.log(chalk.cyan(`\n--- Processing editor: ${editorType} ---`));
+    }
+    
+    let provider: RuleProvider;
     try {
-      const pkgJsonPath = path.join(process.cwd(), "package.json");
-      if (!fs.existsSync(pkgJsonPath)) {
-        console.error(
-          chalk.red("package.json not found in the current directory.")
-        );
-        process.exit(1);
-      }
-      const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
-      const { dependencies = {}, devDependencies = {} } =
-        JSON.parse(pkgJsonContent);
-      const allDeps = [
-        ...Object.keys(dependencies),
-        ...Object.keys(devDependencies),
-      ];
+      provider = getRuleProvider(editorType);
+    } catch (e) {
+      console.error(chalk.red(`Failed to get provider for editor: ${editorType}`));
+      results.push({ editor: editorType, count: 0, success: false });
+      continue;
+    }
 
-      if (allDeps.length === 0) {
-        console.log(chalk.yellow("No dependencies found in package.json."));
-        return;
-      }
-
-      debugLog(
-        chalk.blue(
-          `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
-        )
-      );
-      let totalRulesInstalled = 0;
-      for (const depName of allDeps) {
-        totalRulesInstalled += await installSinglePackage(
-          depName,
+    try {
+      if (packageName) {
+        const count = await installSinglePackage(
+          packageName,
           editorType,
           provider,
           combinedOptions
         );
-      }
-      if (!isDebugEnabled && totalRulesInstalled > 0) {
-        console.log(
-          chalk.green(
-            `[vibe-rules] Finished installing rules from dependencies. Total rules installed: ${totalRulesInstalled}.`
-          )
-        );
-      } else if (
-        !isDebugEnabled &&
-        totalRulesInstalled === 0 &&
-        allDeps.length > 0
-      ) {
-        console.log(
-          chalk.yellow(
-            "[vibe-rules] No rules found to install from dependencies."
-          )
-        );
-      }
+        results.push({ editor: editorType, count, success: true });
+        totalRulesInstalled += count;
+        
+        if (!isDebugEnabled && count > 0 && editorsToProcess.length === 1) {
+          console.log(
+            chalk.green(
+              `[vibe-rules] Successfully installed ${count} rule(s) from package '${packageName}' for ${editorType}.`
+            )
+          );
+        }
+      } else {
+        // Install from all dependencies
+        const pkgJsonPath = path.join(process.cwd(), "package.json");
+        if (!fs.existsSync(pkgJsonPath)) {
+          if (editorsToProcess.length === 1) {
+            console.error(
+              chalk.red("package.json not found in the current directory.")
+            );
+            process.exit(1);
+          } else {
+            console.error(
+              chalk.red(`package.json not found - skipping all editor installations.`)
+            );
+            return;
+          }
+        }
+        
+        const pkgJsonContent = await fs.readFile(pkgJsonPath, "utf-8");
+        const { dependencies = {}, devDependencies = {} } = JSON.parse(pkgJsonContent);
+        const allDeps = [
+          ...Object.keys(dependencies),
+          ...Object.keys(devDependencies),
+        ];
 
-      debugLog(chalk.green("Finished checking all dependencies."));
+        if (allDeps.length === 0) {
+          if (editorsToProcess.length === 1) {
+            console.log(chalk.yellow("No dependencies found in package.json."));
+            return;
+          } else {
+            console.log(chalk.yellow(`No dependencies found for ${editorType}.`));
+            results.push({ editor: editorType, count: 0, success: true });
+            continue;
+          }
+        }
+
+        let editorRulesInstalled = 0;
+        for (const depName of allDeps) {
+          editorRulesInstalled += await installSinglePackage(
+            depName,
+            editorType,
+            provider,
+            combinedOptions
+          );
+        }
+        
+        results.push({ editor: editorType, count: editorRulesInstalled, success: true });
+        totalRulesInstalled += editorRulesInstalled;
+        
+        if (!isDebugEnabled && editorRulesInstalled > 0 && editorsToProcess.length === 1) {
+          console.log(
+            chalk.green(
+              `[vibe-rules] Finished installing rules from dependencies for ${editorType}. Total rules installed: ${editorRulesInstalled}.`
+            )
+          );
+        } else if (!isDebugEnabled && editorRulesInstalled === 0 && allDeps.length > 0 && editorsToProcess.length === 1) {
+          console.log(
+            chalk.yellow(
+              `[vibe-rules] No rules found to install from dependencies for ${editorType}.`
+            )
+          );
+        }
+      }
     } catch (error) {
       console.error(
         chalk.red(
-          `Error processing package.json: ${
+          `Error processing ${editorType}: ${
             error instanceof Error ? error.message : error
           }`
         )
       );
-      process.exit(1);
+      results.push({ editor: editorType, count: 0, success: false });
+    }
+  }
+
+  // 3. Summary for "all" installations
+  if (editorsToProcess.length > 1) {
+    console.log(chalk.blue(`\n--- Installation Summary ---`));
+    
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+    
+    if (successful.length > 0) {
+      console.log(chalk.green(`Successfully processed ${successful.length} editor(s):`));
+      successful.forEach(r => {
+        if (r.count > 0) {
+          console.log(chalk.green(`  • ${r.editor}: ${r.count} rule(s) installed`));
+        } else {
+          console.log(chalk.yellow(`  • ${r.editor}: no rules found to install`));
+        }
+      });
+    }
+    
+    if (failed.length > 0) {
+      console.log(chalk.red(`Failed to process ${failed.length} editor(s):`));
+      failed.forEach(r => {
+        console.log(chalk.red(`  • ${r.editor}: installation failed`));
+      });
+    }
+    
+    console.log(chalk.blue(`Total rules installed across all editors: ${totalRulesInstalled}`));
+    
+    if (totalRulesInstalled === 0 && successful.length > 0) {
+      console.log(chalk.yellow("No rules were found to install from the specified source(s)."));
     }
   }
 }

@@ -13,7 +13,8 @@ vibe-rules/
 │   ├── commands/          # CLI command action handlers (Added)
 │   │   └── install.ts     # Action handler for the 'install' command (Added)
 │   ├── index.ts           # Main exports
-│   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED)
+│   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED, explicit editor lists, clean type validation)
+│   ├── genericTypeUtilities.ts # Reusable TypeScript utility types for validation (Added)
 │   ├── schemas.ts         # Zod schema definitions
 │   ├── llms/              # Rule definitions for package export
 │   │   ├── index.ts       # Public rule export (intentionally empty)
@@ -88,8 +89,11 @@ It handles parsing of command-line arguments, options, and delegates the executi
   - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
   - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
   - Suggests similar rule names if the requested rule is not found.
-- `install <editor> [packageName] [options]`
+- `install <editor> [packageName] [options]` (Updated)
   - Defines the CLI options and arguments for the install command.
+  - Now supports `all` as a special editor argument to install rules to all supported editors at once.
+  - **New behavior:** When `<editor>` is `all`, installs rules to all supported editors (cursor, windsurf, claude-code, codex, clinerules, zed, unified) simultaneously.
+  - Includes guardrail preventing use of `--target` option with `all` since each editor has different file structures.
   - Delegates the action to `installCommandAction` from `src/commands/install.ts`.
 
 ### src/commands/install.ts (Added)
@@ -98,12 +102,18 @@ Contains the action handler for the `vibe-rules install` command.
 
 #### Functions
 
-- `installCommandAction(editor: string, packageName: string | undefined, options: { global?: boolean; target?: string; debug?: boolean }): Promise<void>` (Exported)
+- `installCommandAction(editor: string, packageName: string | undefined, options: { global?: boolean; target?: string; debug?: boolean }): Promise<void>` (Exported, Updated)
   - Main handler for the `install` command.
-  - If `packageName` is provided, it calls `installSinglePackage` for that specific package.
-  - If `packageName` is not provided, it reads `package.json`, gets all dependencies and devDependencies, and calls `installSinglePackage` for each.
-  - Uses `getRuleProvider` to get the appropriate provider for the editor.
-  - Handles overall error reporting for the command.
+  - **New functionality:** Supports `editor` argument of `"all"` to install rules to all supported editors at once.
+  - **Multi-editor processing:** When `editor` is `"all"`, uses the explicit `ALL_SUPPORTED_EDITORS` array from `types.ts` for robust editor management.
+  - **Runtime validation:** Calls `validateAllSupportedEditorsHaveProviders()` to ensure all editors have working providers before processing.
+  - **Guardrails:** Prevents use of `--target` option with `"all"` since each editor has different file structures.
+  - **Enhanced logging:** Provides detailed progress output and summary when processing multiple editors.
+  - If `packageName` is provided, it calls `installSinglePackage` for that specific package for each editor.
+  - If `packageName` is not provided, it reads `package.json`, gets all dependencies and devDependencies, and calls `installSinglePackage` for each dependency for each editor.
+  - Uses `getRuleProvider` to get the appropriate provider for each editor.
+  - **Installation Summary:** When processing multiple editors, provides a comprehensive summary showing success/failure status and rule counts for each editor.
+  - Handles overall error reporting for the command with graceful degradation for individual editor failures.
 - `installSinglePackage(pkgName: string, editorType: RuleType, provider: RuleProvider, installOptions: { global?: boolean; target?: string; debug?: boolean }): Promise<number>`
   - Installs rules from a single specified NPM package.
   - Dynamically imports `<pkgName>/llms` using `importModuleFromCwd`.
@@ -148,6 +158,36 @@ Defines the core types and interfaces used throughout the application.
   - `UNIFIED`: "unified" - For the unified `.rules` file convention (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
+#### `ALL_SUPPORTED_EDITORS` (Added)
+
+- **Explicit array of editors included in "install all" functionality**
+- **Critical for maintenance**: When adding a new editor to `RuleType`, developers **MUST** consciously decide whether to include it here
+- Contains: `[CURSOR, WINDSURF, CLAUDE_CODE, CODEX, CLINERULES, ZED, UNIFIED]`
+- **Purpose**: Ensures new editors are intentionally included or excluded from "all" operations
+
+#### `EXCLUDED_FROM_ALL_EDITORS` (Added)
+
+- **Explicit array of editors excluded from "install all" functionality**
+- Contains excluded editors with documentation of why:
+  - `ROO`: Alias for CLINERULES, avoid duplication
+  - `CUSTOM`: Custom implementations, not standardized
+- **Purpose**: Makes exclusions explicit and documented
+
+#### TypeScript Compile-Time Validation (Added)
+
+- **Automated enforcement**: Clean generic utility types ensure all `RuleType` values are accounted for
+- **Implementation**: Uses `AssertAreEqual` from `src/genericTypeUtilities.ts` to validate that the union of `ALL_SUPPORTED_EDITORS` and `EXCLUDED_FROM_ALL_EDITORS` exactly equals all `RuleType` values
+- **Compile-time safety**: Adding a new editor without updating the lists will show clear TypeScript errors
+- **Error guidance**: TypeScript errors indicate which editors are missing and need to be addressed
+- **Clean code**: Uses reusable generic utility types instead of complex inline type checking
+
+#### `validateAllSupportedEditorsHaveProviders()` (Added)
+
+- **Runtime validation helper** that ensures all editors in `ALL_SUPPORTED_EDITORS` have working providers
+- Returns `{ valid: boolean; missing: RuleType[] }`
+- **Usage**: Called during "install all" to detect configuration issues
+- **Purpose**: Prevents runtime failures by validating provider availability upfront
+
 #### `RuleProvider`
 
 - Interface that providers must implement
@@ -167,6 +207,26 @@ Defines the core types and interfaces used throughout the application.
   - `isGlobal?`: boolean - Hint for providers supporting global/local paths (e.g., Claude, Codex)
   - `alwaysApply?`: boolean - Cursor-specific metadata.
   - `globs?`: string | string[] - Cursor-specific metadata.
+
+### src/genericTypeUtilities.ts (Added)
+
+Provides reusable TypeScript utility types for compile-time validation and type assertions.
+
+#### Generic Utility Types
+
+- `AssertIsEmpty<T>`: Ensures a type is empty (`never`). Returns `true` if empty, otherwise returns an error object with details.
+- `AssertAreEqual<T, U>`: Ensures two types are exactly equal. Returns `true` if equal, otherwise returns an error object showing the differences.
+- `Intersection<T, U>`: Gets the intersection of two types using `T & U`.
+- `Union<T, U>`: Gets the union of two types using `T | U`.
+- `ArrayIntersection<T, U>`: Gets overlapping values between two readonly arrays as union types using `Extract`.
+- `ArrayUnion<T, U>`: Combines two readonly arrays into a single union type.
+
+#### Purpose
+
+- **Reusability**: These utilities can be used throughout the codebase for type validation
+- **Clear error messages**: Assertion types provide helpful error details when validation fails
+- **Compile-time safety**: Catches type issues during development rather than runtime
+- **Clean code**: Eliminates complex inline type checking in favor of readable assertions
 
 ### src/schemas.ts (Added)
 
