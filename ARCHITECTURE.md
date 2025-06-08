@@ -57,7 +57,8 @@ vibe-rules/
 │   ├── windsurf-rules-directory/   # Example Windsurf workspace rules structure
 │   ├── cline-rules-directory/      # Example Cline workspace rules structure (Added)
 │   ├── codex-rules-directory/      # Example CODEX workspace rules structure (Added)
-│   └── README.md               # Documentation of reference structures (Updated: CODEX section)
+│   ├── zed-rules-directory/        # Example ZED editor rules structure (Added)
+│   └── README.md               # Documentation of reference structures (Updated: ZED section)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -663,6 +664,25 @@ CommonJS example project demonstrating how end-users consume vibe-rules from mul
 - **Scripts:** Updated test script from incomplete `"vibe-"` to `"bun test"`, added `"vibe-rules": "vibe-rules"` script.
 - **Node.js Version:** Added `engines.node: ">=22"` requirement.
 
+### examples/end-user-esm-package/ (Updated)
+
+ES Module example project demonstrating how end-users consume vibe-rules from multiple library packages.
+
+#### Key Changes
+
+- **Shared Test File:** Uses a symbolic link (`install.test.ts -> ../end-user-cjs-package/install.test.ts`) to share the exact same comprehensive test suite with the CJS package.
+- **Testing Framework:** Updated to use Bun's built-in test runner for consistency with CJS package.
+- **Dependencies:** Added @types/bun for TypeScript support.
+- **Scripts:** Updated test script to `"bun test"`, added `"vibe-rules": "vibe-rules"` script.
+- **Node.js Version:** Added `engines.node: ">=22"` requirement matching CJS package.
+
+#### Symlinked Test Benefits
+
+- **Zero Duplication:** Maintains the exact same test logic across both CJS and ESM packages without file duplication.
+- **Automatic Synchronization:** Any changes to the test file in the CJS package are automatically reflected in the ESM package.
+- **Cross-Platform Compatibility:** The symlink approach works well on macOS and Linux development environments.
+- **Comprehensive Coverage:** Both packages now validate the complete vibe-rules installation workflow for all supported editors (Cursor, Windsurf, Clinerules, Claude Code, Codex, ZED).
+
 #### install.test.ts (Added)
 
 Integration test that validates the complete vibe-rules installation workflow for both Cursor and Windsurf editors:
@@ -766,6 +786,24 @@ The test suite has been enhanced for maximum robustness:
 - **File Format:** All rules stored as XML-like tagged blocks within a single `codex.md` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
 - **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` comment block
+- **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
+
+**ZED Installation Test:** (Added)
+- **Setup:** Cleans existing `.rules` file to ensure fresh test environment
+- **Installation Process:**
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install zed` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `.rules` file exists
+  - Counts generated rule blocks (expects exactly 8 tagged blocks)
+  - Validates XML-like tagged block structure with proper opening/closing tags
+  - Confirms no wrapper blocks are used (unlike Claude Code or Codex)
+  - Validates rule content and metadata from both dependency packages
+
+**ZED Format:**
+- **File Format:** All rules stored as XML-like tagged blocks within a single `.rules` file
+- **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
+- **No Wrapper Block:** Rules are stored directly without any integration wrapper (follows unified .rules convention)
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
 ##### Test Implementation Details

@@ -20,10 +20,11 @@
     "build": "tsc",
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
+    "test": "bun run test:examples",
     "publish:npm": "bun run build && npm publish",
     "prepare": "vibe-rules install cursor || bun run src/cli.ts install cursor",
-    "build:examples": "bun run scripts/build-examples.ts",
-    "test:examples": "bun run scripts/test-examples.ts"
+    "build:examples": "bun run build && bun run scripts/build-examples.ts",
+    "test:examples": "bun run build:examples && bun run scripts/test-examples.ts"
   },
   "keywords": [
     "cursor",

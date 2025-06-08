@@ -46,6 +46,15 @@ Windsurf also stores global rules in a *single markdown file* ~/.codeium/windsur
 - **Global rules**: Stored in a single `instructions.md` file at `~/.codex/instructions.md`.
 - **Format**: Rules are managed within XML-like tagged blocks (e.g., `<rule-name>...</rule-name>`) contained within a `<!-- vibe-tools Integration -->` comment block. The format includes human-readable metadata such as `Always Apply` and glob patterns directly within the rule content (check the [codex-rules-directory](./codex-rules-directory/) for examples).
 
+## ZED
+
+[zed-rules-directory](./zed-rules-directory/) contains an example of how ZED editor manages AI rules.
+
+ZED uses a single file for all rules:
+- **Project rules**: Stored in `.rules` file in project root
+- **Global rules**: Not currently supported by vibe-rules for ZED
+- **Format**: Single file with XML-like tagged blocks. Each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) without requiring a wrapper block. This follows the unified .rules convention documented in [UNIFIED_RULES_CONVENTION.md](../UNIFIED_RULES_CONVENTION.md).
+
 
 
 

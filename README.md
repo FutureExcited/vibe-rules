@@ -176,6 +176,10 @@ Options:
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Cline/Roo (`clinerules`, `roo`)**:
   - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
+- **ZED (`zed`)**:
+  - Manages rules within a single `.rules` file in the project root using XML-like tagged blocks.
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` without requiring wrapper blocks.
+  - Follows the unified .rules convention and supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Unified (`unified`)**:
   - Manages rules within a single `.rules` file in the project root.
   - Ideal for project-specific, centralized rule management.

@@ -1,3 +1,22 @@
+/**
+ * Shared Integration Test for vibe-rules Installation
+ * 
+ * This test file is shared between both end-user-cjs-package and end-user-esm-package
+ * via a symbolic link. The ESM package contains a symlink:
+ * examples/end-user-esm-package/install.test.ts -> ../end-user-cjs-package/install.test.ts
+ * 
+ * This approach ensures both packages run the EXACT same comprehensive test suite
+ * without any code duplication, and changes are automatically synchronized.
+ * 
+ * The tests validate the complete vibe-rules installation workflow for all supported editors:
+ * - Cursor (.cursor/rules/*.mdc files)
+ * - Windsurf (.windsurfrules file with tagged blocks)
+ * - Clinerules (.clinerules/*.md files)
+ * - Claude Code (CLAUDE.md file with tagged blocks)
+ * - Codex (codex.md file with tagged blocks)
+ * - ZED (.rules file with tagged blocks)
+ */
+
 import { test, expect } from "bun:test";
 import { $ } from "bun";
 import { readdir, stat, readFile } from "fs/promises";
@@ -499,4 +518,81 @@ test("install should create rules in codex.md file", async () => {
   
   // Clean up codex.md file at the end of the test
   await $`rm -f codex.md`.quiet();
+});
+
+test("install should create rules in .rules file", async () => {
+  // Import the llms modules from our dependencies
+  const cjsRules = require("cjs-package/llms");
+  const esmRules = await import("esm-package/llms");
+
+  // Clean up any existing .rules file
+  await $`rm -f .rules`.quiet();
+  
+  // Run npm install
+  console.log("Running npm install...");
+  await $`npm install`;
+  
+  // Run vibe-rules install zed command
+  console.log("Running vibe-rules install zed...");
+  await $`npm run vibe-rules install zed`;
+  
+  // Check that .rules file exists
+  const zedFilePath = join(process.cwd(), ".rules");
+  const zedFileStat = await stat(zedFilePath);
+  expect(zedFileStat.isFile()).toBe(true);
+  
+  // Read the .rules file content
+  const zedFileContent = await readFile(zedFilePath, 'utf-8');
+  
+  console.log("Validating .rules file content...");
+  
+  // Get expected rule names from the imported modules
+  const cjsRuleNames = cjsRules.map(r => r.name);
+  const esmRuleNames = esmRules.default.map(r => r.name);
+  const expectedRules = [...new Set([...cjsRuleNames, ...esmRuleNames])]; // Unique names
+  
+  // Count the number of rule blocks in the file
+  // Each rule should be wrapped in XML-like tags: <packageName_ruleName>...</packageName_ruleName>
+  const ruleBlockPattern = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
+  const ruleBlocks = zedFileContent.match(ruleBlockPattern) || [];
+  
+  console.log(`Found ${ruleBlocks.length} rule blocks in .rules file`);
+  
+  // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
+  expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
+  
+  // ZED doesn't use wrapper blocks like Claude Code or Codex
+  // Validate that rules from both packages are present
+  for (const rule of expectedRules) {
+    const cjsRuleTag = `<cjs-package_${rule}>`;
+    const esmRuleTag = `<esm-package_${rule}>`;
+    
+    expect(zedFileContent).toContain(cjsRuleTag);
+    expect(zedFileContent).toContain(esmRuleTag);
+  }
+  
+  // Validate that the actual rule content from imported modules appears in the file
+  console.log("Validating rule content matches imported modules...");
+  
+  const allRules = [...cjsRules, ...esmRules.default];
+  for (const rule of allRules) {
+    // Check that the rule content appears in the file
+    expect(zedFileContent).toContain(rule.rule);
+    // Note: description is metadata and may not appear directly in the content
+  }
+  
+  // Validate that metadata is included (alwaysApply and globs)
+  for (const rule of allRules) {
+    if (rule.alwaysApply) {
+      expect(zedFileContent).toContain('Always Apply: true');
+    }
+    if (rule.globs && rule.globs.length > 0) {
+      expect(zedFileContent).toContain('Always apply this rule in these files:');
+    }
+  }
+  
+  console.log("✅ All ZED assertions passed! Rules properly installed in .rules file.");
+  
+  // Clean up .rules file at the end of the test
+  await $`rm -f .rules`.quiet();
 });

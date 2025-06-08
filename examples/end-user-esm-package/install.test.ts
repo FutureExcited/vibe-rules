@@ -1,0 +1,1 @@
+../end-user-cjs-package/install.test.ts
