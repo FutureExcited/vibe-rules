@@ -4,6 +4,16 @@ This document outlines the architecture of the vibe-rules utility - a tool for m
 
 **Note:** The tool is intended for global installation via `bun i -g vibe-rules`.
 
+## Key Dependencies
+
+The project relies on several critical dependencies for its functionality:
+
+- **import-meta-resolve**: Ponyfill for `import.meta.resolve()` functionality, enabling module path resolution without the need for Node.js experimental flags. Essential for the dual CommonJS/ESM module loading strategy in the install command.
+- **commander**: CLI framework for handling command-line interface, argument parsing, and command routing.
+- **zod**: Schema validation library used for validating rule configurations and package exports.
+- **fs-extra**: Enhanced file system utilities with promise support, used throughout for file operations.
+- **chalk**: Terminal styling library for colored console output and improved user experience.
+
 ## Project Structure
 
 ```
@@ -33,18 +43,179 @@ vibe-rules/
 │       └── rule-formatter.ts # Rule formatting utilities for metadata
 │       └── single-file-helpers.ts # Helpers for single-file providers
 │       └── rule-storage.ts # Helpers for internal rule storage
+├── examples/              # Example packages for end-users and library authors
+│   ├── end-user-cjs-package/   # CommonJS project consuming rules from multiple packages (Updated)
+│   │   ├── src/
+│   │   ├── install.test.ts     # Integration test for vibe-rules install functionality (Added)
+│   │   └── package.json        # Uses Bun for testing, includes vibe-rules script (Updated)
+│   ├── end-user-esm-package/   # ES Module project consuming rules from multiple packages  
+│   ├── library-cjs-package/    # CommonJS library that exports AI prompt rules
+│   ├── library-esm-package/    # ES Module library that exports AI prompt rules
+│   └── README.md          # Comprehensive guide to examples (Updated)
+├── reference/             # Reference implementations for different editors
+│   ├── cursor-rules-directory/     # Example Cursor workspace rules structure
+│   ├── windsurf-rules-directory/   # Example Windsurf workspace rules structure
+│   ├── cline-rules-directory/      # Example Cline workspace rules structure (Added)
+│   └── README.md               # Documentation of reference structures
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
 │   ├── public/            # Public assets
 │   └── nuxt.config.ts     # Nuxt configuration
-├── package.json           # Project metadata and dependencies
+├── package.json           # Project metadata and dependencies (including import-meta-resolve polyfill, dynamic build/test scripts, CI automation)
+├── scripts/               # Build and utility scripts
+│   ├── build-examples.ts  # Dynamic parallel script for building all example projects
+│   └── test-examples.ts   # Dynamic parallel script for running tests across all example projects
+├── .github/               # GitHub Actions workflows
+│   └── workflows/
+│       └── ci.yml         # Continuous Integration workflow
 ├── README.md              # Project documentation (Updated: Unified convention, Added note about --debug flag)
 ├── ARCHITECTURE.md        # This file (Being updated)
 ├── UNIFIED_RULES_CONVENTION.md # Documentation for .rules (Added)
 ```
 
 ## File Descriptions
+
+### scripts/build-examples.ts (Added)
+
+A dynamic TypeScript script that automatically discovers and builds all example projects in the `examples/` directory using Bun shell for parallel execution.
+
+#### Key Features
+
+- **Dynamic Discovery**: Automatically finds all directories in `examples/` that contain a `package.json` file
+- **Parallel Execution**: Runs npm install and build operations for all projects simultaneously using `Promise.all()`
+- **Smart Build Detection**: Determines whether a project needs building by checking for a `build` script in `package.json`
+- **Bun Shell Integration**: Uses Bun's shell (`$`) for efficient command execution
+- **Comprehensive Logging**: Provides detailed progress feedback with emojis and clear status messages
+- **Error Handling**: Gracefully handles failures and provides detailed error reporting
+
+#### Functions
+
+- `discoverExampleProjects(): Promise<ExampleProject[]>`
+  - Scans the `examples/` directory for subdirectories containing `package.json`
+  - Returns an array of project metadata including name, path, and build requirements
+  - Skips directories without `package.json` files
+- `buildProject(project: ExampleProject): Promise<void>`
+  - Executes npm install for a single project
+  - Optionally runs npm build if the project has a build script
+  - Provides progress logging for each step
+- `main(): Promise<void>`
+  - Orchestrates the entire build process
+  - Runs all project builds in parallel
+  - Provides summary statistics of built vs install-only projects
+
+#### Usage
+
+The script is executed via the `build:examples` npm script:
+```bash
+npm run build:examples
+```
+
+This replaces the previous hardcoded script with a dynamic solution that automatically adapts to new example projects without requiring configuration changes.
+
+### scripts/test-examples.ts (Added)
+
+A dynamic TypeScript script that automatically discovers and runs tests for all example projects in the `examples/` directory using Bun shell, with comprehensive output capture and reporting.
+
+#### Key Features
+
+- **Dynamic Discovery**: Automatically finds all directories in `examples/` that contain a `package.json` file with a valid test script
+- **Parallel Execution**: Runs all test suites simultaneously using `Promise.allSettled()` to ensure all tests run even if some fail
+- **Smart Test Detection**: Filters out placeholder test scripts (like `echo "Error: no test specified" && exit 1`)
+- **Comprehensive Output Capture**: Captures both stdout and stderr from each test run for detailed reporting
+- **Failure Tolerance**: Continues running all tests even when some fail, providing complete results
+- **Rich Reporting**: Provides detailed summaries with timing, success rates, and organized output display
+- **Bun Shell Integration**: Uses Bun's shell (`$`) for efficient command execution
+
+#### Functions
+
+- `discoverTestableProjects(): Promise<ExampleProject[]>`
+  - Scans the `examples/` directory for subdirectories containing `package.json` with valid test scripts
+  - Returns an array of project metadata including name, path, and test script command
+  - Skips directories without `package.json` files or placeholder test scripts
+- `runProjectTests(project: ExampleProject): Promise<TestResult>`
+  - Executes the test command for a single project with timing measurement
+  - Captures both success and failure output for comprehensive reporting
+  - Returns detailed test results including duration, output, and error information
+- `formatDuration(ms: number): string`
+  - Formats millisecond durations into human-readable strings (ms, s, m)
+- `printTestResults(results: TestResult[]): void`
+  - Presents comprehensive test results in organized sections:
+    - Summary with pass/fail counts and success rate
+    - Detailed failure output for debugging failed tests
+    - Condensed passed test output (last 10 lines) for verification
+- `main(): Promise<void>`
+  - Orchestrates the entire test process
+  - Uses `Promise.allSettled()` to run all tests in parallel without stopping on failures
+  - Provides final summary and appropriate exit codes
+
+#### Output Format
+
+The script provides structured output with multiple sections:
+1. **Discovery Phase**: Lists all testable projects found
+2. **Execution Phase**: Real-time progress updates as tests run
+3. **Summary Section**: Pass/fail counts, timing, and success rate
+4. **Detailed Failure Output**: Full output and error details for failed tests
+5. **Passed Tests Output**: Last 10 lines of output for successful tests
+
+#### Usage
+
+The script is executed via the `test:examples` npm script:
+```bash
+npm run test:examples
+```
+
+This provides a comprehensive view of test results across all example projects, making it easy to identify and debug issues while ensuring all tests are run regardless of individual failures.
+
+### .github/workflows/ci.yml (Added)
+
+A comprehensive GitHub Actions workflow that provides continuous integration for the vibe-rules project, supporting both Bun and npm package managers.
+
+#### Key Features
+
+- **Dual Package Manager Support**: Sets up both Bun (for main project) and Node.js/npm (for example packages)
+- **Comprehensive Testing**: Runs the complete build and test pipeline using our dynamic scripts
+- **Efficient Caching**: Leverages GitHub Actions caching for both Bun and npm dependencies
+- **Multi-Branch Support**: Triggers on pushes to `main` and `develop` branches, plus pull requests
+- **Clear Progress Indicators**: Uses emojis and descriptive step names for easy monitoring
+
+#### Workflow Steps
+
+1. **Repository Checkout**: Uses `actions/checkout@v4` to get the latest code
+2. **Bun Setup**: Uses `oven-sh/setup-bun@v2` with latest version for running our scripts
+3. **Node.js Setup**: Uses `actions/setup-node@v4` with Node 20 and npm caching for example packages
+4. **Dependency Installation**: Runs `bun install` to install root project dependencies
+5. **Main Build**: Executes `bun run build` (TypeScript compilation via `tsc`)
+6. **Example Build**: Runs `bun run build:examples` using our dynamic build script
+7. **Example Testing**: Executes `bun run test:examples` using our comprehensive test runner
+
+#### CI Pipeline Flow
+
+```
+Repository Checkout
+        ↓
+Setup Bun + Node.js (with caching)
+        ↓
+Install root dependencies
+        ↓
+Build main project (TypeScript)
+        ↓
+Build all example projects (parallel)
+        ↓
+Run all example tests (parallel with failure tolerance)
+        ↓
+Success confirmation
+```
+
+#### Benefits
+
+- **Fast Execution**: Bun's speed for script execution combined with npm caching for examples
+- **Robust Testing**: All example projects are built and tested automatically
+- **Developer Friendly**: Clear step names and emoji indicators for easy monitoring
+- **Failure Tolerance**: Tests continue running even if some examples fail, providing complete results
+- **Scalable**: Automatically adapts to new example projects without workflow changes
+
+This CI setup ensures that every change to the vibe-rules project is thoroughly validated across all supported use cases and package formats.
 
 ### src/cli.ts
 
@@ -94,7 +265,11 @@ It handles parsing of command-line arguments, options, and delegates the executi
 
 ### src/commands/install.ts (Added)
 
-Contains the action handler for the `vibe-rules install` command.
+Contains the action handler for the `vibe-rules install` command and handles the complex module loading requirements for both CommonJS and ES modules.
+
+#### Dependencies
+
+- **import-meta-resolve**: A ponyfill for the native `import.meta.resolve()` functionality that resolves module specifiers to URLs without loading the module. This is required because Node.js's native `import.meta.resolve()` requires the `--experimental-import-meta-resolve` flag. The polyfill enables synchronous module path resolution and supports import maps and export maps, making it essential for the dynamic module loading strategy in `importModuleFromCwd`.
 
 #### Functions
 
@@ -106,22 +281,32 @@ Contains the action handler for the `vibe-rules install` command.
   - Handles overall error reporting for the command.
 - `installSinglePackage(pkgName: string, editorType: RuleType, provider: RuleProvider, installOptions: { global?: boolean; target?: string; debug?: boolean }): Promise<number>`
   - Installs rules from a single specified NPM package.
+  - **Pre-validation**: Checks if the package exports `./llms` in its `package.json` before attempting import.
   - Creates the necessary directories for the specified editor type (e.g., `.cursor/` for Cursor, `.clinerules/` for Clinerules).
   - Dynamically imports `<pkgName>/llms` using `importModuleFromCwd`.
   - Calls `clearExistingRules` before processing new rules.
   - Validates the imported module content (string or array of rules/rule objects) using `VibePackageRulesSchema`.
+  - **Rule Processing**: Handles both simple string rules and complex rule objects with metadata.
   - For each rule, determines the final target path and uses `provider.appendFormattedRule` to apply it.
   - Prefixes rule names with `${pkgName}_` if not already present.
-  - Handles metadata (`alwaysApply`, `globs`) from rule objects.
+  - **Metadata Handling**: Extracts and applies metadata (`alwaysApply`, `globs`) from rule objects to the provider options.
+  - **Error Handling**: Provides specific error messages for different failure modes (module not found, syntax errors, initialization errors).
   - Returns the count of successfully applied rules.
 - `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean }): Promise<void>`
   - Clears previously installed rules for a given package and editor type.
-  - For single-file providers (Windsurf, Claude Code, Codex), removes XML-like blocks matching `<pkgName_ruleName>...</pkgName_ruleName>` from the target file.
-  - For multi-file providers (Cursor, Clinerules), deletes files starting with `${pkgName}_` in the target directory.
+  - **Single-File Providers** (Windsurf, Claude Code, Codex): Uses regex to remove XML-like blocks matching `<pkgName_ruleName>...</pkgName_ruleName>` patterns from the target file.
+  - **Multi-File Providers** (Cursor, Clinerules): Deletes files starting with `${pkgName}_` in the target directory.
+  - Handles cases where target paths don't exist gracefully.
 - `importModuleFromCwd(ruleModulePath: string): Promise<any>`
-  - Dynamically imports a module from the current working directory's `node_modules`.
-  - Attempts `require` first for CommonJS compatibility.
-  - Falls back to dynamic `import()` if `ERR_REQUIRE_ESM` is encountered.
+  - **Dual-Strategy Module Loading**: Implements a robust approach for loading modules that works with both CommonJS and ES modules.
+  - **Primary Strategy**: Attempts `createRequire()` with the current working directory's `package.json` as the context for CommonJS compatibility.
+  - **Fallback Strategy**: When `require()` fails (typically for ESM-only modules), uses `import-meta-resolve` to resolve the module specifier to a full URL, then performs dynamic `import()`.
+  - **Resolution Process**: 
+    - Constructs a file URL from the current working directory's `package.json`
+    - Uses `importMetaResolve(ruleModulePath, fileUrlString)` to resolve the module path
+    - Performs dynamic import with the resolved path
+  - **Error Handling**: Provides detailed debug logging for each step and comprehensive error reporting.
+  - Returns the default export or the module itself, handling both export patterns.
 
 ### src/types.ts
 
@@ -429,3 +614,112 @@ Implementation of the `RuleProvider` interface for the unified `.rules` file con
 
 - Describes the purpose, location, format, and usage of the `.rules` file.
 - Provides examples of the tagged rule block structure and how to interact with it using `vibe-rules` commands (`load unified`, `install unified`).
+
+### examples/README.md (Updated)
+
+- Comprehensive documentation for the examples directory.
+- Explains what vibe-rules is and its purpose for managing AI prompts across different editors.
+- Describes the difference between end-user examples (CommonJS/ESM projects consuming rules) and library examples (packages that export rules).
+- Provides detailed instructions for testing the examples and understanding the package structure.
+- Documents the workflow for both library authors (how to export rules) and end users (how to install rules).
+- Explains the generated files and supported editors (Cursor, Windsurf, Claude Code, etc.).
+
+### examples/end-user-cjs-package/ (Updated)
+
+CommonJS example project demonstrating how end-users consume vibe-rules from multiple library packages.
+
+#### Key Changes
+
+- **Testing Framework:** Migrated from vitest to Bun's built-in test runner for improved performance and reduced dependencies.
+- **Dependencies:** Removed vitest (^3.2.2 → removed), added @types/bun for TypeScript support.
+- **Scripts:** Updated test script from incomplete `"vibe-"` to `"bun test"`, added `"vibe-rules": "vibe-rules"` script.
+- **Node.js Version:** Added `engines.node: ">=22"` requirement.
+
+#### install.test.ts (Added)
+
+Integration test that validates the complete vibe-rules installation workflow for both Cursor and Windsurf editors:
+
+##### Test Functionality
+
+**Cursor Installation Test:**
+- **Setup:** Cleans existing `.cursor` directory to ensure fresh test environment
+- **Installation Process:** 
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install cursor` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `.cursor/rules` directory exists
+  - Counts generated `.mdc` files (expects exactly 8 files)
+  - Validates rule naming convention (files prefixed with package names)
+  - Confirms presence of expected rule types from both `cjs-package` and `esm-package` dependencies
+
+**Windsurf Installation Test:**
+- **Setup:** Cleans existing `.windsurfrules` file to ensure fresh test environment
+- **Installation Process:**
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install windsurf` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `.windsurfrules` file exists
+  - Counts generated rule blocks (expects exactly 8 tagged blocks)
+  - Validates XML-like tagged block structure with proper opening/closing tags
+  - Confirms presence of expected rule content and metadata from both dependency packages
+
+##### Expected Rules Structure
+The tests validate that 8 rules are generated from the two dependency packages:
+- **From cjs-package:** `usage`, `api`, `architecture`, `routing` (4 rules)  
+- **From esm-package:** `usage`, `api`, `architecture`, `routing` (4 rules)
+
+##### Enhanced PackageRuleObject Examples
+The example packages now demonstrate the full range of `PackageRuleObject` configurations:
+
+**CJS Package Examples:**
+- **Usage Rule**: Always applied rule (`alwaysApply: true`) with no globs for universal guidelines
+- **API Rule**: Specific globs for API development (`src/routes/**/*.tsx`, `src/api/**/*.ts`)
+- **Architecture Rule**: Model decision rule with description for architecture/state management tasks
+- **Routing Rule**: Basic rule with no specific configuration for manual triggering
+
+**ESM Package Examples:**
+- **Usage Rule**: Always applied rule (`alwaysApply: true`) with universal API usage guidelines
+- **API Rule**: RESTful design principles with route and API-specific globs
+- **Architecture Rule**: Component architecture patterns triggered by description matching
+- **Routing Rule**: Navigation best practices with no specific triggering configuration
+
+##### Robust Test Implementation
+The test suite has been enhanced for maximum robustness:
+
+- **Dynamic Rule Discovery**: Tests derive expected rule names from imported llms modules instead of hardcoded values
+- **Flexible Property Validation**: Optional properties like `description` and `globs` are validated conditionally
+- **Future-Proof Design**: Tests automatically adapt to changes in rule definitions without requiring manual updates
+- **Cross-Reference Validation**: Ensures imported module structure matches generated files using actual data
+
+**Cursor Format:**
+- **File Format:** All rules stored as separate `.mdc` files in `.cursor/rules/` directory
+- **Naming Pattern:** `{packageName}_{ruleName}.mdc` (e.g., `cjs-package_api.mdc`)
+
+**Windsurf Format:**
+- **File Format:** All rules stored as XML-like tagged blocks within a single `.windsurfrules` file
+- **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
+
+**Clinerules Format:**
+- **File Format:** All rules stored as separate `.md` files in `.clinerules/` directory
+- **Naming Pattern:** `{packageName}_{ruleName}.md` (e.g., `cjs-package_api.md`)
+- **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
+
+##### Test Implementation Details
+- Uses Bun's test framework (`import { test, expect } from "bun:test"`)
+- Leverages Bun's shell integration (`import { $ } from "bun"`) for command execution
+- **Test Environment Cleanup:** Clears existing editor directories/files at both the start and end of each test to ensure clean test isolation
+- **Direct Module Imports:** Imports actual llms modules from both dependency packages:
+  - `const cjsRules = require("cjs-package/llms")` - CommonJS import
+  - `const esmRules = await import("esm-package/llms")` - ES Module import
+- **Comprehensive Validation (covering Cursor, Windsurf, and Clinerules formats):**
+  - **File System Validation:** Verifies directory/file creation, file count, and naming patterns for all supported editors
+  - **Module Structure Validation:** Validates imported arrays have correct length and structure
+  - **Rule Object Validation:** Ensures each rule has required properties (`name`, `rule`, `description`, `alwaysApply`, `globs`)
+  - **Type Validation:** Confirms correct data types for all rule properties
+  - **Content Validation:** 
+    - For Cursor: Reads generated `.mdc` files and verifies they contain the actual rule content
+    - For Windsurf: Parses `.windsurfrules` file and validates tagged blocks contain rule content and metadata
+    - For Clinerules: Reads generated `.md` files in `.clinerules/` directory and validates content and metadata formatting
+  - **Cross-Reference Validation:** Ensures rule names from imported modules match generated file names or tag names
+- Includes comprehensive error handling and detailed logging
+- Provides clear success confirmation message upon completion
