@@ -87,7 +87,6 @@ async function clearExistingRules(
       }
 
       const content = await fs.readFile(potentialTargetFile, "utf-8");
-      // Regex to match <pkgName_ruleName ...>...</pkgName_ruleName> blocks
       const removalRegex = new RegExp(
         `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\s*\n?`,
         "gs"
@@ -239,6 +238,27 @@ async function installSinglePackage(
   let rulesSuccessfullyAppliedCount = 0;
 
   try {
+    // Check if package exports ./llms and if the file actually exists
+    try {
+      const pkgJsonPath = `${pkgName}/package.json`;
+      const pkgJson = await importModuleFromCwd(pkgJsonPath);
+      const exports = pkgJson?.default?.exports || pkgJson?.exports;
+      
+      debugLog(`Package ${pkgName} exports: ${JSON.stringify(exports, null, 2)}`);
+      
+      if (exports && !exports['./llms']) {
+        debugLog(`Package ${pkgName} does not export ./llms in package.json. Skipping.`);
+        return 0;
+      }
+      
+      if (exports && exports['./llms']) {
+        debugLog(`Package ${pkgName} exports ./llms: ${JSON.stringify(exports['./llms'], null, 2)}`);
+        debugLog(`Package ${pkgName} has ./llms export, proceeding with import attempt.`);
+      }
+    } catch (pkgError: any) {
+      debugLog(`Could not check package.json for ${pkgName}: ${pkgError.message}. Proceeding anyway.`);
+    }
+
     const ruleModulePath = `${pkgName}/llms`;
     debugLog(`Importing module ${ruleModulePath}`);
     const defaultExport = await importModuleFromCwd(ruleModulePath);
