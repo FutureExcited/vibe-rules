@@ -11,6 +11,15 @@ Cline supports both workspace and global rules:
 - **Global rules**: Stored in `~/Documents/Cline/Rules` directory (applies across all projects)
 - **Format**: All files use Markdown format with no special formatting.
 
+## Claude Code
+
+[claude-code-directory](./claude-code-directory/) contains an example of how Claude Code IDE manages AI rules.
+
+Claude Code uses a single file for all rules:
+- **Project rules**: Stored in `./CLAUDE.md` file in project root
+- **Global rules**: Stored in `~/.claude/CLAUDE.md` file (applies across all projects)
+- **Format**: Single markdown file with XML-like tagged blocks. When using vibe-rules, each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) within a `<vibe-tools Integration>...</vibe-tools Integration>` block for organization.
+
 ## Windsurf 
 
 [windsurf-rules-directory](./windsurf-rules-directory/) contains an example of workspace rules structure (in `./.windsurf/rules/`) for the Windsurf editor.

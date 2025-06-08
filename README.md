@@ -167,7 +167,9 @@ Options:
 - **Windsurf (`windsurf`)**:
   - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
 - **Claude Code (`claude-code`)**:
-  - Appends/updates rules within a `<vibe-tools Integration>` block in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+  - Appends/updates rules within XML-like tagged blocks in a `<vibe-tools Integration>` section in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
+  - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Codex (`codex`)**:
   - Appends/updates rules within a `<vibe-tools Integration>` block in `./codex.md` (local) or `~/.codex/instructions.md` (global).
 - **Cline/Roo (`clinerules`, `roo`)**:

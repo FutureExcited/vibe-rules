@@ -175,15 +175,21 @@ A comprehensive GitHub Actions workflow that provides continuous integration for
 
 - **Dual Package Manager Support**: Sets up both Bun (for main project) and Node.js/npm (for example packages)
 - **Comprehensive Testing**: Runs the complete build and test pipeline using our dynamic scripts
-- **Efficient Caching**: Leverages GitHub Actions caching for both Bun and npm dependencies
-- **Multi-Branch Support**: Triggers on pushes to `main` and `develop` branches, plus pull requests
+- **Efficient Caching**: Leverages Bun's fast dependency resolution and GitHub Actions runner caching
+- **Multi-Branch Support**: Triggers on pushes to any branch (`branches: [ '*' ]`)
+- **Smart Concurrency Control**: Automatically cancels older runs when new pushes are made to the same branch
 - **Clear Progress Indicators**: Uses emojis and descriptive step names for easy monitoring
+
+#### Workflow Configuration
+
+- **Concurrency Control**: Uses `group: ci-${{ github.ref }}` with `cancel-in-progress: true` to automatically cancel older runs when new commits are pushed to the same branch
+- **Branch Coverage**: Triggers on pushes to any branch (`branches: [ '*' ]`) for comprehensive testing
 
 #### Workflow Steps
 
 1. **Repository Checkout**: Uses `actions/checkout@v4` to get the latest code
 2. **Bun Setup**: Uses `oven-sh/setup-bun@v2` with latest version for running our scripts
-3. **Node.js Setup**: Uses `actions/setup-node@v4` with Node 20 and npm caching for example packages
+3. **Node.js Setup**: Uses `actions/setup-node@v4` with Node 20 to provide npm binary for example packages
 4. **Dependency Installation**: Runs `bun install` to install root project dependencies
 5. **Main Build**: Executes `bun run build` (TypeScript compilation via `tsc`)
 6. **Example Build**: Runs `bun run build:examples` using our dynamic build script
@@ -209,7 +215,8 @@ Success confirmation
 
 #### Benefits
 
-- **Fast Execution**: Bun's speed for script execution combined with npm caching for examples
+- **Fast Execution**: Bun's speed for script execution and dependency management
+- **Resource Efficient**: Concurrency controls cancel outdated runs, saving GitHub Actions quota
 - **Robust Testing**: All example projects are built and tested automatically
 - **Developer Friendly**: Clear step names and emoji indicators for easy monitoring
 - **Failure Tolerance**: Tests continue running even if some examples fail, providing complete results
