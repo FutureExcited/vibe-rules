@@ -568,7 +568,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
-Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, `ZED`, and `UNIFIED` (Added).
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, `ZED`, `UNIFIED`, and `VSCODE` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 
@@ -637,6 +637,24 @@ Implementation of the `RuleProvider` interface for the unified `.rules` file con
 - Delegates the storage of rule definitions (when using `vibe-rules save unified <name> ...`) to the common internal storage via `src/utils/rule-storage.ts`, using `RuleType.UNIFIED`.
 - The `targetPath` for `appendFormattedRule` is expected to be the path to the `.rules` file itself (e.g., `./.rules`).
 
+### src/providers/vscode-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for Visual Studio Code.
+
+#### `VSCodeRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within individual `.instructions.md` files stored in the `.github/instructions/` directory.
+- **`saveRule`, `loadRule`, `listRules`:** Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`generateRuleContent` (VSCode-specific format):**
+  - Uses YAML frontmatter with `applyTo` field for file targeting.
+  - **VSCode Bug Workaround:** Always uses `applyTo: "**"` due to VSCode's limitations with multiple globs in the `applyTo` field.
+  - Preserves the original rule content without adding redundant headings (since rule content already includes proper headings).
+  - Adds rule name and description as markdown headings in the content section.
+- **`appendFormattedRule`:** Creates individual `.instructions.md` files in the `.github/instructions/` directory using the multi-file pattern (similar to Cursor and Clinerules providers).
+- File naming follows the pattern: `{packageName}_{ruleName}.instructions.md`
+
 ## New Documentation Files
 
 ### UNIFIED_RULES_CONVENTION.md (Added)
@@ -651,7 +669,7 @@ Implementation of the `RuleProvider` interface for the unified `.rules` file con
 - Describes the difference between end-user examples (CommonJS/ESM projects consuming rules) and library examples (packages that export rules).
 - Provides detailed instructions for testing the examples and understanding the package structure.
 - Documents the workflow for both library authors (how to export rules) and end users (how to install rules).
-- Explains the generated files and supported editors (Cursor, Windsurf, Claude Code, etc.).
+- Explains the generated files and supported editors (Cursor, Windsurf, Claude Code, VSCode, etc.).
 
 ### examples/end-user-cjs-package/ (Updated)
 
@@ -681,7 +699,7 @@ ES Module example project demonstrating how end-users consume vibe-rules from mu
 - **Zero Duplication:** Maintains the exact same test logic across both CJS and ESM packages without file duplication.
 - **Automatic Synchronization:** Any changes to the test file in the CJS package are automatically reflected in the ESM package.
 - **Cross-Platform Compatibility:** The symlink approach works well on macOS and Linux development environments.
-- **Comprehensive Coverage:** Both packages now validate the complete vibe-rules installation workflow for all supported editors (Cursor, Windsurf, Clinerules, Claude Code, Codex, ZED).
+- **Comprehensive Coverage:** Both packages now validate the complete vibe-rules installation workflow for all supported editors (Cursor, Windsurf, Clinerules, Claude Code, Codex, ZED, VSCode).
 
 #### install.test.ts (Added)
 
@@ -806,6 +824,24 @@ The test suite has been enhanced for maximum robustness:
 - **No Wrapper Block:** Rules are stored directly without any integration wrapper (follows unified .rules convention)
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
+**VSCode Installation Test:** (Added)
+- **Setup:** Cleans existing `.github/instructions` directory to ensure fresh test environment
+- **Installation Process:**
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install vscode` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `.github/instructions` directory exists
+  - Counts generated `.instructions.md` files (expects exactly 8 files)
+  - Validates file naming convention (files prefixed with package names)
+  - Confirms presence of expected rule content and metadata from both dependency packages
+
+**VSCode Format:**
+- **File Format:** All rules stored as separate `.instructions.md` files in `.github/instructions/` directory
+- **Naming Pattern:** `{packageName}_{ruleName}.instructions.md` (e.g., `cjs-package_api.instructions.md`)
+- **Frontmatter:** Uses `applyTo: "**"` for all rules due to VSCode's limitations with multiple globs
+- **Content:** Preserves original rule content with rule name and description as markdown headings
+- **VSCode Bug Workaround:** Always applies rules universally (`**`) for better reliability
+
 ##### Test Implementation Details
 - Uses Bun's test framework (`import { test, expect } from "bun:test"`)
 - Leverages Bun's shell integration (`import { $ } from "bun"`) for command execution
@@ -813,7 +849,7 @@ The test suite has been enhanced for maximum robustness:
 - **Direct Module Imports:** Imports actual llms modules from both dependency packages:
   - `const cjsRules = require("cjs-package/llms")` - CommonJS import
   - `const esmRules = await import("esm-package/llms")` - ES Module import
-- **Comprehensive Validation (covering Cursor, Windsurf, and Clinerules formats):**
+- **Comprehensive Validation (covering Cursor, Windsurf, Clinerules, Claude Code, Codex, ZED, and VSCode formats):**
   - **File System Validation:** Verifies directory/file creation, file count, and naming patterns for all supported editors
   - **Module Structure Validation:** Validates imported arrays have correct length and structure
   - **Rule Object Validation:** Ensures each rule has required properties (`name`, `rule`, `description`, `alwaysApply`, `globs`)
@@ -822,6 +858,18 @@ The test suite has been enhanced for maximum robustness:
     - For Cursor: Reads generated `.mdc` files and verifies they contain the actual rule content
     - For Windsurf: Parses `.windsurfrules` file and validates tagged blocks contain rule content and metadata
     - For Clinerules: Reads generated `.md` files in `.clinerules/` directory and validates content and metadata formatting
+    - For VSCode: Reads generated `.instructions.md` files in `.github/instructions/` directory and validates content and VSCode-specific frontmatter
   - **Cross-Reference Validation:** Ensures rule names from imported modules match generated file names or tag names
 - Includes comprehensive error handling and detailed logging
 - Provides clear success confirmation message upon completion
+
+## Recent Updates
+
+### VSCode Glob Limitation Fix
+
+Due to Microsoft's VSCode having a bug where multiple globs in the `applyTo` field don't work properly, the VSCode provider was updated to always use `applyTo: "**"` for universal application. This change includes:
+
+- **Provider Logic:** Updated `generateRuleContent` to always use `**` regardless of globs configuration
+- **User Warnings:** Added installation-time warnings to inform users about this limitation and workaround  
+- **Documentation:** Updated README and ARCHITECTURE to reflect this VSCode limitation
+- **Tests:** Modified test expectations to verify `**` is used for all rules regardless of original globs

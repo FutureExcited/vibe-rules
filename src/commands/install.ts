@@ -533,6 +533,15 @@ export async function installCommandAction(
   }
 
   if (packageName) {
+    // VSCode-specific warning about glob limitations
+    if (editorType === RuleType.VSCODE) {
+      console.log(
+        chalk.yellow(
+          `[vibe-rules] Note: Due to VSCode's applyTo field limitations with multiple globs, all rules will be applied universally (**) for better reliability.`
+        )
+      );
+    }
+    
     const count = await installSinglePackage(
       packageName,
       editorType,
@@ -552,6 +561,15 @@ export async function installCommandAction(
         `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
       )
     );
+    
+    // VSCode-specific warning about glob limitations
+    if (editorType === RuleType.VSCODE) {
+      console.log(
+        chalk.yellow(
+          `[vibe-rules] Note: Due to VSCode's applyTo field limitations with multiple globs, all rules will be applied universally (**) for better reliability.`
+        )
+      );
+    }
     try {
       const pkgJsonPath = path.join(process.cwd(), "package.json");
       if (!(await pathExists(pkgJsonPath))) {

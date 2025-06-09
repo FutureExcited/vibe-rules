@@ -99,7 +99,7 @@ vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.md
 Arguments:
 
 - `<name>`: The name of the rule saved in the local store (`~/.vibe-rules/rules/`).
-- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
+- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`, `vscode`.
 
 Options:
 
@@ -138,7 +138,7 @@ Add the `--debug` global option to any `vibe-rules` command to enable detailed d
 
 Arguments:
 
-- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`.
+- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`, `vscode`.
 - `[packageName]` (Optional): The specific NPM package name to install rules from. If omitted, `vibe-rules` scans all dependencies and devDependencies in your project's `package.json`.
 
 Options:
@@ -180,6 +180,11 @@ Options:
   - Manages rules within a single `.rules` file in the project root using XML-like tagged blocks.
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` without requiring wrapper blocks.
   - Follows the unified .rules convention and supports metadata formatting for `alwaysApply` and `globs` configurations.
+- **VSCode (`vscode`)**:
+  - Creates/updates individual `.instructions.md` files within `./.github/instructions/` (project-local).
+  - Uses YAML frontmatter with `applyTo` field for file targeting.
+  - Rule name and description are included in the markdown content, not frontmatter.
+  - **Note:** Due to VSCode's limitations with multiple globs in the `applyTo` field, all rules use `applyTo: "**"` for universal application and better reliability.
 - **Unified (`unified`)**:
   - Manages rules within a single `.rules` file in the project root.
   - Ideal for project-specific, centralized rule management.

@@ -596,3 +596,125 @@ test("install should create rules in .rules file", async () => {
   // Clean up .rules file at the end of the test
   await $`rm -f .rules`.quiet();
 });
+
+test("install should create 8 rules files in .github/instructions", async () => {
+  // Import the llms modules from our dependencies
+  const cjsRules = require("cjs-package/llms");
+  const esmRules = await import("esm-package/llms");
+
+  // Clean up any existing .github directory (not just instructions subdirectory)
+  await $`rm -rf .github`.quiet();
+  
+  // Run npm install
+  console.log("Running npm install...");
+  await $`npm install`;
+  
+  // Run vibe-rules install vscode command
+  console.log("Running vibe-rules install vscode...");
+  await $`npm run vibe-rules install vscode`;
+  
+  // Check that .github/instructions directory exists
+  const vscodeInstructionsPath = join(process.cwd(), ".github", "instructions");
+  const vscodeInstructionsStat = await stat(vscodeInstructionsPath);
+  expect(vscodeInstructionsStat.isDirectory()).toBe(true);
+  
+  // Read the files in .github/instructions directory
+  const instructionFiles = await readdir(vscodeInstructionsPath);
+  
+  // Filter only .instructions.md files
+  const instructionMdFiles = instructionFiles.filter(file => file.endsWith('.instructions.md'));
+  
+  console.log(`Found ${instructionMdFiles.length} instruction files:`, instructionMdFiles);
+  
+  // Expect 8 instruction files (4 from cjs-package + 4 from esm-package)
+  expect(instructionMdFiles.length).toBe(cjsRules.length + esmRules.default.length);
+  
+  // Get expected rule names from the imported modules
+  const cjsRuleNames = cjsRules.map(r => r.name);
+  const esmRuleNames = esmRules.default.map(r => r.name);
+  const expectedRules = [...new Set([...cjsRuleNames, ...esmRuleNames])]; // Unique names
+  
+  // Check that we have rules from both packages
+  for (const rule of expectedRules) {
+    const cjsRuleExists = instructionMdFiles.some(file => file.includes('cjs') && file.includes(rule));
+    const esmRuleExists = instructionMdFiles.some(file => file.includes('esm') && file.includes(rule));
+    
+    expect(cjsRuleExists).toBe(true);
+    expect(esmRuleExists).toBe(true);
+  }
+
+  // Validate imported rules structure (same as other tests)
+  console.log("Validating imported rules structure...");
+  
+  expect(Array.isArray(cjsRules)).toBe(true);
+  expect(cjsRules.length).toBe(4);
+  
+  const esmRulesArray = esmRules.default;
+  expect(Array.isArray(esmRulesArray)).toBe(true);
+  expect(esmRulesArray.length).toBe(4);
+  
+  // Validate that each rule has the expected properties
+  const allRules = [...cjsRules, ...esmRulesArray];
+  for (const rule of allRules) {
+    expect(rule).toHaveProperty('name');
+    expect(rule).toHaveProperty('rule');
+    expect(rule).toHaveProperty('alwaysApply');
+    
+    expect(typeof rule.name).toBe('string');
+    expect(typeof rule.rule).toBe('string');
+    expect(typeof rule.alwaysApply).toBe('boolean');
+    
+    if (rule.description !== undefined) {
+      expect(typeof rule.description).toBe('string');
+    }
+    if (rule.globs !== undefined) {
+      expect(Array.isArray(rule.globs) || typeof rule.globs === 'string').toBe(true);
+    }
+  }
+  
+  // Read and validate actual file contents match the imported rules
+  console.log("Validating file content matches imported rules...");
+  
+  for (const rule of cjsRules) {
+    const fileName = `cjs-package_${rule.name}.instructions.md`;
+    expect(instructionMdFiles).toContain(fileName);
+    
+    const filePath = join(vscodeInstructionsPath, fileName);
+    const fileContent = await readFile(filePath, 'utf-8');
+    
+    // Check that the rule content appears in the file
+    expect(fileContent).toContain(rule.rule);
+    
+    // Check for description in VSCode comment format if it exists
+    if (rule.description) {
+      expect(fileContent).toContain(rule.description);
+    }
+    
+    // Check for VSCode-specific frontmatter (always ** due to VSCode glob limitations)
+    expect(fileContent).toContain('applyTo: "**"');
+  }
+  
+  for (const rule of esmRulesArray) {
+    const fileName = `esm-package_${rule.name}.instructions.md`;
+    expect(instructionMdFiles).toContain(fileName);
+    
+    const filePath = join(vscodeInstructionsPath, fileName);
+    const fileContent = await readFile(filePath, 'utf-8');
+    
+    // Check that the rule content appears in the file
+    expect(fileContent).toContain(rule.rule);
+    
+    // Check for description in VSCode comment format if it exists
+    if (rule.description) {
+      expect(fileContent).toContain(rule.description);
+    }
+    
+    // Check for VSCode-specific frontmatter (always ** due to VSCode glob limitations)
+    expect(fileContent).toContain('applyTo: "**"');
+  }
+  
+  console.log("✅ All VSCode assertions passed! Rules properly installed and match source modules.");
+  
+  // Clean up .github directory at the end of the test
+  await $`rm -rf .github`.quiet();
+});

@@ -77,6 +77,14 @@ export function getRulePath(
       return path.join(projectRoot, ZED_RULES_FILE);
     case RuleType.UNIFIED:
       return path.join(projectRoot, ".rules"); // Unified also uses .rules in project root
+    case RuleType.VSCODE:
+      // VSCode instructions are project-local files in .github/instructions/
+      return path.join(
+        projectRoot,
+        ".github",
+        "instructions",
+        slugifyRuleName(ruleName) + ".instructions.md"
+      );
     case RuleType.CUSTOM:
     default:
       // Fallback for custom or unknown - store internally for now
@@ -120,6 +128,9 @@ export function getDefaultTargetPath(
       return path.join(process.cwd(), ZED_RULES_FILE);
     case RuleType.UNIFIED:
       return path.join(process.cwd(), ".rules");
+    case RuleType.VSCODE:
+      // Default target is the .github/instructions directory
+      return path.join(process.cwd(), ".github", "instructions");
     default:
       console.warn(
         `Default target path not defined for rule type: ${ruleType}, defaulting to CWD.`
@@ -172,6 +183,9 @@ export async function editorConfigExists(
     case RuleType.ZED:
     case RuleType.UNIFIED:
       checkPath = path.join(projectRoot, ".rules");
+      break;
+    case RuleType.VSCODE:
+      checkPath = path.join(projectRoot, ".github", "instructions");
       break;
     case RuleType.CLAUDE_CODE:
       checkPath = isGlobal

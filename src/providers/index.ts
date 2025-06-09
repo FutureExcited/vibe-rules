@@ -6,6 +6,7 @@ import { CodexRuleProvider } from "./codex-provider.js";
 import { ClinerulesRuleProvider } from "./clinerules-provider.js";
 import { ZedRuleProvider } from "./zed-provider.js";
 import { UnifiedRuleProvider } from "./unified-provider.js";
+import { VSCodeRuleProvider } from "./vscode-provider.js";
 
 /**
  * Factory function to get the appropriate rule provider based on rule type
@@ -27,6 +28,8 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
       return new ZedRuleProvider();
     case RuleType.UNIFIED:
       return new UnifiedRuleProvider();
+    case RuleType.VSCODE:
+      return new VSCodeRuleProvider();
     case RuleType.CUSTOM:
     default:
       throw new Error(`Unsupported rule type: ${ruleType}`);

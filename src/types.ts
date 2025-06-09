@@ -18,6 +18,7 @@ export const RuleType = {
   ROO: "roo",
   ZED: "zed",
   UNIFIED: "unified",
+  VSCODE: "vscode",
   CUSTOM: "custom",
 } as const;
 
