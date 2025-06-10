@@ -94,7 +94,7 @@ async function clearExistingRules(
       const content = await readFile(potentialTargetFile, "utf-8");
       // Regex to match <pkgName_ruleName ...>...</pkgName_ruleName> blocks
       const removalRegex = new RegExp(
-        `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\s*\n?`,
+        `<(${pkgName}_[^\\s>]+)[^>]*>.*?<\\/\\1>\\s*\n?`,
         "gs"
       );
 
@@ -527,7 +527,7 @@ export async function installCommandAction(
 
   try {
     provider = getRuleProvider(editorType);
-  } catch (e) {
+  } catch {
     console.error(chalk.red(`Invalid editor type specified: ${editor}`));
     process.exit(1);
   }

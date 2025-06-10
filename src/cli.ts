@@ -33,13 +33,13 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
     await writeFile(commonRulePath, ruleConfig.content);
     console.log(
       chalk.green(
-        `Rule \"${ruleConfig.name}\" saved successfully to ${commonRulePath}`
+        `Rule "${ruleConfig.name}" saved successfully to ${commonRulePath}`
       )
     );
   } catch (error) {
     console.error(
       chalk.red(
-        `Error saving rule \"${ruleConfig.name}\": ${
+        `Error saving rule "${ruleConfig.name}": ${
           error instanceof Error ? error.message : error
         }`
       )
@@ -162,7 +162,7 @@ program
 
       if (!(await fs.pathExists(commonRulePath))) {
         console.error(
-          chalk.red(`Rule \"${name}\" not found in the common store`)
+          chalk.red(`Rule "${name}" not found in the common store`)
         );
 
         const commonRulesDir = getCommonRulesDir();
@@ -215,12 +215,12 @@ program
       if (success) {
         console.log(
           chalk.green(
-            `Rule \"${name}\" applied successfully for ${editor} at ${finalTargetPath}`
+            `Rule "${name}" applied successfully for ${editor} at ${finalTargetPath}`
           )
         );
       } else {
         console.error(
-          chalk.red(`Failed to apply rule \"${name}\" for ${editor}.`)
+          chalk.red(`Failed to apply rule "${name}" for ${editor}.`)
         );
         process.exit(1);
       }

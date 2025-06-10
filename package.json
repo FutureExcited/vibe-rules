@@ -21,6 +21,7 @@
     "start": "node dist/cli.js",
     "dev": "ts-node src/cli.ts",
     "test": "bun run test:examples",
+    "lint": "oxlint",
     "publish:npm": "bun run build && bun run test:examples && npm publish",
     "prepare": "vibe-rules install cursor || bun run src/cli.ts install cursor",
     "build:examples": "bun run build && bun run scripts/build-examples.ts",
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.10.4",
+    "oxlint": "^1.0.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   }

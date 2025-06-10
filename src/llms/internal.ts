@@ -1,4 +1,3 @@
-import { RuleConfig } from "../types.js"; // Keep RuleConfig if needed, or remove if not used
 import { PackageRuleItem } from "../schemas.js";
 
 // Content from llms.txt

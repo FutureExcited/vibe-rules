@@ -108,14 +108,12 @@ export async function appendOrUpdateTaggedBlock(
       
       const commentEndIndex = currentContent.lastIndexOf(commentIntegrationEndTag);
       
-      let integrationEndIndex = -1;
+            let integrationEndIndex = -1;
       let integrationStartTag = "";
-      let integrationEndTag = "";
-      
+
       if (commentEndIndex !== -1) {
         integrationEndIndex = commentEndIndex;
         integrationStartTag = "<!-- vibe-tools Integration -->";
-        integrationEndTag = commentIntegrationEndTag;
       }
 
       if (appendInsideVibeToolsBlock && integrationEndIndex !== -1) {

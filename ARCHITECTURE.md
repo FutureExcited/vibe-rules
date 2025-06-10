@@ -865,6 +865,24 @@ The test suite has been enhanced for maximum robustness:
 
 ## Recent Updates
 
+### Code Quality and Linting Improvements
+
+**Oxlint Integration (Latest)**
+- **Linting Tool:** Integrated oxlint, a Rust-based fast linter, replacing traditional ESLint
+- **Package.json:** Added `"lint": "bunx oxlint@latest"` script for easy linting
+- **Zero Warnings:** Fixed all 31 linting warnings across the codebase including:
+  - Removed unused imports from all provider files
+  - Fixed unnecessary escape characters in template literals
+  - Removed unused catch parameters and variables
+  - Cleaned up unused function parameters
+- **Performance:** Oxlint runs in 9ms on 28 files with 87 rules using 12 threads
+- **CI Integration:** Linting can now be run via `bun run lint` for consistent code quality
+
+**Import Cleanup:**
+- **Provider Files:** Removed unused imports from `claude-code-provider.ts`, `codex-provider.ts`, `cursor-provider.ts`, `clinerules-provider.ts`, `windsurf-provider.ts`, and `unified-provider.ts`
+- **Utility Files:** Fixed unused variables in `single-file-helpers.ts` and `install.ts`
+- **Core Files:** Cleaned up unused imports in `llms/internal.ts` and escape character fixes in `cli.ts`
+
 ### VSCode Glob Limitation Fix
 
 Due to Microsoft's VSCode having a bug where multiple globs in the `applyTo` field don't work properly, the VSCode provider was updated to always use `applyTo: "**"` for universal application. This change includes:

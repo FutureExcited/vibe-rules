@@ -7,12 +7,11 @@ import {
   RuleGeneratorOptions,
   RuleType,
 } from "../types.js";
-import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
+import { getRulePath } from "../utils/path.js";
 import {
   formatRuleWithMetadata,
   createTaggedRuleBlock,
 } from "../utils/rule-formatter.js";
-import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import {
   saveInternalRule,
   loadInternalRule,

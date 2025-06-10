@@ -4,13 +4,11 @@ import {
   RuleType,
   RuleGeneratorOptions,
 } from "../types.js";
-import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
+import { getDefaultTargetPath } from "../utils/path.js";
 import {
-  formatRuleWithMetadata,
   createTaggedRuleBlock,
 } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
-import chalk from "chalk";
 import {
   saveInternalRule,
   loadInternalRule,

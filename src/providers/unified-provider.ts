@@ -5,11 +5,7 @@ import {
   RuleType,
   RuleGeneratorOptions,
 } from "../types.js";
-import {
-  getInternalRuleStoragePath,
-  getRulePath,
-  slugifyRuleName,
-} from "../utils/path.js";
+
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import {
@@ -39,7 +35,7 @@ export class UnifiedRuleProvider implements RuleProvider {
 
   async saveRule(
     config: RuleConfig,
-    options?: RuleGeneratorOptions
+    _options?: RuleGeneratorOptions
   ): Promise<string> {
     return saveRuleToInternalStorage(RuleType.UNIFIED, config);
   }

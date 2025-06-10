@@ -8,16 +8,8 @@ import {
 } from "../types.js";
 import {
   getRulePath,
-  getInternalRuleStoragePath,
-  getDefaultTargetPath,
-  slugifyRuleName,
   ensureDirectoryExists,
 } from "../utils/path.js";
-import {
-  formatRuleWithMetadata,
-  createTaggedRuleBlock,
-} from "../utils/rule-formatter.js";
-import chalk from "chalk";
 import {
   saveInternalRule,
   loadInternalRule,
