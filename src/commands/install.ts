@@ -392,6 +392,13 @@ async function installSinglePackage(
                     `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
                   )
                 );
+              } else {
+                // Concise output for normal (non-debug) mode
+                console.log(
+                  chalk.green(
+                    `[vibe-rules] Installed rule "${ruleConfig.name}" from package "${pkgName}".`
+                  )
+                );
               }
             } else {
               console.error(

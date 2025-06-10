@@ -301,6 +301,7 @@ Contains the action handler for the `vibe-rules install` command and handles the
   - **Rule Processing**: Handles both simple string rules and complex rule objects with metadata.
   - For each rule, determines the final target path and uses `provider.appendFormattedRule` to apply it.
   - Prefixes rule names with `${pkgName}_` if not already present.
+  - **Concise User Feedback (NEW)**: Upon successful application of each rule, the function now emits a short, always-on log line in the format `[vibe-rules] Installed rule "<ruleName>" from package "<pkgName>".` (only when **not** in debug mode). This gives end-users immediate visibility into which specific rules were installed from which package.
   - **Metadata Handling**: Extracts and applies metadata (`alwaysApply`, `globs`) from rule objects to the provider options.
   - **Error Handling**: Provides specific error messages for different failure modes (module not found, syntax errors, initialization errors).
   - Returns the count of successfully applied rules.
