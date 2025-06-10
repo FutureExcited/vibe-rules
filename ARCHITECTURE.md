@@ -33,12 +33,12 @@ vibe-rules/
 │   │   ├── cursor-provider.ts  # Cursor editor provider
 │   │   ├── windsurf-provider.ts # Windsurf editor provider
 │   │   ├── claude-code-provider.ts # Claude Code provider
-│   │   ├── codex-provider.ts       # Codex provider
+│   │   ├── codex-provider.ts       # Codex provider (Updated: AGENTS.md support)
 │   │   ├── clinerules-provider.ts  # Clinerules/Roo provider
 │   │   ├── zed-provider.ts         # Zed editor provider
 │   │   └── unified-provider.ts     # Unified .rules provider (Added)
 │   └── utils/             # Utility functions
-│       ├── path.ts        # Path helpers (Updated: UNIFIED paths)
+│       ├── path.ts        # Path helpers (Updated: Codex AGENTS.md paths)
 │       ├── similarity.ts  # Text similarity utilities
 │       └── rule-formatter.ts # Rule formatting utilities for metadata
 │       └── single-file-helpers.ts # Helpers for single-file providers
@@ -46,7 +46,7 @@ vibe-rules/
 ├── examples/              # Example packages for end-users and library authors
 │   ├── end-user-cjs-package/   # CommonJS project consuming rules from multiple packages (Updated)
 │   │   ├── src/
-│   │   ├── install.test.ts     # Integration test for vibe-rules install functionality (Added)
+│   │   ├── install.test.ts     # Integration test for vibe-rules install functionality (Updated: AGENTS.md)
 │   │   └── package.json        # Uses Bun for testing, includes vibe-rules script (Updated)
 │   ├── end-user-esm-package/   # ES Module project consuming rules from multiple packages  
 │   ├── library-cjs-package/    # CommonJS library that exports AI prompt rules
@@ -56,9 +56,9 @@ vibe-rules/
 │   ├── cursor-rules-directory/     # Example Cursor workspace rules structure
 │   ├── windsurf-rules-directory/   # Example Windsurf workspace rules structure
 │   ├── cline-rules-directory/      # Example Cline workspace rules structure (Added)
-│   ├── codex-rules-directory/      # Example CODEX workspace rules structure (Added)
+│   ├── codex-rules-directory/      # Example CODEX workspace rules structure (Updated: AGENTS.md)
 │   ├── zed-rules-directory/        # Example ZED editor rules structure (Added)
-│   └── README.md               # Documentation of reference structures (Updated: ZED section)
+│   └── README.md               # Documentation of reference structures (Updated: Codex AGENTS.md)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -71,8 +71,8 @@ vibe-rules/
 ├── .github/               # GitHub Actions workflows
 │   └── workflows/
 │       └── ci.yml         # Continuous Integration workflow
-├── README.md              # Project documentation (Updated: Unified convention, Added note about --debug flag)
-├── ARCHITECTURE.md        # This file (Being updated)
+├── README.md              # Project documentation (Updated: Codex AGENTS.md references)
+├── ARCHITECTURE.md        # This file (Updated: Codex AGENTS.md integration)
 ├── UNIFIED_RULES_CONVENTION.md # Documentation for .rules (Added)
 ```
 
@@ -444,7 +444,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
   - `isGlobalHint`: Hint for global context
 - Returns: The conventional default path (e.g., `~/.codex`, `./.cursor/rules`, `./.clinerules`, `./.rules` for Zed and Unified)
 
-#### `editorConfigExists(ruleType: RuleType, isGlobal: boolean, projectRoot: string = process.cwd()): Promise<boolean>` (Added)
+#### `editorConfigExists(ruleType: RuleType, isGlobal: boolean, projectRoot: string = process.cwd()): Promise<boolean>` (Updated)
 
 - Utility function that checks if the configuration for a given editor type exists in the project.
 - Currently available for potential future use but not actively used by install command.
@@ -459,7 +459,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
   - `CLINERULES`/`ROO`: Checks for `.clinerules` directory
   - `ZED`/`UNIFIED`: Checks for `.rules` file
   - `CLAUDE_CODE`: Checks for `CLAUDE.md` (global: `~/.claude/CLAUDE.md`, local: `./CLAUDE.md`)
-  - `CODEX`: Checks for instructions file (global: `~/.codex/instructions.md`, local: `./codex.md`)
+  - `CODEX`: Checks for AGENTS.md file (global: `~/.codex/AGENTS.md`, local: `./AGENTS.md`)
 
 #### `slugifyRuleName(name: string): string`
 
@@ -655,6 +655,30 @@ Implementation of the `RuleProvider` interface for Visual Studio Code.
 - **`appendFormattedRule`:** Creates individual `.instructions.md` files in the `.github/instructions/` directory using the multi-file pattern (similar to Cursor and Clinerules providers).
 - File naming follows the pattern: `{packageName}_{ruleName}.instructions.md`
 
+### src/providers/codex-provider.ts (Updated)
+
+Implementation of the `RuleProvider` interface for Codex IDE with proper `AGENTS.md` file support.
+
+#### `CodexRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `AGENTS.md` file with XML-like tagged blocks contained within a `<!-- vibe-tools Integration -->` wrapper.
+- **File Structure (Updated):** Now correctly uses `AGENTS.md` files following Codex's actual file hierarchy:
+  - **Global:** `~/.codex/AGENTS.md` - personal global guidance
+  - **Local:** `AGENTS.md` at repo root - shared project notes
+  - **Subdirectory:** Use `--target` flag for `AGENTS.md` in specific directories
+- **`saveRule`, `loadRule`, `listRules`:** Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`generateRuleContent`:** Formats rule content with metadata using `formatRuleWithMetadata`.
+- **`appendFormattedRule` (Updated):**
+  - Creates XML-like tagged blocks using `createTaggedRuleBlock` from `rule-formatter.ts`.
+  - **Integration Block Management:** When no existing `<!-- vibe-tools Integration -->` block is found:
+    - For new/empty files: Creates the integration block wrapper with the new rule inside.
+    - For files with existing content but no integration block: Wraps all existing content and the new rule within the integration block.
+  - **Rule Updating:** If a rule with the same name already exists, replaces its content.
+  - **Rule Insertion:** If an integration block exists, inserts new rules just before the closing `<!-- /vibe-tools Integration -->` tag.
+  - Ensures all rules are properly contained within the integration wrapper for consistency with expected file format.
+
 ## New Documentation Files
 
 ### UNIFIED_RULES_CONVENTION.md (Added)
@@ -788,23 +812,27 @@ The test suite has been enhanced for maximum robustness:
 - **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` block
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
-**CODEX Installation Test:** (Added)
-- **Setup:** Cleans existing `codex.md` file to ensure fresh test environment
+**CODEX Installation Test:** (Updated)
+- **Setup:** Cleans existing `AGENTS.md` file to ensure fresh test environment
 - **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
   - Executes `npm run vibe-rules install codex` to install rules from all package dependencies
 - **Validation:**
-  - Verifies `codex.md` file exists
+  - Verifies `AGENTS.md` file exists
   - Counts generated rule blocks (expects exactly 8 tagged blocks)
   - Validates XML-like tagged block structure with proper opening/closing tags
   - Confirms presence of `<!-- vibe-tools Integration -->` comment wrapper block
   - Validates rule content and metadata from both dependency packages
 
 **CODEX Format:**
-- **File Format:** All rules stored as XML-like tagged blocks within a single `codex.md` file
+- **File Format:** All rules stored as XML-like tagged blocks within a single `AGENTS.md` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
 - **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` comment block
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
+- **File Hierarchy:** Supports Codex's actual file lookup order:
+  1. `~/.codex/AGENTS.md` - personal global guidance (use `--global` flag)
+  2. `AGENTS.md` at repo root - shared project notes (default behavior)
+  3. `AGENTS.md` in current working directory - sub-folder/feature specifics (use `--target` flag)
 
 **ZED Installation Test:** (Added)
 - **Setup:** Cleans existing `.rules` file to ensure fresh test environment

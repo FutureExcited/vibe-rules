@@ -42,8 +42,8 @@ Windsurf also stores global rules in a *single markdown file* ~/.codeium/windsur
 
 [codex-rules-directory](./codex-rules-directory/) contains an example of workspace rules structure for the CODEX editor.
 
-- **Workspace rules**: Stored in a single `codex.md` file at the project root.
-- **Global rules**: Stored in a single `instructions.md` file at `~/.codex/instructions.md`.
+- **Workspace rules**: Stored in a single `AGENTS.md` file at the project root.
+- **Global rules**: Stored in a single `AGENTS.md` file at `~/.codex/AGENTS.md`.
 - **Format**: Rules are managed within XML-like tagged blocks (e.g., `<rule-name>...</rule-name>`) contained within a `<!-- vibe-tools Integration -->` comment block. The format includes human-readable metadata such as `Always Apply` and glob patterns directly within the rule content (check the [codex-rules-directory](./codex-rules-directory/) for examples).
 
 ## ZED

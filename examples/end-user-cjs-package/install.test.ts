@@ -13,7 +13,7 @@
  * - Windsurf (.windsurfrules file with tagged blocks)
  * - Clinerules (.clinerules/*.md files)
  * - Claude Code (CLAUDE.md file with tagged blocks)
- * - Codex (codex.md file with tagged blocks)
+ * - Codex (AGENTS.md file with tagged blocks)
  * - ZED (.rules file with tagged blocks)
  */
 
@@ -440,13 +440,13 @@ test("install should create rules in CLAUDE.md file", async () => {
   await $`rm -f CLAUDE.md`.quiet();
 });
 
-test("install should create rules in codex.md file", async () => {
+test("install should create rules in AGENTS.md file", async () => {
   // Import the llms modules from our dependencies
   const cjsRules = require("cjs-package/llms");
   const esmRules = await import("esm-package/llms");
 
-  // Clean up any existing codex.md file
-  await $`rm -f codex.md`.quiet();
+  // Clean up any existing AGENTS.md file
+  await $`rm -f AGENTS.md`.quiet();
   
   // Run npm install
   console.log("Running npm install...");
@@ -456,15 +456,15 @@ test("install should create rules in codex.md file", async () => {
   console.log("Running vibe-rules install codex...");
   await $`npm run vibe-rules install codex`;
   
-  // Check that codex.md file exists
-  const codexFilePath = join(process.cwd(), "codex.md");
+  // Check that AGENTS.md file exists
+  const codexFilePath = join(process.cwd(), "AGENTS.md");
   const codexFileStat = await stat(codexFilePath);
   expect(codexFileStat.isFile()).toBe(true);
   
-  // Read the codex.md file content
+  // Read the AGENTS.md file content
   const codexFileContent = await readFile(codexFilePath, 'utf-8');
   
-  console.log("Validating codex.md file content...");
+  console.log("Validating AGENTS.md file content...");
   
   // Get expected rule names from the imported modules
   const cjsRuleNames = cjsRules.map(r => r.name);
@@ -476,7 +476,7 @@ test("install should create rules in codex.md file", async () => {
   const ruleBlockPattern = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
   const ruleBlocks = codexFileContent.match(ruleBlockPattern) || [];
   
-  console.log(`Found ${ruleBlocks.length} rule blocks in codex.md file`);
+  console.log(`Found ${ruleBlocks.length} rule blocks in AGENTS.md file`);
   
   // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
   expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
@@ -514,10 +514,10 @@ test("install should create rules in codex.md file", async () => {
     }
   }
   
-  console.log("✅ All Codex assertions passed! Rules properly installed in codex.md file.");
+  console.log("✅ All Codex assertions passed! Rules properly installed in AGENTS.md file.");
   
-  // Clean up codex.md file at the end of the test
-  await $`rm -f codex.md`.quiet();
+  // Clean up AGENTS.md file at the end of the test
+  await $`rm -f AGENTS.md`.quiet();
 });
 
 test("install should create rules in .rules file", async () => {

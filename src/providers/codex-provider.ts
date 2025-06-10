@@ -87,7 +87,7 @@ export class CodexRuleProvider implements RuleProvider {
    * Formats and applies a rule directly from a RuleConfig object using XML-like tags.
    * If a rule with the same name (tag) already exists, its content is updated.
    * @param config - The rule configuration to apply.
-   * @param targetPath - The target file path (e.g., ~/.codex/instructions.md or ./codex.md).
+   * @param targetPath - The target file path (e.g., ~/.codex/AGENTS.md or ./AGENTS.md).
    * @param isGlobal - Unused by this method but kept for interface compatibility.
    * @param options - Additional options like description, alwaysApply, globs.
    * @returns True on success, false on failure.

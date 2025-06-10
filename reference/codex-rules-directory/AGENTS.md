@@ -1,6 +1,13 @@
-# CODEX Configuration
+# CODEX Agent Configuration
 
 This file demonstrates how `vibe-rules` formats and manages rules for the CODEX editor. Rules are stored as XML-like tagged blocks within a `<vibe-tools Integration>` section.
+
+## Codex File Hierarchy
+
+Codex looks for AGENTS.md files in the following places and merges them top-down:
+1. `~/.codex/AGENTS.md` - personal global guidance (use `--global` flag)
+2. `AGENTS.md` at repo root - shared project notes (default behavior)
+3. `AGENTS.md` in current working directory - sub-folder/feature specifics (use `--target` flag)
 
 ## Custom Project Rules
 
@@ -76,7 +83,12 @@ Architecture principles:
 
 ## Additional Notes
 
-The CODEX editor reads rules from this `codex.md` file in the project root, or from the global `~/.codex/instructions.md` file. Rules managed by `vibe-rules` are contained within the `<!-- vibe-tools Integration -->` comment block to distinguish them from manually added rules.
+The CODEX editor reads agent instructions from `AGENTS.md` files. The hierarchy allows for flexible configuration:
+- Global rules apply to all projects
+- Project-root rules apply to the entire project  
+- Directory-specific rules apply to current working directory contexts
+
+Rules managed by `vibe-rules` are contained within the `<!-- vibe-tools Integration -->` comment block to distinguish them from manually added rules.
 
 Rules can include metadata such as:
 - **Always Apply**: Whether the rule should be automatically applied to all relevant contexts
@@ -85,4 +97,6 @@ Rules can include metadata such as:
 Use `vibe-rules` commands to manage these rules:
 - `vibe-rules save my-rule -f ./my-rule.md` - Save a rule to local storage
 - `vibe-rules load my-rule codex` - Apply a saved rule to this file
+- `vibe-rules load my-rule codex --global` - Apply to global `~/.codex/AGENTS.md`
+- `vibe-rules load my-rule codex --target ./subdir/AGENTS.md` - Apply to specific directory
 - `vibe-rules install codex` - Install rules from NPM packages with `llms` exports 

@@ -61,10 +61,10 @@ export function getRulePath(
         ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
         : path.join(projectRoot, "CLAUDE.md");
     case RuleType.CODEX:
-      // Codex uses instructions.md (global) or codex.md (local)
+      // Codex uses AGENTS.md (global) or AGENTS.md (local)
       return isGlobal
-        ? path.join(CODEX_HOME_DIR, "instructions.md")
-        : path.join(projectRoot, "codex.md");
+        ? path.join(CODEX_HOME_DIR, "AGENTS.md")
+        : path.join(projectRoot, "AGENTS.md");
     case RuleType.CLINERULES:
     case RuleType.ROO:
       // Cline/Roo rules are project-local files in .clinerules/
@@ -119,7 +119,7 @@ export function getDefaultTargetPath(
       // Default target depends on global hint
       return isGlobalHint
         ? CODEX_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local codex.md)
+        : process.cwd(); // Project root (for local AGENTS.md)
     case RuleType.CLINERULES:
     case RuleType.ROO:
       // Default target is the .clinerules directory
@@ -194,8 +194,8 @@ export async function editorConfigExists(
       break;
     case RuleType.CODEX:
       checkPath = isGlobal
-        ? path.join(CODEX_HOME_DIR, "instructions.md")
-        : path.join(projectRoot, "codex.md");
+        ? path.join(CODEX_HOME_DIR, "AGENTS.md")
+        : path.join(projectRoot, "AGENTS.md");
       break;
     default:
       return false; // Unknown or unsupported for this check

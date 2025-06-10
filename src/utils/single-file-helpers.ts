@@ -102,13 +102,15 @@ export async function appendOrUpdateTaggedBlock(
       debugLog(
         `Appending new block for rule "${config.name}" to ${targetPath}`
       );
-      
+
       // Check for comment-style integration blocks
       const commentIntegrationEndTag = "<!-- /vibe-tools Integration -->";
-      
-      const commentEndIndex = currentContent.lastIndexOf(commentIntegrationEndTag);
-      
-            let integrationEndIndex = -1;
+
+      const commentEndIndex = currentContent.lastIndexOf(
+        commentIntegrationEndTag
+      );
+
+      let integrationEndIndex = -1;
       let integrationStartTag = "";
 
       if (commentEndIndex !== -1) {
@@ -131,9 +133,15 @@ export async function appendOrUpdateTaggedBlock(
         const separator = currentContent.trim().length > 0 ? "\n\n" : "";
         const startTag = "<!-- vibe-tools Integration -->";
         const endTag = "<!-- /vibe-tools Integration -->";
-        
-        updatedContent = currentContent.trimEnd() + separator + 
-          startTag + "\n\n" + newBlock + "\n\n" + endTag;
+
+        updatedContent =
+          currentContent.trimEnd() +
+          separator +
+          startTag +
+          "\n\n" +
+          newBlock +
+          "\n\n" +
+          endTag;
         debugLog(`Created new ${startTag} block with rule.`);
       } else {
         // Append to the end
