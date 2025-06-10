@@ -47,7 +47,7 @@ export class ZedRuleProvider implements RuleProvider {
     options?: RuleGeneratorOptions
   ): Promise<boolean> {
     // Zed .rules files are at the root of the worktree, so isGlobal is likely false.
-    // We don't append inside a specific <vibe-tools Integration> block by default for .rules
+    // We don't append inside a specific <vibe-rules Integration> block by default for .rules
     return appendOrUpdateTaggedBlock(targetPath, config, options, false);
   }
 }

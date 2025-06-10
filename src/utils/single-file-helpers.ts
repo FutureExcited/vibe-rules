@@ -15,14 +15,14 @@ import { debugLog } from "../cli.js";
  * @param targetPath The path to the target file.
  * @param config The rule configuration.
  * @param options Optional generator options.
- * @param appendInsideVibeToolsBlock If true, tries to append within <vibe-tools Integration> block.
+ * @param appendInsideVibeRulesBlock If true, tries to append within <vibe-rules Integration> block.
  * @returns Promise resolving to true if successful, false otherwise.
  */
 export async function appendOrUpdateTaggedBlock(
   targetPath: string,
   config: RuleConfig,
   options?: RuleGeneratorOptions,
-  appendInsideVibeToolsBlock: boolean = false
+  appendInsideVibeRulesBlock: boolean = false
 ): Promise<boolean> {
   try {
     // Ensure the PARENT directory exists, but only if it's not the current directory itself.
@@ -97,7 +97,7 @@ export async function appendOrUpdateTaggedBlock(
       debugLog(`Appending new block for rule "${config.name}" to ${targetPath}`);
 
       // Check for comment-style integration blocks
-      const commentIntegrationEndTag = "<!-- /vibe-tools Integration -->";
+      const commentIntegrationEndTag = "<!-- /vibe-rules Integration -->";
 
       const commentEndIndex = currentContent.lastIndexOf(commentIntegrationEndTag);
 
@@ -106,11 +106,11 @@ export async function appendOrUpdateTaggedBlock(
 
       if (commentEndIndex !== -1) {
         integrationEndIndex = commentEndIndex;
-        integrationStartTag = "<!-- vibe-tools Integration -->";
+        integrationStartTag = "<!-- vibe-rules Integration -->";
       }
 
-      if (appendInsideVibeToolsBlock && integrationEndIndex !== -1) {
-        // Append inside the vibe-tools block if requested and found
+      if (appendInsideVibeRulesBlock && integrationEndIndex !== -1) {
+        // Append inside the vibe-rules block if requested and found
         const insertionPoint = integrationEndIndex;
         updatedContent =
           currentContent.slice(0, insertionPoint).trimEnd() +
@@ -119,11 +119,11 @@ export async function appendOrUpdateTaggedBlock(
           "\n\n" + // Ensure separation
           currentContent.slice(insertionPoint);
         debugLog(`Appending rule inside ${integrationStartTag} block.`);
-      } else if (appendInsideVibeToolsBlock && integrationEndIndex === -1) {
+      } else if (appendInsideVibeRulesBlock && integrationEndIndex === -1) {
         // Create the integration block if it doesn't exist and we want to append inside it
         const separator = currentContent.trim().length > 0 ? "\n\n" : "";
-        const startTag = "<!-- vibe-tools Integration -->";
-        const endTag = "<!-- /vibe-tools Integration -->";
+        const startTag = "<!-- vibe-rules Integration -->";
+        const endTag = "<!-- /vibe-rules Integration -->";
 
         updatedContent =
           currentContent.trimEnd() + separator + startTag + "\n\n" + newBlock + "\n\n" + endTag;
@@ -132,8 +132,8 @@ export async function appendOrUpdateTaggedBlock(
         // Append to the end
         const separator = currentContent.trim().length > 0 ? "\n\n" : ""; // Add separator if file not empty
         updatedContent = currentContent.trimEnd() + separator + newBlock;
-        if (appendInsideVibeToolsBlock) {
-          debugLog(`Could not find vibe-tools Integration block, appending rule to the end.`);
+        if (appendInsideVibeRulesBlock) {
+          debugLog(`Could not find vibe-rules Integration block, appending rule to the end.`);
         }
       }
     }

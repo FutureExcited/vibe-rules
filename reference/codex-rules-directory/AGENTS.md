@@ -1,6 +1,6 @@
 # CODEX Agent Configuration
 
-This file demonstrates how `vibe-rules` formats and manages rules for the CODEX editor. Rules are stored as XML-like tagged blocks within a `<vibe-tools Integration>` section.
+This file demonstrates how `vibe-rules` formats and manages rules for the CODEX editor. Rules are stored as XML-like tagged blocks within a `<vibe-rules Integration>` section.
 
 ## Codex File Hierarchy
 
@@ -16,7 +16,7 @@ Add your custom CODEX rules here...
 
 ## Rule Examples
 
-<!-- vibe-tools Integration -->
+<!-- vibe-rules Integration -->
 <react-component-patterns>
 React Component Development Guidelines
 
@@ -84,7 +84,7 @@ Architecture principles:
 7. Use TypeScript interfaces to define contracts
 8. Follow consistent naming conventions
 </architecture-patterns>
-<!-- /vibe-tools Integration -->
+<!-- /vibe-rules Integration -->
 
 ## Additional Notes
 
@@ -94,7 +94,7 @@ The CODEX editor reads agent instructions from `AGENTS.md` files. The hierarchy 
 - Project-root rules apply to the entire project
 - Directory-specific rules apply to current working directory contexts
 
-Rules managed by `vibe-rules` are contained within the `<!-- vibe-tools Integration -->` comment block to distinguish them from manually added rules.
+Rules managed by `vibe-rules` are contained within the `<!-- vibe-rules Integration -->` comment block to distinguish them from manually added rules.
 
 Rules can include metadata such as:
 

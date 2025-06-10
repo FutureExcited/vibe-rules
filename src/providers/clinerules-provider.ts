@@ -11,25 +11,25 @@ import chalk from "chalk";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 // Helper function specifically for clinerules/roo setup
-// Focuses on the directory structure: .clinerules/vibe-tools.md
+// Focuses on the directory structure: .clinerules/vibe-rules.md
 async function setupClinerulesDirectory(
   clinerulesDirPath: string,
   rulesContent: string
 ): Promise<void> {
   await fs.ensureDir(clinerulesDirPath); // Ensure the .clinerules directory exists
 
-  const vibeToolsRulePath = path.join(clinerulesDirPath, "vibe-tools.md");
+  const vibeRulesRulePath = path.join(clinerulesDirPath, "vibe-rules.md");
   const rulesTemplate = rulesContent.replace(/\r\n/g, "\n").trim();
 
-  // Wrap content with <!-- vibe-tools --> tags if not already present
-  const startTag = "<!-- vibe-tools Integration -->";
-  const endTag = "<!-- /vibe-tools Integration -->";
+  // Wrap content with <!-- vibe-rules --> tags if not already present
+  const startTag = "<!-- vibe-rules Integration -->";
+  const endTag = "<!-- /vibe-rules Integration -->";
   let contentToWrite = rulesTemplate;
   if (!contentToWrite.includes(startTag)) {
     contentToWrite = `${startTag}\n${rulesTemplate}\n${endTag}`;
   }
 
-  await writeFile(vibeToolsRulePath, contentToWrite + "\n");
+  await writeFile(vibeRulesRulePath, contentToWrite + "\n");
 }
 
 export class ClinerulesRuleProvider implements RuleProvider {
@@ -69,7 +69,7 @@ export class ClinerulesRuleProvider implements RuleProvider {
   }
 
   /**
-   * Applies a rule by setting up the .clinerules/vibe-tools.md structure.
+   * Applies a rule by setting up the .clinerules/vibe-rules.md structure.
    * Always targets the project-local .clinerules directory.
    */
   async appendRule(

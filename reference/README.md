@@ -20,7 +20,7 @@ Claude Code uses a single file for all rules:
 
 - **Project rules**: Stored in `./CLAUDE.md` file in project root
 - **Global rules**: Stored in `~/.claude/CLAUDE.md` file (applies across all projects)
-- **Format**: Single markdown file with XML-like tagged blocks. When using vibe-rules, each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` block for organization.
+- **Format**: Single markdown file with XML-like tagged blocks. When using vibe-rules, each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) within a `<!-- vibe-rules Integration -->...<!-- /vibe-rules Integration -->` block for organization.
 
 ## Windsurf
 
@@ -46,7 +46,7 @@ Windsurf also stores global rules in a _single markdown file_ ~/.codeium/windsur
 
 - **Workspace rules**: Stored in a single `AGENTS.md` file at the project root.
 - **Global rules**: Stored in a single `AGENTS.md` file at `~/.codex/AGENTS.md`.
-- **Format**: Rules are managed within XML-like tagged blocks (e.g., `<rule-name>...</rule-name>`) contained within a `<!-- vibe-tools Integration -->` comment block. The format includes human-readable metadata such as `Always Apply` and glob patterns directly within the rule content (check the [codex-rules-directory](./codex-rules-directory/) for examples).
+- **Format**: Rules are managed within XML-like tagged blocks (e.g., `<rule-name>...</rule-name>`) contained within a `<!-- vibe-rules Integration -->` comment block. The format includes human-readable metadata such as `Always Apply` and glob patterns directly within the rule content (check the [codex-rules-directory](./codex-rules-directory/) for examples).
 
 ## ZED
 

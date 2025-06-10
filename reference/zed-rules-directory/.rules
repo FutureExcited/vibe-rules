@@ -1,6 +1,6 @@
 # ZED Editor AI Rules
 
-This file contains AI rules for ZED editor. Rules are managed by vibe-tools and stored in XML-like tagged blocks.
+This file contains AI rules for ZED editor. Rules are managed by vibe-rules and stored in XML-like tagged blocks.
 
 <always-on>
 Always Apply: true - This rule should ALWAYS be applied by the AI
@@ -29,9 +29,10 @@ do this when the description matches the current task
 React Component Development Guidelines
 
 Always Apply: true
-Globs: src/components/**/*.tsx, src/components/**/*.jsx
+Globs: src/components/**/\*.tsx, src/components/**/\*.jsx
 
 When creating React components:
+
 1. Use functional components with hooks instead of class components
 2. Implement proper TypeScript interfaces for props
 3. Use descriptive component and prop names
@@ -39,15 +40,16 @@ When creating React components:
 5. Add proper JSDoc comments for complex components
 6. Use React.memo() for performance optimization when appropriate
 7. Implement proper error boundaries for critical components
-</react-component-patterns>
+   </react-component-patterns>
 
 <api-design-patterns>
 API Development Best Practices
 
 Always Apply: false
-Globs: src/api/**/*.ts, src/routes/**/*.ts
+Globs: src/api/**/\*.ts, src/routes/**/\*.ts
 
 For API development:
+
 1. Use consistent REST conventions (GET, POST, PUT, DELETE)
 2. Implement proper error handling with meaningful HTTP status codes
 3. Use middleware for authentication and validation
@@ -55,7 +57,7 @@ For API development:
 5. Implement rate limiting and request validation
 6. Use proper TypeScript types for request/response objects
 7. Add comprehensive logging for debugging
-</api-design-patterns>
+   </api-design-patterns>
 
 <testing-guidelines>
 Testing and Quality Assurance
@@ -63,6 +65,7 @@ Testing and Quality Assurance
 Always Apply: true
 
 Testing best practices:
+
 1. Write unit tests for all business logic functions
 2. Use integration tests for API endpoints
 3. Implement end-to-end tests for critical user flows
@@ -71,14 +74,15 @@ Testing best practices:
 6. Mock external dependencies appropriately
 7. Test both success and error cases
 8. Use factories or fixtures for test data setup
-</testing-guidelines>
+   </testing-guidelines>
 
 <architecture-patterns>
 Software Architecture Guidelines
 
-Globs: src/models/**/*.ts, src/services/**/*.ts, src/utils/**/*.ts
+Globs: src/models/**/\*.ts, src/services/**/_.ts, src/utils/\*\*/_.ts
 
 Architecture principles:
+
 1. Follow SOLID principles in class design
 2. Use dependency injection for better testability
 3. Implement proper separation of concerns
@@ -87,4 +91,4 @@ Architecture principles:
 6. Implement proper error handling and logging
 7. Use TypeScript interfaces to define contracts
 8. Follow consistent naming conventions
-</architecture-patterns> 
+   </architecture-patterns>

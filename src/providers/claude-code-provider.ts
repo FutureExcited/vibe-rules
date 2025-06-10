@@ -12,7 +12,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
 
   /**
    * Generates formatted content for Claude Code including metadata.
-   * This content is intended to be placed within the <!-- vibe-tools Integration --> block.
+   * This content is intended to be placed within the <!-- vibe-rules Integration --> block.
    */
   generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     // Format the content with metadata
@@ -46,7 +46,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
   }
 
   /**
-   * Applies a rule by updating the <vibe-tools> section in the target CLAUDE.md.
+   * Applies a rule by updating the <vibe-rules> section in the target CLAUDE.md.
    * If targetPath is omitted, it determines local vs global based on isGlobal option.
    */
   async appendRule(
@@ -102,9 +102,9 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
       updatedContent = fileContent.replace(regex, newBlock);
     } else {
       // Rule doesn't exist, append it
-      // Attempt to append within <!-- vibe-tools Integration --> if possible
-      const integrationStartTag = "<!-- vibe-tools Integration -->";
-      const integrationEndTag = "<!-- /vibe-tools Integration -->";
+      // Attempt to append within <!-- vibe-rules Integration --> if possible
+      const integrationStartTag = "<!-- vibe-rules Integration -->";
+      const integrationEndTag = "<!-- /vibe-rules Integration -->";
       const startIndex = fileContent.indexOf(integrationStartTag);
       const endIndex = fileContent.indexOf(integrationEndTag);
 
@@ -119,13 +119,13 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
         const after = fileContent.slice(insertionPoint);
         updatedContent = `${before.trimEnd()}\n\n${newBlock}\n\n${after.trimStart()}`;
       } else {
-        // Create the vibe-tools Integration block if it doesn't exist
+        // Create the vibe-rules Integration block if it doesn't exist
         if (fileContent.trim().length > 0) {
           // File has content but no integration block, wrap everything
-          updatedContent = `<!-- vibe-tools Integration -->\n\n${fileContent.trim()}\n\n${newBlock}\n\n<!-- /vibe-tools Integration -->`;
+          updatedContent = `<!-- vibe-rules Integration -->\n\n${fileContent.trim()}\n\n${newBlock}\n\n<!-- /vibe-rules Integration -->`;
         } else {
           // New/empty file, create integration block with the new rule
-          updatedContent = `<!-- vibe-tools Integration -->\n\n${newBlock}\n\n<!-- /vibe-tools Integration -->`;
+          updatedContent = `<!-- vibe-rules Integration -->\n\n${newBlock}\n\n<!-- /vibe-rules Integration -->`;
         }
       }
     }

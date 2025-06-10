@@ -405,9 +405,9 @@ test("install should create rules in CLAUDE.md file", async () => {
   // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
   expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
 
-  // Check for vibe-tools Integration block
-  expect(claudeFileContent).toContain("<!-- vibe-tools Integration -->");
-  expect(claudeFileContent).toContain("<!-- /vibe-tools Integration -->");
+  // Check for vibe-rules Integration block
+  expect(claudeFileContent).toContain("<!-- vibe-rules Integration -->");
+  expect(claudeFileContent).toContain("<!-- /vibe-rules Integration -->");
 
   // Validate that rules from both packages are present
   for (const rule of expectedRules) {
@@ -485,9 +485,9 @@ test("install should create rules in AGENTS.md file", async () => {
   // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
   expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
 
-  // Check for vibe-tools Integration block
-  expect(codexFileContent).toContain("<!-- vibe-tools Integration -->");
-  expect(codexFileContent).toContain("<!-- /vibe-tools Integration -->");
+  // Check for vibe-rules Integration block
+  expect(codexFileContent).toContain("<!-- vibe-rules Integration -->");
+  expect(codexFileContent).toContain("<!-- /vibe-rules Integration -->");
 
   // Validate that rules from both packages are present
   for (const rule of expectedRules) {

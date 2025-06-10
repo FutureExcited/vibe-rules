@@ -167,11 +167,11 @@ Options:
 - **Windsurf (`windsurf`)**:
   - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
 - **Claude Code (`claude-code`)**:
-  - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-tools Integration -->` section in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+  - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-rules Integration -->` section in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Codex (`codex`)**:
-  - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-tools Integration -->` section in `./AGENTS.md` (local) or `~/.codex/AGENTS.md` (global).
+  - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-rules Integration -->` section in `./AGENTS.md` (local) or `~/.codex/AGENTS.md` (global).
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
   - **Codex File Hierarchy**: Codex looks for `AGENTS.md` files in this order: `~/.codex/AGENTS.md` (global), `AGENTS.md` at repo root (default), and `AGENTS.md` in current working directory (use `--target` for subdirectories).

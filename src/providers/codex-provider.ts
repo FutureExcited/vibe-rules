@@ -78,12 +78,12 @@ export class CodexRuleProvider implements RuleProvider {
     isGlobal?: boolean | undefined,
     options?: RuleGeneratorOptions | undefined
   ): Promise<boolean> {
-    // Delegate to the shared helper, ensuring insertion within <vibe-tools>
+    // Delegate to the shared helper, ensuring insertion within <vibe-rules>
     return appendOrUpdateTaggedBlock(
       targetPath,
       config,
       options,
-      true // Append inside <vibe-tools Integration>
+      true // Append inside <vibe-rules Integration>
     );
   }
 }
