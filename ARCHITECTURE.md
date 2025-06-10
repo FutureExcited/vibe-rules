@@ -243,10 +243,13 @@ It handles parsing of command-line arguments, options, and delegates the executi
 
 #### Helper Functions (Internal to cli.ts)
 
-- `installRule(ruleConfig: RuleConfig): Promise<void>`
-  - Validates a `RuleConfig` object against `RuleConfigSchema`.
-  - Saves the rule content to the common internal storage (`~/.vibe-rules/rules/<name>.txt`).
-  - Handles errors during validation or saving.
+- `saveRule(ruleConfig: RuleConfig, fileContent?: string): Promise<void>` (Added)
+  - Enhanced version of the previous `installRule` function with metadata extraction support.
+  - **Frontmatter Parsing**: When `fileContent` is provided (from `--file` option), extracts metadata from YAML-like frontmatter using `parseFrontmatter` utility.
+  - **Metadata Extraction**: Extracts `description`, `alwaysApply`, and `globs` from frontmatter and stores them separately from content.
+  - **JSON Storage**: Uses `saveCommonRule` to store rules as JSON files with metadata instead of plain .txt files.
+  - **User Feedback**: Provides detailed output showing extracted metadata (alwaysApply, globs) when saving .mdc files.
+  - **Content Separation**: Automatically separates frontmatter from content, storing only the content body in the rule.
 - `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean; target?: string }): Promise<void>` (Added)
   - Clears previously installed rule files associated with a specific NPM package before installing new ones.
   - Determines the target directory based on `editorType` and `options`.
@@ -260,17 +263,26 @@ It handles parsing of command-line arguments, options, and delegates the executi
 
 #### Commands
 
-- `save <name> [options]`
-  - Saves a rule to the local store (`~/.vibe-rules/rules/<name>.txt`).
-  - Uses the `installRule` helper function.
-- `list`
+- `save <name> [options]` (Enhanced)
+  - Saves a rule to the local store with enhanced metadata support.
+  - **Metadata Extraction**: When using `--file` with .mdc files, automatically extracts and stores metadata (description, alwaysApply, globs) from YAML frontmatter.
+  - **JSON Storage**: Rules are now saved as `<name>.json` files in `~/.vibe-rules/rules/` with structured metadata.
+  - **Backward Compatibility**: Still supports simple content and description options for rules without metadata.
+  - Uses the `saveRule` helper function with automatic frontmatter parsing.
+- `list` (Enhanced)
   - Lists all rules saved in the common local store (`~/.vibe-rules/rules`).
-- `load <name> <editor> [options]` (Alias: `add`)
-  - Applies a saved rule to a specific editor's configuration file.
-  - Loads the rule content from the common store.
-  - Determines the target file path based on editor type, options (`-g, --global`, `-t, --target`), and context.
-  - Uses the appropriate `RuleProvider` to format and apply the rule (`appendFormattedRule`).
-  - Suggests similar rule names if the requested rule is not found.
+  - **Dual Format Support**: Now lists both new JSON rules and legacy .txt rules in a unified display.
+  - Uses `listCommonRules` utility function for improved compatibility.
+- `load <name> <editor> [options]` (Alias: `add`) (Enhanced)
+  - Applies a saved rule to a specific editor's configuration file with automatic metadata application.
+  - **Metadata Loading**: Automatically loads and applies stored metadata (alwaysApply, globs) when available.
+  - **Cross-Editor Compatibility**: Stored metadata is automatically adapted to each editor's format:
+    - **Cursor**: Applied as YAML frontmatter in .mdc files
+    - **VSCode**: Description applied, globs ignored due to VSCode limitations
+    - **Single-file providers** (Windsurf, Zed, etc.): Converted to human-readable text
+  - **Backward Compatibility**: Gracefully handles legacy .txt files without metadata.
+  - **Metadata Display**: Shows applied metadata in console output for user confirmation.
+  - Uses `loadCommonRule` for enhanced rule loading with automatic fallback.
 - `install <editor> [packageName] [options]`
   - Defines the CLI options and arguments for the install command.
   - Delegates the action to `installCommandAction` from `src/commands/install.ts`.
@@ -278,6 +290,56 @@ It handles parsing of command-line arguments, options, and delegates the executi
 ### src/commands/install.ts (Added)
 
 Contains the action handler for the `vibe-rules install` command and handles the complex module loading requirements for both CommonJS and ES modules.
+
+### src/commands/save.ts (Added)
+
+Contains the action handler for the `vibe-rules save` command with enhanced metadata extraction and storage capabilities.
+
+#### Functions
+
+- `saveCommandAction(name: string, options: { content?: string; file?: string; description?: string }): Promise<void>` (Exported)
+  - Main handler for the `save` command.
+  - Supports saving rules from either `--content` or `--file` options.
+  - Automatically extracts metadata from .mdc files when using `--file`.
+  - Delegates to `saveRule` helper function for actual processing.
+- `extractMetadata(fileContent: string, ruleConfig: RuleConfig): { metadata: RuleGeneratorOptions; content: string }`
+  - Extracts metadata from YAML frontmatter in file content.
+  - Updates rule config with extracted description if not already set.
+  - Returns both extracted metadata and clean content (without frontmatter).
+- `displayMetadata(metadata: RuleGeneratorOptions): void`
+  - Displays extracted metadata in console output for user feedback.
+  - Shows alwaysApply and globs information when available.
+- `saveRule(ruleConfig: RuleConfig, fileContent?: string): Promise<void>`
+  - Helper function that handles the actual rule saving with metadata support.
+  - Uses `saveCommonRule` to store rules as JSON with metadata.
+  - Provides detailed console feedback about saved metadata.
+
+### src/commands/load.ts (Added)
+
+Contains the action handler for the `vibe-rules load` command with automatic metadata application across editors.
+
+#### Functions
+
+- `loadCommandAction(name: string, editor: string, options: { global?: boolean; target?: string }): Promise<void>` (Exported)
+  - Main handler for the `load` command.
+  - Uses `loadCommonRule` to load rules with metadata support.
+  - Automatically applies stored metadata to the target editor format.
+  - Provides user feedback showing applied metadata.
+  - Supports similar rule suggestions when rule is not found.
+- `displayAppliedMetadata(metadata: RuleGeneratorOptions): void`
+  - Displays applied metadata information in console output.
+  - Shows which metadata was applied to the target editor.
+
+### src/commands/list.ts (Added)
+
+Contains the action handler for the `vibe-rules list` command with unified rule listing support.
+
+#### Functions
+
+- `listCommandAction(): Promise<void>` (Exported)
+  - Main handler for the `list` command.
+  - Uses `listCommonRules` to list both JSON and legacy .txt rules.
+  - Provides unified display of all available rules regardless of storage format.
 
 #### Dependencies
 
@@ -333,6 +395,16 @@ Defines the core types and interfaces used throughout the application.
   - `content`: string - The content of the rule
   - `description?`: string - Optional description
 
+#### `StoredRuleConfig` (Added)
+
+- **Enhanced Interface**: Extended interface for storing rules locally with metadata
+- Properties:
+  - `name`: string - The name of the rule
+  - `content`: string - The content of the rule
+  - `description?`: string - Optional description
+  - `metadata?`: RuleGeneratorOptions - Optional metadata including alwaysApply, globs, etc.
+- **Purpose**: Used for the new JSON-based local storage format that preserves metadata from .mdc files
+
 #### `RuleType`
 
 - Enum defining supported editor types
@@ -345,6 +417,7 @@ Defines the core types and interfaces used throughout the application.
   - `ROO`: "roo" - Alias for CLINERULES
   - `ZED`: "zed" - For Zed editor
   - `UNIFIED`: "unified" - For the unified `.rules` file convention (Added)
+  - `VSCODE`: "vscode" - For Visual Studio Code (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
@@ -355,7 +428,7 @@ Defines the core types and interfaces used throughout the application.
   - `loadRule(name: string): Promise<RuleConfig | null>` - Loads a rule definition by name
   - `listRules(): Promise<string[]>` - Lists all available rule definitions
   - `appendRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean>` - Loads a rule definition and applies it to a target file/directory, considering global/local context
-  - `appendFormattedRule(config: RuleConfig, targetPath: string, isGlobal?: boolean): Promise<boolean>` - Formats and applies a rule definition directly
+  - `appendFormattedRule(config: RuleConfig, targetPath: string, isGlobal?: boolean, options?: RuleGeneratorOptions): Promise<boolean>` - Formats and applies a rule definition directly
   - `generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string` - Generates formatted rule content suitable for the specific provider/IDE
 
 #### `RuleGeneratorOptions`
@@ -366,6 +439,7 @@ Defines the core types and interfaces used throughout the application.
   - `isGlobal?`: boolean - Hint for providers supporting global/local paths (e.g., Claude, Codex)
   - `alwaysApply?`: boolean - Cursor-specific metadata.
   - `globs?`: string | string[] - Cursor-specific metadata.
+  - `debug?`: boolean - Debug logging flag
 
 ### src/schemas.ts (Added)
 
@@ -376,6 +450,27 @@ Defines Zod schemas for validating rule configurations.
 - Zod schema corresponding to the `RuleConfig` interface.
 - Validates `name` (non-empty string), `content` (non-empty string), and optional `description` (string).
 - Used by the `save` command and potentially internally.
+
+#### `RuleGeneratorOptionsSchema` (Added)
+
+- **Metadata Validation**: Zod schema for validating rule metadata and generator options.
+- **Properties**: Validates all optional properties:
+  - `description?: string` - Optional description override
+  - `isGlobal?: boolean` - Global context flag
+  - `alwaysApply?: boolean` - Cursor-specific always-apply setting
+  - `globs?: string | string[]` - File glob patterns (string or array of strings)
+  - `debug?: boolean` - Debug logging flag
+- **Optional Schema**: The entire schema is wrapped as optional to allow rules without metadata.
+
+#### `StoredRuleConfigSchema` (Added)
+
+- **Enhanced Validation**: Zod schema for the new JSON storage format with metadata support.
+- **Properties**:
+  - `name`: string (non-empty, required)
+  - `content`: string (non-empty, required)
+  - `description?: string` (optional)
+  - `metadata?: RuleGeneratorOptionsSchema` (optional, uses the metadata schema above)
+- **Purpose**: Validates the structure of JSON files saved by the new metadata storage system.
 
 #### `PackageRuleObjectSchema` (Added)
 
@@ -471,6 +566,31 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
 - Parameters:
   - `name`: The rule name to convert
 - Returns: A slug-formatted string
+
+### src/utils/frontmatter.ts (Added)
+
+Provides utilities for parsing YAML-like frontmatter from .mdc files without external dependencies.
+
+#### `ParsedContent` (interface)
+
+- Interface for the result of frontmatter parsing
+- Properties:
+  - `frontmatter`: Record<string, any> - Parsed metadata object
+  - `content`: string - Content body without frontmatter
+
+#### `parseFrontmatter(input: string): ParsedContent`
+
+- **Simple YAML Parser**: Parses YAML-like frontmatter without external dependencies, specifically designed for .mdc files.
+- **Frontmatter Detection**: Detects content starting and ending with `---` delimiters.
+- **Value Type Parsing**: Automatically converts values to appropriate types:
+  - Booleans: `true`/`false` → boolean values
+  - Numbers: Integers and floats → numeric values
+  - Arrays: `[item1, item2]` → array values (supports quoted and unquoted items)
+  - Strings: Quoted and unquoted strings → string values
+  - Empty/null values are skipped instead of set to null (prevents schema validation issues)
+- **Content Separation**: Returns clean content body with frontmatter completely removed and leading newlines trimmed.
+- **Error Handling**: Gracefully handles malformed frontmatter by treating content as plain text.
+- **Cursor Compatibility**: Specifically designed to parse Cursor .mdc file frontmatter including `description`, `alwaysApply`, and `globs` fields.
 
 ### src/utils/similarity.ts
 
@@ -568,6 +688,33 @@ Provides utility functions for interacting with the internal rule definition sto
 
 - Lists the names of all rules (.txt files) stored internally for the given `ruleType`.
 - Returns an array of rule names (filenames without the .txt extension).
+
+#### Common Rule Storage Functions (for user-saved rules with metadata)
+
+#### `saveCommonRule(config: StoredRuleConfig): Promise<string>` (Added)
+
+- **Enhanced Storage**: Saves rules with metadata to the common storage (`~/.vibe-rules/rules/<name>.json`).
+- **JSON Format**: Stores rules as structured JSON files instead of plain text.
+- **Metadata Support**: Preserves metadata like `alwaysApply`, `globs`, and `description` alongside content.
+- **Validation**: Validates the configuration against `StoredRuleConfigSchema` before saving.
+- **Directory Creation**: Automatically ensures the common rules directory exists.
+- Returns the full path where the rule was saved.
+
+#### `loadCommonRule(name: string): Promise<StoredRuleConfig | null>` (Added)
+
+- **Dual Format Support**: Loads rules from either new JSON format or legacy .txt format.
+- **Automatic Fallback**: First tries to load `<name>.json`, then falls back to `<name>.txt` for backward compatibility.
+- **Metadata Preservation**: When loading JSON files, preserves all stored metadata.
+- **Legacy Compatibility**: When loading .txt files, returns them as `StoredRuleConfig` with empty metadata.
+- **Error Handling**: Gracefully handles parsing errors and file access issues.
+- Returns a `StoredRuleConfig` object if found, otherwise returns `null`.
+
+#### `listCommonRules(): Promise<string[]>` (Added)
+
+- **Unified Listing**: Lists rules from both JSON and legacy .txt formats in a single array.
+- **Deduplication**: Uses a Set to ensure rule names appear only once even if both .json and .txt versions exist.
+- **Backward Compatibility**: Seamlessly handles mixed storage formats in the same directory.
+- Returns an array of unique rule names available in the common storage.
 
 ### src/providers/index.ts
 

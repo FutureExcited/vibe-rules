@@ -9,6 +9,14 @@ export interface RuleConfig {
   // Additional properties can be added as needed
 }
 
+// Extended interface for storing rules locally with metadata
+export interface StoredRuleConfig {
+  name: string;
+  content: string;
+  description?: string;
+  metadata?: RuleGeneratorOptions;
+}
+
 export const RuleType = {
   CURSOR: "cursor",
   WINDSURF: "windsurf",
