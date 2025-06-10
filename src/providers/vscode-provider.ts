@@ -1,34 +1,19 @@
 import * as path from "path";
 import { writeFile } from "fs/promises";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types.js";
-import {
-  getRulePath,
-  ensureDirectoryExists,
-} from "../utils/path.js";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
+import { getRulePath, ensureDirectoryExists } from "../utils/path.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 //vs code bugged for 2+ globs...
 
 export class VSCodeRuleProvider implements RuleProvider {
   /**
    * Generate VSCode instruction content with frontmatter
-   * 
+   *
    * NOTE: VSCode has a bug where multiple globs in applyTo don't work properly,
    * so we always use "**" to apply rules universally for better reliability.
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     // VSCode Bug Workaround: Always use "**" because VSCode's applyTo field
     // doesn't properly handle multiple globs or complex glob patterns.
     // This ensures rules work consistently across all files.
@@ -39,21 +24,21 @@ export class VSCodeRuleProvider implements RuleProvider {
 
     // Start with the original rule content
     let content = config.content;
-    
+
     // Add name and description in content if available
     let contentPrefix = "";
-    
+
     // Extract original rule name from prefixed config.name (remove package prefix)
     let displayName = config.name;
     if (displayName.includes("_")) {
       displayName = displayName.split("_").slice(1).join("_");
     }
-    
+
     // Add name as heading if not already present in content
     if (displayName && !content.includes(`# ${displayName}`)) {
       contentPrefix += `# ${displayName}\n`;
     }
-    
+
     // Add description if provided
     if (options?.description ?? config.description) {
       contentPrefix += `## ${options?.description ?? config.description}\n\n`;
@@ -93,18 +78,13 @@ export class VSCodeRuleProvider implements RuleProvider {
   /**
    * Append a VSCode instruction rule to a target file
    */
-  async appendRule(
-    name: string,
-    targetPath?: string,
-    isGlobal?: boolean
-  ): Promise<boolean> {
+  async appendRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
     const ruleConfig = await this.loadRule(name);
     if (!ruleConfig) {
       console.error(`Rule "${name}" not found in internal VSCode storage.`);
       return false;
     }
-    const finalTargetPath =
-      targetPath || getRulePath(RuleType.VSCODE, name, isGlobal);
+    const finalTargetPath = targetPath || getRulePath(RuleType.VSCODE, name, isGlobal);
     return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal);
   }
 
@@ -128,11 +108,8 @@ export class VSCodeRuleProvider implements RuleProvider {
       await writeFile(fullPath, formattedContent, "utf-8");
       return true;
     } catch (error) {
-      console.error(
-        `Error applying VSCode rule "${config.name}" to ${fullPath}:`,
-        error
-      );
+      console.error(`Error applying VSCode rule "${config.name}" to ${fullPath}:`, error);
       return false;
     }
   }
-} 
+}

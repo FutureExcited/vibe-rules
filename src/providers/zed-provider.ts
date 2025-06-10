@@ -1,14 +1,5 @@
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleType,
-  RuleGeneratorOptions,
-} from "../types.js";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { RuleConfig, RuleProvider, RuleType, RuleGeneratorOptions } from "../types.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import { getDefaultTargetPath } from "../utils/path.js";
@@ -26,10 +17,7 @@ export class ZedRuleProvider implements RuleProvider {
     return listInternalRules(RuleType.ZED);
   }
 
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     // Zed .rules files are expected to be plain text or use a format
     // compatible with simple tagged blocks if we are managing multiple rules within it.
     // For consistency with Windsurf and other single-file providers, we use tagged blocks.
@@ -48,14 +36,8 @@ export class ZedRuleProvider implements RuleProvider {
       return false;
     }
 
-    const finalTargetPath =
-      targetPath || getDefaultTargetPath(RuleType.ZED, isGlobal);
-    return this.appendFormattedRule(
-      ruleConfig,
-      finalTargetPath,
-      isGlobal,
-      options
-    );
+    const finalTargetPath = targetPath || getDefaultTargetPath(RuleType.ZED, isGlobal);
+    return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal, options);
   }
 
   async appendFormattedRule(

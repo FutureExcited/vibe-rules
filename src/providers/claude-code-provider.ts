@@ -1,22 +1,10 @@
 import * as fs from "fs-extra/esm";
 import { readFile, writeFile } from "fs/promises";
 import * as path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types.js";
+import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
 import { getRulePath } from "../utils/path.js";
-import {
-  formatRuleWithMetadata,
-  createTaggedRuleBlock,
-} from "../utils/rule-formatter.js";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { formatRuleWithMetadata, createTaggedRuleBlock } from "../utils/rule-formatter.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 import chalk from "chalk";
 
 export class ClaudeCodeRuleProvider implements RuleProvider {
@@ -26,10 +14,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
    * Generates formatted content for Claude Code including metadata.
    * This content is intended to be placed within the <!-- vibe-tools Integration --> block.
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     // Format the content with metadata
     return formatRuleWithMetadata(config, options);
   }
@@ -76,8 +61,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
       return false;
     }
 
-    const destinationPath =
-      targetPath || getRulePath(this.ruleType, name, isGlobal); // name might not be needed by getRulePath here
+    const destinationPath = targetPath || getRulePath(this.ruleType, name, isGlobal); // name might not be needed by getRulePath here
 
     return this.appendFormattedRule(rule, destinationPath, isGlobal, options);
   }
@@ -105,10 +89,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
 
     // Escape rule name for regex
     const ruleNameRegex = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(
-      `^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`,
-      "m"
-    );
+    const regex = new RegExp(`^<${ruleNameRegex}>[\\s\\S]*?</${ruleNameRegex}>`, "m");
 
     let updatedContent: string;
     const match = fileContent.match(regex);
@@ -116,9 +97,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
     if (match) {
       // Rule exists, replace its content
       console.log(
-        chalk.blue(
-          `Updating existing rule block for "${config.name}" in ${destinationPath}...`
-        )
+        chalk.blue(`Updating existing rule block for "${config.name}" in ${destinationPath}...`)
       );
       updatedContent = fileContent.replace(regex, newBlock);
     } else {
@@ -130,9 +109,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
       const endIndex = fileContent.indexOf(integrationEndTag);
 
       console.log(
-        chalk.blue(
-          `Appending new rule block for "${config.name}" to ${destinationPath}...`
-        )
+        chalk.blue(`Appending new rule block for "${config.name}" to ${destinationPath}...`)
       );
 
       if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
@@ -157,9 +134,7 @@ export class ClaudeCodeRuleProvider implements RuleProvider {
       await writeFile(destinationPath, updatedContent.trim() + "\n");
       return true;
     } catch (error) {
-      console.error(
-        chalk.red(`Error writing updated rules to ${destinationPath}: ${error}`)
-      );
+      console.error(chalk.red(`Error writing updated rules to ${destinationPath}: ${error}`));
       return false;
     }
   }

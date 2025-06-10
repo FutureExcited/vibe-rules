@@ -25,10 +25,7 @@ export function getCommonRulesDir(): string {
  * Get path to store internal rule definitions based on rule type
  * (Not the actual target paths for IDEs)
  */
-export function getInternalRuleStoragePath(
-  ruleType: RuleType,
-  ruleName: string
-): string {
+export function getInternalRuleStoragePath(ruleType: RuleType, ruleName: string): string {
   const typeDir = path.join(RULES_BASE_DIR, ruleType);
   fs.ensureDirSync(typeDir);
   // Internal storage uses a simple .txt for content

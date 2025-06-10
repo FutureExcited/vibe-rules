@@ -27,4 +27,4 @@ description for when the rule can be applied
 do this when the description matches the current task
 </model-decision>
 
-<!-- /vibe-tools Integration --> 
+<!-- /vibe-tools Integration -->

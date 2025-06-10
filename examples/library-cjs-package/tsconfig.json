@@ -3,20 +3,12 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "target": "ESNext",
-    "lib": [
-      "ESNext",
-      "DOM"
-    ],
+    "lib": ["ESNext", "DOM"],
     "declaration": true,
     "outDir": "./dist",
     "allowSyntheticDefaultImports": false,
     "skipLibCheck": true
   },
-  "include": [
-    "./src/llms.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["./src/llms.ts"],
+  "exclude": ["node_modules", "dist"]
 }

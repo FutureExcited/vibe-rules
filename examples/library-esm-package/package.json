@@ -1,23 +1,22 @@
 {
-    "name": "esm-package",
-    "version": "1.0.0",
-    "type": "module",
-    "exports": {
-        "./llms": {
-            "import": {
-                "types": "./dist/llms.d.ts",
-                "default": "./dist/llms.js"
-            }
-        }
-    },
-    "dependencies": {
-    },
-    "devDependencies": {
-        "vibe-rules": "file:../..",
-        "typescript": "^5.8.2"
-    },
-    "scripts": {
-        "build": "tsc -b",
-        "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "esm-package",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./llms": {
+      "import": {
+        "types": "./dist/llms.d.ts",
+        "default": "./dist/llms.js"
+      }
     }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vibe-rules": "file:../..",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
 }

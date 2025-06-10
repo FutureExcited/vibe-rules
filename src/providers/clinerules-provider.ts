@@ -1,25 +1,14 @@
 import * as fs from "fs-extra/esm";
 import { writeFile } from "fs/promises";
 import * as path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types.js";
+import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
 import {
   getRulePath, // Returns the .clinerules directory path
   ensureDirectoryExists,
 } from "../utils/path.js";
-import {
-  formatRuleWithMetadata,
-} from "../utils/rule-formatter.js";
+import { formatRuleWithMetadata } from "../utils/rule-formatter.js";
 import chalk from "chalk";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 // Helper function specifically for clinerules/roo setup
 // Focuses on the directory structure: .clinerules/vibe-tools.md
@@ -49,10 +38,7 @@ export class ClinerulesRuleProvider implements RuleProvider {
   /**
    * Generates formatted content for Clinerules/Roo including metadata.
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     return formatRuleWithMetadata(config, options);
   }
 
@@ -94,9 +80,7 @@ export class ClinerulesRuleProvider implements RuleProvider {
   ): Promise<boolean> {
     const rule = await this.loadRule(name);
     if (!rule) {
-      console.error(
-        `Rule '${name}' not found for type ${RuleType.CLINERULES}/${RuleType.ROO}.`
-      );
+      console.error(`Rule '${name}' not found for type ${RuleType.CLINERULES}/${RuleType.ROO}.`);
       return false;
     }
 
@@ -151,18 +135,10 @@ export class ClinerulesRuleProvider implements RuleProvider {
     try {
       // Write directly to the target file path
       await writeFile(targetPath, content, "utf-8");
-      console.log(
-        chalk.green(
-          `Successfully applied rule "${config.name}" to ${targetPath}`
-        )
-      );
+      console.log(chalk.green(`Successfully applied rule "${config.name}" to ${targetPath}`));
       return true;
     } catch (error) {
-      console.error(
-        chalk.red(
-          `Error applying rule "${config.name}" to ${targetPath}: ${error}`
-        )
-      );
+      console.error(chalk.red(`Error applying rule "${config.name}" to ${targetPath}: ${error}`));
       return false;
     }
   }

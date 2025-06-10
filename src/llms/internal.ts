@@ -84,8 +84,7 @@ const vibeRulesRepoRules: PackageRuleItem[] = [
   {
     name: "vibe-rules-cli-docs",
     rule: llmsTxtContent,
-    description:
-      "Documentation for the vibe-rules CLI commands (save, list, load, install).",
+    description: "Documentation for the vibe-rules CLI commands (save, list, load, install).",
     alwaysApply: true,
     globs: ["**/*"], // Apply globally as it's general context
   },

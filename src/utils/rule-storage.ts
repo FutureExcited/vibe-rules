@@ -13,10 +13,7 @@ const RULE_EXTENSION = ".txt";
  * @returns The full path where the rule was saved.
  * @throws Error if file writing fails.
  */
-export async function saveInternalRule(
-  ruleType: RuleType,
-  config: RuleConfig
-): Promise<string> {
+export async function saveInternalRule(ruleType: RuleType, config: RuleConfig): Promise<string> {
   const storagePath = getInternalRuleStoragePath(ruleType, config.name);
   const dir = path.dirname(storagePath);
   await fs.ensureDir(dir); // Ensure the directory exists
@@ -74,14 +71,10 @@ export async function listInternalRules(ruleType: RuleType): Promise<string[]> {
     const ruleNames = files
       .filter((file) => file.endsWith(RULE_EXTENSION))
       .map((file) => path.basename(file, RULE_EXTENSION));
-    console.debug(
-      `[Rule Storage] Listed ${ruleNames.length} internal rules for ${ruleType}`
-    );
+    console.debug(`[Rule Storage] Listed ${ruleNames.length} internal rules for ${ruleType}`);
     return ruleNames;
   } catch (error: any) {
-    console.error(
-      `[Rule Storage] Error listing internal rules for ${ruleType}: ${error.message}`
-    );
+    console.error(`[Rule Storage] Error listing internal rules for ${ruleType}: ${error.message}`);
     return []; // Return empty list on error
   }
 }

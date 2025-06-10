@@ -5,10 +5,7 @@ import { RuleConfig, RuleGeneratorOptions } from "../types.js";
  * Includes additional metadata like alwaysApply and globs in a human-readable format
  * within the rule content.
  */
-export function formatRuleWithMetadata(
-  config: RuleConfig,
-  options?: RuleGeneratorOptions
-): string {
+export function formatRuleWithMetadata(config: RuleConfig, options?: RuleGeneratorOptions): string {
   let formattedContent = config.content;
 
   // Add metadata lines at the beginning of content if they exist
@@ -27,16 +24,12 @@ export function formatRuleWithMetadata(
 
   // Add globs information if provided
   if (options?.globs && options.globs.length > 0) {
-    const globsStr = Array.isArray(options.globs)
-      ? options.globs.join(", ")
-      : options.globs;
+    const globsStr = Array.isArray(options.globs) ? options.globs.join(", ") : options.globs;
 
     // Skip adding the glob info if it's just a generic catch-all pattern
     const isCatchAllPattern =
       globsStr === "**/*" ||
-      (Array.isArray(options.globs) &&
-        options.globs.length === 1 &&
-        options.globs[0] === "**/*");
+      (Array.isArray(options.globs) && options.globs.length === 1 && options.globs[0] === "**/*");
 
     if (!isCatchAllPattern) {
       metadataLines.push(`Always apply this rule in these files: ${globsStr}`);
@@ -55,10 +48,7 @@ export function formatRuleWithMetadata(
  * Creates a complete XML-like block for a rule, including start/end tags
  * and formatted content with metadata
  */
-export function createTaggedRuleBlock(
-  config: RuleConfig,
-  options?: RuleGeneratorOptions
-): string {
+export function createTaggedRuleBlock(config: RuleConfig, options?: RuleGeneratorOptions): string {
   const formattedContent = formatRuleWithMetadata(config, options);
   const startTag = `<${config.name}>`;
   const endTag = `</${config.name}>`;

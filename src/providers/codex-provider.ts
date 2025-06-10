@@ -1,19 +1,8 @@
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types.js";
+import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
 import { getRulePath } from "../utils/path.js";
-import {
-  formatRuleWithMetadata,
-} from "../utils/rule-formatter.js";
+import { formatRuleWithMetadata } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 export class CodexRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.CODEX;
@@ -21,10 +10,7 @@ export class CodexRuleProvider implements RuleProvider {
   /**
    * Generates formatted content for Codex including metadata.
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     return formatRuleWithMetadata(config, options);
   }
 
@@ -73,14 +59,8 @@ export class CodexRuleProvider implements RuleProvider {
       console.error(`Rule "${name}" not found in internal storage.`);
       return false;
     }
-    const actualTargetPath =
-      targetPath ?? getRulePath(this.ruleType, "", isGlobal);
-    return this.appendFormattedRule(
-      ruleConfig,
-      actualTargetPath,
-      isGlobal,
-      options
-    );
+    const actualTargetPath = targetPath ?? getRulePath(this.ruleType, "", isGlobal);
+    return this.appendFormattedRule(ruleConfig, actualTargetPath, isGlobal, options);
   }
 
   /**

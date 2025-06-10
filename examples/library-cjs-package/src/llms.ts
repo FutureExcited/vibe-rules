@@ -1,8 +1,8 @@
 import type { PackageRuleObject } from "vibe-rules";
 
-const rules: PackageRuleObject[] =  [
+const rules: PackageRuleObject[] = [
   {
-    name: 'usage',
+    name: "usage",
     // Always apply this rule
     alwaysApply: true,
     rule: `# Usage Rules
@@ -11,20 +11,20 @@ Use the client to fetch data from the API.
     `,
   },
   {
-    name: 'api',
+    name: "api",
     // Use globs to specify when the rule should be applied
     alwaysApply: false,
-    globs: ['src/routes/**/*.tsx', 'src/api/**/*.ts'],
+    globs: ["src/routes/**/*.tsx", "src/api/**/*.ts"],
     rule: `# API Rules
 
 Ensure that the API is designed according to the RESTful principles.
     `,
   },
   {
-    name: 'architecture',
+    name: "architecture",
     // Use a description to explain when the rule should be applied
     alwaysApply: false,
-    description: 'Use this rule when working on architecture or state management',
+    description: "Use this rule when working on architecture or state management",
     rule: `# Architecture Guide
 
 ## Principles
@@ -33,7 +33,7 @@ Ensure that the API is designed according to the RESTful principles.
 `,
   },
   {
-    name: 'routing',
+    name: "routing",
     // Add a rule with no configuration for when the rule should be applied
     alwaysApply: false,
     rule: `# Routing Instructions
@@ -47,4 +47,4 @@ Ensure that the API is designed according to the RESTful principles.
   },
 ];
 
-module.exports = rules
+module.exports = rules;

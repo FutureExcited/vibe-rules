@@ -1,19 +1,19 @@
 {
-    "name": "cjs-package",
-    "version": "1.0.0",
-    "scripts": {
-        "build": "tsc -b",
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "files": [
-        "dist"
-    ],
-    "exports": {
-        "./llms": "./dist/llms.js"
-    },
-    "devDependencies": {
-        "vibe-rules": "file:../..",
-        "typescript": "^5.8.2"
-    },
-    "type": "commonjs"
+  "name": "cjs-package",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./llms": "./dist/llms.js"
+  },
+  "devDependencies": {
+    "vibe-rules": "file:../..",
+    "typescript": "^5.8.2"
+  },
+  "type": "commonjs"
 }

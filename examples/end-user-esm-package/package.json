@@ -1,23 +1,23 @@
 {
-    "name": "end-user-esm-package",
-    "version": "1.0.0",
-    "main": "index.js",
-    "scripts": {
-        "test": "bun test",
-        "vibe-rules": "vibe-rules"
-    },
-    "author": "",
-    "license": "ISC",
-    "type": "module",
-    "devDependencies": {
-        "vibe-rules": "file:../..",
-        "@types/bun": "latest"
-    },
-    "dependencies": {
-        "esm-package": "file:../library-esm-package",
-        "cjs-package": "file:../library-cjs-package"
-    },
-    "engines": {
-        "node": ">=22"
-    }
+  "name": "end-user-esm-package",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "bun test",
+    "vibe-rules": "vibe-rules"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "vibe-rules": "file:../..",
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "esm-package": "file:../library-esm-package",
+    "cjs-package": "file:../library-cjs-package"
+  },
+  "engines": {
+    "node": ">=22"
+  }
 }

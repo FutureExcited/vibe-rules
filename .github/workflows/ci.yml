@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ '*' ]
+    branches: ["*"]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -11,7 +11,7 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 📦 Checkout repository
         uses: actions/checkout@v4
@@ -24,8 +24,8 @@ jobs:
       - name: 🌿 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org/'
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org/"
 
       - name: 📥 Install root dependencies
         run: bun install
@@ -40,4 +40,4 @@ jobs:
         run: bun run test:examples
 
       - name: ✅ CI completed successfully
-        run: echo "🎉 All CI steps passed!" 
+        run: echo "🎉 All CI steps passed!"

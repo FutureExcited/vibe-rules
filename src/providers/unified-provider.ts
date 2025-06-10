@@ -1,10 +1,5 @@
 import path from "path";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleType,
-  RuleGeneratorOptions,
-} from "../types.js";
+import { RuleConfig, RuleProvider, RuleType, RuleGeneratorOptions } from "../types.js";
 
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
 import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
@@ -33,10 +28,7 @@ export class UnifiedRuleProvider implements RuleProvider {
     return path.join(projectRoot, UNIFIED_RULE_FILENAME);
   }
 
-  async saveRule(
-    config: RuleConfig,
-    _options?: RuleGeneratorOptions
-  ): Promise<string> {
+  async saveRule(config: RuleConfig, _options?: RuleGeneratorOptions): Promise<string> {
     return saveRuleToInternalStorage(RuleType.UNIFIED, config);
   }
 
@@ -48,10 +40,7 @@ export class UnifiedRuleProvider implements RuleProvider {
     return listRulesFromInternalStorage(RuleType.UNIFIED);
   }
 
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     // For .rules, we use the tagged block format directly
     return createTaggedRuleBlock(config, options);
   }

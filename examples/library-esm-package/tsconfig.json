@@ -1,21 +1,13 @@
 {
-    "compilerOptions": {
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "target": "ESNext",
-        "lib": [
-        "ESNext",
-        "DOM"
-        ],
-        "declaration": true,
-        "outDir": "./dist",
-        "skipLibCheck": true,
-    },
-    "include": [
-        "./src/llms.ts"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist"
-    ]
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "declaration": true,
+    "outDir": "./dist",
+    "skipLibCheck": true
+  },
+  "include": ["./src/llms.ts"],
+  "exclude": ["node_modules", "dist"]
 }

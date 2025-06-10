@@ -7,6 +7,7 @@ This directory contains reference project structures for different editor config
 [cline-rules-directory](./cline-rules-directory/) contains an example of workspace rules structure for the Cline AI coding assistant.
 
 Cline supports both workspace and global rules:
+
 - **Workspace rules**: Stored in `.clinerules/` directory
 - **Global rules**: Stored in `~/Documents/Cline/Rules` directory (applies across all projects)
 - **Format**: All files use Markdown format with no special formatting.
@@ -16,15 +17,16 @@ Cline supports both workspace and global rules:
 [claude-code-directory](./claude-code-directory/) contains an example of how Claude Code IDE manages AI rules.
 
 Claude Code uses a single file for all rules:
+
 - **Project rules**: Stored in `./CLAUDE.md` file in project root
 - **Global rules**: Stored in `~/.claude/CLAUDE.md` file (applies across all projects)
 - **Format**: Single markdown file with XML-like tagged blocks. When using vibe-rules, each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` block for organization.
 
-## Windsurf 
+## Windsurf
 
 [windsurf-rules-directory](./windsurf-rules-directory/) contains an example of workspace rules structure (in `./.windsurf/rules/`) for the Windsurf editor.
 
-Windsurf also stores global rules in a *single markdown file* ~/.codeium/windsurf/memories/global_rules.md
+Windsurf also stores global rules in a _single markdown file_ ~/.codeium/windsurf/memories/global_rules.md
 
 - **Workspace rules**: Stored in `./.windsurf/rules/` as markdown files
 - **Global rules**: Stored in `~/.codeium/windsurf/memories/global_rules.md` file
@@ -51,10 +53,7 @@ Windsurf also stores global rules in a *single markdown file* ~/.codeium/windsur
 [zed-rules-directory](./zed-rules-directory/) contains an example of how ZED editor manages AI rules.
 
 ZED uses a single file for all rules:
+
 - **Project rules**: Stored in `.rules` file in project root
 - **Global rules**: Not currently supported by vibe-rules for ZED
 - **Format**: Single file with XML-like tagged blocks. Each rule is encapsulated in tags (e.g., `<rule-name>...</rule-name>`) without requiring a wrapper block. This follows the unified .rules convention documented in [UNIFIED_RULES_CONVENTION.md](../UNIFIED_RULES_CONVENTION.md).
-
-
-
-

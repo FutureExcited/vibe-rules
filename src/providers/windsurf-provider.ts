@@ -1,19 +1,8 @@
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleType,
-  RuleGeneratorOptions,
-} from "../types.js";
+import { RuleConfig, RuleProvider, RuleType, RuleGeneratorOptions } from "../types.js";
 import { getDefaultTargetPath } from "../utils/path.js";
-import {
-  createTaggedRuleBlock,
-} from "../utils/rule-formatter.js";
+import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 export class WindsurfRuleProvider implements RuleProvider {
   private readonly ruleType = RuleType.WINDSURF;
@@ -21,20 +10,14 @@ export class WindsurfRuleProvider implements RuleProvider {
   /**
    * Format rule content with XML tags
    */
-  private formatRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  private formatRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     return createTaggedRuleBlock(config, options);
   }
 
   /**
    * Generates formatted rule content with Windsurf XML tags
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     return this.formatRuleContent(config, options);
   }
 

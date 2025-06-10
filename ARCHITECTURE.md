@@ -48,7 +48,7 @@ vibe-rules/
 │   │   ├── src/
 │   │   ├── install.test.ts     # Integration test for vibe-rules install functionality (Updated: AGENTS.md)
 │   │   └── package.json        # Uses Bun for testing, includes vibe-rules script (Updated)
-│   ├── end-user-esm-package/   # ES Module project consuming rules from multiple packages  
+│   ├── end-user-esm-package/   # ES Module project consuming rules from multiple packages
 │   ├── library-cjs-package/    # CommonJS library that exports AI prompt rules
 │   ├── library-esm-package/    # ES Module library that exports AI prompt rules
 │   └── README.md          # Comprehensive guide to examples (Updated)
@@ -109,6 +109,7 @@ A dynamic TypeScript script that automatically discovers and builds all example 
 #### Usage
 
 The script is executed via the `build:examples` npm script:
+
 ```bash
 npm run build:examples
 ```
@@ -154,6 +155,7 @@ A dynamic TypeScript script that automatically discovers and runs tests for all 
 #### Output Format
 
 The script provides structured output with multiple sections:
+
 1. **Discovery Phase**: Lists all testable projects found
 2. **Execution Phase**: Real-time progress updates as tests run
 3. **Summary Section**: Pass/fail counts, timing, and success rate
@@ -163,6 +165,7 @@ The script provides structured output with multiple sections:
 #### Usage
 
 The script is executed via the `test:examples` npm script:
+
 ```bash
 npm run test:examples
 ```
@@ -310,7 +313,7 @@ Contains the action handler for the `vibe-rules install` command and handles the
   - **Dual-Strategy Module Loading**: Implements a robust approach for loading modules that works with both CommonJS and ES modules.
   - **Primary Strategy**: Attempts `createRequire()` with the current working directory's `package.json` as the context for CommonJS compatibility.
   - **Fallback Strategy**: When `require()` fails (typically for ESM-only modules), uses `import-meta-resolve` to resolve the module specifier to a full URL, then performs dynamic `import()`.
-  - **Resolution Process**: 
+  - **Resolution Process**:
     - Constructs a file URL from the current working directory's `package.json`
     - Uses `importMetaResolve(ruleModulePath, fileUrlString)` to resolve the module path
     - Performs dynamic import with the resolved path
@@ -732,8 +735,9 @@ Integration test that validates the complete vibe-rules installation workflow fo
 ##### Test Functionality
 
 **Cursor Installation Test:**
+
 - **Setup:** Cleans existing `.cursor` directory to ensure fresh test environment
-- **Installation Process:** 
+- **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
   - Executes `npm run vibe-rules install cursor` to install rules from all package dependencies
 - **Validation:**
@@ -743,6 +747,7 @@ Integration test that validates the complete vibe-rules installation workflow fo
   - Confirms presence of expected rule types from both `cjs-package` and `esm-package` dependencies
 
 **Windsurf Installation Test:**
+
 - **Setup:** Cleans existing `.windsurfrules` file to ensure fresh test environment
 - **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
@@ -754,26 +759,32 @@ Integration test that validates the complete vibe-rules installation workflow fo
   - Confirms presence of expected rule content and metadata from both dependency packages
 
 ##### Expected Rules Structure
+
 The tests validate that 8 rules are generated from the two dependency packages:
-- **From cjs-package:** `usage`, `api`, `architecture`, `routing` (4 rules)  
+
+- **From cjs-package:** `usage`, `api`, `architecture`, `routing` (4 rules)
 - **From esm-package:** `usage`, `api`, `architecture`, `routing` (4 rules)
 
 ##### Enhanced PackageRuleObject Examples
+
 The example packages now demonstrate the full range of `PackageRuleObject` configurations:
 
 **CJS Package Examples:**
+
 - **Usage Rule**: Always applied rule (`alwaysApply: true`) with no globs for universal guidelines
 - **API Rule**: Specific globs for API development (`src/routes/**/*.tsx`, `src/api/**/*.ts`)
 - **Architecture Rule**: Model decision rule with description for architecture/state management tasks
 - **Routing Rule**: Basic rule with no specific configuration for manual triggering
 
 **ESM Package Examples:**
+
 - **Usage Rule**: Always applied rule (`alwaysApply: true`) with universal API usage guidelines
 - **API Rule**: RESTful design principles with route and API-specific globs
 - **Architecture Rule**: Component architecture patterns triggered by description matching
 - **Routing Rule**: Navigation best practices with no specific triggering configuration
 
 ##### Robust Test Implementation
+
 The test suite has been enhanced for maximum robustness:
 
 - **Dynamic Rule Discovery**: Tests derive expected rule names from imported llms modules instead of hardcoded values
@@ -782,19 +793,23 @@ The test suite has been enhanced for maximum robustness:
 - **Cross-Reference Validation**: Ensures imported module structure matches generated files using actual data
 
 **Cursor Format:**
+
 - **File Format:** All rules stored as separate `.mdc` files in `.cursor/rules/` directory
 - **Naming Pattern:** `{packageName}_{ruleName}.mdc` (e.g., `cjs-package_api.mdc`)
 
 **Windsurf Format:**
+
 - **File Format:** All rules stored as XML-like tagged blocks within a single `.windsurfrules` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
 
 **Clinerules Format:**
+
 - **File Format:** All rules stored as separate `.md` files in `.clinerules/` directory
 - **Naming Pattern:** `{packageName}_{ruleName}.md` (e.g., `cjs-package_api.md`)
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
 **Claude Code Installation Test:** (Added)
+
 - **Setup:** Cleans existing `CLAUDE.md` file to ensure fresh test environment
 - **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
@@ -807,12 +822,14 @@ The test suite has been enhanced for maximum robustness:
   - Validates rule content and metadata from both dependency packages
 
 **Claude Code Format:**
+
 - **File Format:** All rules stored as XML-like tagged blocks within a single `CLAUDE.md` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
 - **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` block
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
 **CODEX Installation Test:** (Updated)
+
 - **Setup:** Cleans existing `AGENTS.md` file to ensure fresh test environment
 - **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
@@ -825,6 +842,7 @@ The test suite has been enhanced for maximum robustness:
   - Validates rule content and metadata from both dependency packages
 
 **CODEX Format:**
+
 - **File Format:** All rules stored as XML-like tagged blocks within a single `AGENTS.md` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
 - **Wrapper Block:** All rules are contained within a `<!-- vibe-tools Integration -->...<!-- /vibe-tools Integration -->` comment block
@@ -835,6 +853,7 @@ The test suite has been enhanced for maximum robustness:
   3. `AGENTS.md` in current working directory - sub-folder/feature specifics (use `--target` flag)
 
 **ZED Installation Test:** (Added)
+
 - **Setup:** Cleans existing `.rules` file to ensure fresh test environment
 - **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
@@ -847,12 +866,14 @@ The test suite has been enhanced for maximum robustness:
   - Validates rule content and metadata from both dependency packages
 
 **ZED Format:**
+
 - **File Format:** All rules stored as XML-like tagged blocks within a single `.rules` file
 - **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
 - **No Wrapper Block:** Rules are stored directly without any integration wrapper (follows unified .rules convention)
 - **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
 
 **VSCode Installation Test:** (Added)
+
 - **Setup:** Cleans existing `.github/instructions` directory to ensure fresh test environment
 - **Installation Process:**
   - Runs `npm install` to ensure dependencies are available
@@ -864,6 +885,7 @@ The test suite has been enhanced for maximum robustness:
   - Confirms presence of expected rule content and metadata from both dependency packages
 
 **VSCode Format:**
+
 - **File Format:** All rules stored as separate `.instructions.md` files in `.github/instructions/` directory
 - **Naming Pattern:** `{packageName}_{ruleName}.instructions.md` (e.g., `cjs-package_api.instructions.md`)
 - **Frontmatter:** Uses `applyTo: "**"` for all rules due to VSCode's limitations with multiple globs
@@ -871,6 +893,7 @@ The test suite has been enhanced for maximum robustness:
 - **VSCode Bug Workaround:** Always applies rules universally (`**`) for better reliability
 
 ##### Test Implementation Details
+
 - Uses Bun's test framework (`import { test, expect } from "bun:test"`)
 - Leverages Bun's shell integration (`import { $ } from "bun"`) for command execution
 - **Test Environment Cleanup:** Clears existing editor directories/files at both the start and end of each test to ensure clean test isolation
@@ -882,7 +905,7 @@ The test suite has been enhanced for maximum robustness:
   - **Module Structure Validation:** Validates imported arrays have correct length and structure
   - **Rule Object Validation:** Ensures each rule has required properties (`name`, `rule`, `description`, `alwaysApply`, `globs`)
   - **Type Validation:** Confirms correct data types for all rule properties
-  - **Content Validation:** 
+  - **Content Validation:**
     - For Cursor: Reads generated `.mdc` files and verifies they contain the actual rule content
     - For Windsurf: Parses `.windsurfrules` file and validates tagged blocks contain rule content and metadata
     - For Clinerules: Reads generated `.md` files in `.clinerules/` directory and validates content and metadata formatting
@@ -896,6 +919,7 @@ The test suite has been enhanced for maximum robustness:
 ### Code Quality and Linting Improvements
 
 **Oxlint Integration (Latest)**
+
 - **Linting Tool:** Integrated oxlint, a Rust-based fast linter, replacing traditional ESLint
 - **Package.json:** Added `"lint": "bunx oxlint@latest"` script for easy linting
 - **Zero Warnings:** Fixed all 31 linting warnings across the codebase including:
@@ -907,6 +931,7 @@ The test suite has been enhanced for maximum robustness:
 - **CI Integration:** Linting can now be run via `bun run lint` for consistent code quality
 
 **Import Cleanup:**
+
 - **Provider Files:** Removed unused imports from `claude-code-provider.ts`, `codex-provider.ts`, `cursor-provider.ts`, `clinerules-provider.ts`, `windsurf-provider.ts`, and `unified-provider.ts`
 - **Utility Files:** Fixed unused variables in `single-file-helpers.ts` and `install.ts`
 - **Core Files:** Cleaned up unused imports in `llms/internal.ts` and escape character fixes in `cli.ts`
@@ -916,6 +941,6 @@ The test suite has been enhanced for maximum robustness:
 Due to Microsoft's VSCode having a bug where multiple globs in the `applyTo` field don't work properly, the VSCode provider was updated to always use `applyTo: "**"` for universal application. This change includes:
 
 - **Provider Logic:** Updated `generateRuleContent` to always use `**` regardless of globs configuration
-- **User Warnings:** Added installation-time warnings to inform users about this limitation and workaround  
+- **User Warnings:** Added installation-time warnings to inform users about this limitation and workaround
 - **Documentation:** Updated README and ARCHITECTURE to reflect this VSCode limitation
 - **Tests:** Modified test expectations to verify `**` is used for all rules regardless of original globs

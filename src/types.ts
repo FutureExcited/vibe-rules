@@ -59,10 +59,7 @@ export interface RuleProvider {
   /**
    * Generates formatted rule content with editor-specific formatting
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string;
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string;
 }
 
 export interface RuleGeneratorOptions {

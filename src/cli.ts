@@ -25,23 +25,14 @@ async function installRule(ruleConfig: RuleConfig): Promise<void> {
   try {
     RuleConfigSchema.parse(ruleConfig);
 
-    const commonRulePath = path.join(
-      getCommonRulesDir(),
-      `${ruleConfig.name}.txt`
-    );
+    const commonRulePath = path.join(getCommonRulesDir(), `${ruleConfig.name}.txt`);
     await ensureDirectoryExists(path.dirname(commonRulePath));
     await writeFile(commonRulePath, ruleConfig.content);
-    console.log(
-      chalk.green(
-        `Rule "${ruleConfig.name}" saved successfully to ${commonRulePath}`
-      )
-    );
+    console.log(chalk.green(`Rule "${ruleConfig.name}" saved successfully to ${commonRulePath}`));
   } catch (error) {
     console.error(
       chalk.red(
-        `Error saving rule "${ruleConfig.name}": ${
-          error instanceof Error ? error.message : error
-        }`
+        `Error saving rule "${ruleConfig.name}": ${error instanceof Error ? error.message : error}`
       )
     );
   }
@@ -51,9 +42,7 @@ const program = new Command();
 
 program
   .name("vibe-rules")
-  .description(
-    "A utility for managing Cursor rules, Windsurf rules, and other AI prompts"
-  )
+  .description("A utility for managing Cursor rules, Windsurf rules, and other AI prompts")
   .version("0.1.0")
   .option("--debug", "Enable debug logging", false);
 
@@ -77,9 +66,7 @@ program
       } else if (options.content) {
         content = options.content;
       } else {
-        console.error(
-          chalk.red("Error: Either --content or --file must be specified")
-        );
+        console.error(chalk.red("Error: Either --content or --file must be specified"));
         process.exit(1);
       }
 
@@ -92,11 +79,7 @@ program
       await installRule(ruleConfig);
     } catch (error) {
       console.error(
-        chalk.red(
-          `Error during save command: ${
-            error instanceof Error ? error.message : error
-          }`
-        )
+        chalk.red(`Error during save command: ${error instanceof Error ? error.message : error}`)
       );
       process.exit(1);
     }
@@ -128,11 +111,7 @@ program
       rules.forEach((rule) => console.log(`- ${rule}`));
     } catch (error) {
       console.error(
-        chalk.red(
-          `Error listing rules: ${
-            error instanceof Error ? error.message : error
-          }`
-        )
+        chalk.red(`Error listing rules: ${error instanceof Error ? error.message : error}`)
       );
       process.exit(1);
     }
@@ -147,23 +126,14 @@ program
     "<editor>",
     "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)"
   )
-  .option(
-    "-g, --global",
-    "Apply to global config path if supported (claude-code, codex)",
-    false
-  )
-  .option(
-    "-t, --target <path>",
-    "Custom target path (overrides default and global)"
-  )
+  .option("-g, --global", "Apply to global config path if supported (claude-code, codex)", false)
+  .option("-t, --target <path>", "Custom target path (overrides default and global)")
   .action(async (name, editor, options) => {
     try {
       const commonRulePath = path.join(getCommonRulesDir(), `${name}.txt`);
 
       if (!(await fs.pathExists(commonRulePath))) {
-        console.error(
-          chalk.red(`Rule "${name}" not found in the common store`)
-        );
+        console.error(chalk.red(`Rule "${name}" not found in the common store`));
 
         const commonRulesDir = getCommonRulesDir();
         if (await fs.pathExists(commonRulesDir)) {
@@ -214,23 +184,15 @@ program
 
       if (success) {
         console.log(
-          chalk.green(
-            `Rule "${name}" applied successfully for ${editor} at ${finalTargetPath}`
-          )
+          chalk.green(`Rule "${name}" applied successfully for ${editor} at ${finalTargetPath}`)
         );
       } else {
-        console.error(
-          chalk.red(`Failed to apply rule "${name}" for ${editor}.`)
-        );
+        console.error(chalk.red(`Failed to apply rule "${name}" for ${editor}.`));
         process.exit(1);
       }
     } catch (error) {
       console.error(
-        chalk.red(
-          `Error loading rule: ${
-            error instanceof Error ? error.message : error
-          }`
-        )
+        chalk.red(`Error loading rule: ${error instanceof Error ? error.message : error}`)
       );
       process.exit(1);
     }
@@ -246,15 +208,8 @@ program
     "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)"
   )
   .argument("[packageName]", "Optional NPM package name to install rules from")
-  .option(
-    "-g, --global",
-    "Apply to global config path if supported (claude-code, codex)",
-    false
-  )
-  .option(
-    "-t, --target <path>",
-    "Custom target path (overrides default and global)"
-  )
+  .option("-g, --global", "Apply to global config path if supported (claude-code, codex)", false)
+  .option("-t, --target <path>", "Custom target path (overrides default and global)")
   .action(installCommandAction);
 
 program.parse(process.argv);

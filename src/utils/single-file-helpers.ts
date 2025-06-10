@@ -79,10 +79,7 @@ export async function appendOrUpdateTaggedBlock(
     }
 
     const newBlock = createTaggedRuleBlock(config, options);
-    const ruleNameRegexStr = config.name.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\\\$&"
-    ); // Escape regex special chars
+    const ruleNameRegexStr = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\\\$&"); // Escape regex special chars
     const existingBlockRegex = new RegExp(
       `<${ruleNameRegexStr}>[\\s\\S]*?</${ruleNameRegexStr}>`,
       "m"
@@ -93,22 +90,16 @@ export async function appendOrUpdateTaggedBlock(
 
     if (match) {
       // Update existing block
-      debugLog(
-        `Updating existing block for rule "${config.name}" in ${targetPath}`
-      );
+      debugLog(`Updating existing block for rule "${config.name}" in ${targetPath}`);
       updatedContent = currentContent.replace(existingBlockRegex, newBlock);
     } else {
       // Append new block
-      debugLog(
-        `Appending new block for rule "${config.name}" to ${targetPath}`
-      );
+      debugLog(`Appending new block for rule "${config.name}" to ${targetPath}`);
 
       // Check for comment-style integration blocks
       const commentIntegrationEndTag = "<!-- /vibe-tools Integration -->";
 
-      const commentEndIndex = currentContent.lastIndexOf(
-        commentIntegrationEndTag
-      );
+      const commentEndIndex = currentContent.lastIndexOf(commentIntegrationEndTag);
 
       let integrationEndIndex = -1;
       let integrationStartTag = "";
@@ -135,22 +126,14 @@ export async function appendOrUpdateTaggedBlock(
         const endTag = "<!-- /vibe-tools Integration -->";
 
         updatedContent =
-          currentContent.trimEnd() +
-          separator +
-          startTag +
-          "\n\n" +
-          newBlock +
-          "\n\n" +
-          endTag;
+          currentContent.trimEnd() + separator + startTag + "\n\n" + newBlock + "\n\n" + endTag;
         debugLog(`Created new ${startTag} block with rule.`);
       } else {
         // Append to the end
         const separator = currentContent.trim().length > 0 ? "\n\n" : ""; // Add separator if file not empty
         updatedContent = currentContent.trimEnd() + separator + newBlock;
         if (appendInsideVibeToolsBlock) {
-          debugLog(
-            `Could not find vibe-tools Integration block, appending rule to the end.`
-          );
+          debugLog(`Could not find vibe-tools Integration block, appending rule to the end.`);
         }
       }
     }
@@ -164,10 +147,7 @@ export async function appendOrUpdateTaggedBlock(
     console.log(`Successfully applied rule "${config.name}" to ${targetPath}`);
     return true;
   } catch (error) {
-    console.error(
-      `Error applying rule "${config.name}" to ${targetPath}:`,
-      error
-    );
+    console.error(`Error applying rule "${config.name}" to ${targetPath}:`, error);
     return false;
   }
 }

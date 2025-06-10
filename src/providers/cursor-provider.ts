@@ -1,20 +1,8 @@
 import * as path from "path";
 import { writeFile } from "fs/promises";
-import {
-  RuleConfig,
-  RuleProvider,
-  RuleGeneratorOptions,
-  RuleType,
-} from "../types.js";
-import {
-  getRulePath,
-  ensureDirectoryExists,
-} from "../utils/path.js";
-import {
-  saveInternalRule,
-  loadInternalRule,
-  listInternalRules,
-} from "../utils/rule-storage.js";
+import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
+import { getRulePath, ensureDirectoryExists } from "../utils/path.js";
+import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 // Custom function to format frontmatter simply
 const formatFrontmatter = (fm: Record<string, any>): string => {
@@ -43,10 +31,7 @@ export class CursorRuleProvider implements RuleProvider {
   /**
    * Generate cursor rule content with frontmatter
    */
-  generateRuleContent(
-    config: RuleConfig,
-    options?: RuleGeneratorOptions
-  ): string {
+  generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string {
     const frontmatter: Record<string, any> = {};
     if (options?.description ?? config.description) {
       frontmatter.description = options?.description ?? config.description;
@@ -62,9 +47,7 @@ export class CursorRuleProvider implements RuleProvider {
     }
 
     const frontmatterString =
-      Object.keys(frontmatter).length > 0
-        ? `---\n${formatFrontmatter(frontmatter)}\n---\n`
-        : "";
+      Object.keys(frontmatter).length > 0 ? `---\n${formatFrontmatter(frontmatter)}\n---\n` : "";
 
     return `${frontmatterString}${config.content}`;
   }
@@ -101,18 +84,13 @@ export class CursorRuleProvider implements RuleProvider {
   /**
    * Append a cursor rule to a target file
    */
-  async appendRule(
-    name: string,
-    targetPath?: string,
-    isGlobal?: boolean
-  ): Promise<boolean> {
+  async appendRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
     const ruleConfig = await this.loadRule(name);
     if (!ruleConfig) {
       console.error(`Rule "${name}" not found in internal Cursor storage.`);
       return false;
     }
-    const finalTargetPath =
-      targetPath || getRulePath(RuleType.CURSOR, name, isGlobal);
+    const finalTargetPath = targetPath || getRulePath(RuleType.CURSOR, name, isGlobal);
     return this.appendFormattedRule(ruleConfig, finalTargetPath, isGlobal);
   }
 
@@ -136,10 +114,7 @@ export class CursorRuleProvider implements RuleProvider {
       await writeFile(fullPath, formattedContent, "utf-8");
       return true;
     } catch (error) {
-      console.error(
-        `Error applying Cursor rule "${config.name}" to ${fullPath}:`,
-        error
-      );
+      console.error(`Error applying Cursor rule "${config.name}" to ${fullPath}:`, error);
       return false;
     }
   }
