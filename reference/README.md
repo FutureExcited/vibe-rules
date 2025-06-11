@@ -48,6 +48,14 @@ Windsurf also stores global rules in a _single markdown file_ ~/.codeium/windsur
 - **Global rules**: Stored in a single `AGENTS.md` file at `~/.codex/AGENTS.md`.
 - **Format**: Rules are managed within XML-like tagged blocks (e.g., `<rule-name>...</rule-name>`) contained within a `<!-- vibe-rules Integration -->` comment block. The format includes human-readable metadata such as `Always Apply` and glob patterns directly within the rule content (check the [codex-rules-directory](./codex-rules-directory/) for examples).
 
+## Amp
+
+[amp-rules-directory](./amp-rules-directory/) contains an example of workspace rules structure for the Amp AI coding assistant.
+
+- **Workspace rules**: Stored in a single `AGENT.md` file at the project root.
+- **Global rules**: Not supported by Amp.
+- **Format**: Rules are managed within XML-like tagged blocks (e.g., `<rule-name>...</rule-name>`) directly in the file without wrapper blocks. The format includes human-readable metadata such as `Always Apply` and glob patterns directly within the rule content. Amp only supports local project configurations (check the [amp-rules-directory](./amp-rules-directory/) for examples).
+
 ## ZED
 
 [zed-rules-directory](./zed-rules-directory/) contains an example of how ZED editor manages AI rules.

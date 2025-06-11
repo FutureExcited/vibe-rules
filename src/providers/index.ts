@@ -3,6 +3,7 @@ import { CursorRuleProvider } from "./cursor-provider.js";
 import { WindsurfRuleProvider } from "./windsurf-provider.js";
 import { ClaudeCodeRuleProvider } from "./claude-code-provider.js";
 import { CodexRuleProvider } from "./codex-provider.js";
+import { AmpRuleProvider } from "./amp-provider.js";
 import { ClinerulesRuleProvider } from "./clinerules-provider.js";
 import { ZedRuleProvider } from "./zed-provider.js";
 import { UnifiedRuleProvider } from "./unified-provider.js";
@@ -21,6 +22,8 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
       return new ClaudeCodeRuleProvider();
     case RuleType.CODEX:
       return new CodexRuleProvider();
+    case RuleType.AMP:
+      return new AmpRuleProvider();
     case RuleType.CLINERULES:
     case RuleType.ROO:
       return new ClinerulesRuleProvider();

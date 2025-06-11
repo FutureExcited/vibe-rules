@@ -175,6 +175,11 @@ Options:
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
   - **Codex File Hierarchy**: Codex looks for `AGENTS.md` files in this order: `~/.codex/AGENTS.md` (global), `AGENTS.md` at repo root (default), and `AGENTS.md` in current working directory (use `--target` for subdirectories).
+- **Amp (`amp`)**:
+  - Manages rules within a single `AGENT.md` file in the project root using XML-like tagged blocks.
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` without requiring wrapper blocks (similar to ZED).
+  - **Local only**: Does not support global files or subdirectory configurations.
+  - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Cline/Roo (`clinerules`, `roo`)**:
   - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
 - **ZED (`zed`)**:

@@ -19,7 +19,9 @@ const program = new Command();
 
 program
   .name("vibe-rules")
-  .description("A utility for managing Cursor rules, Windsurf rules, and other AI prompts")
+  .description(
+    "A utility for managing Cursor rules, Windsurf rules, Amp rules, and other AI prompts"
+  )
   .version("0.1.0")
   .option("--debug", "Enable debug logging", false);
 
@@ -49,7 +51,7 @@ program
   .argument("<n>", "Name of the rule to apply")
   .argument(
     "<editor>",
-    "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo, zed, unified, vscode)"
+    "Target editor type (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode)"
   )
   .option("-g, --global", "Apply to global config path if supported (claude-code, codex)", false)
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
@@ -62,7 +64,7 @@ program
   )
   .argument(
     "<editor>",
-    "Target editor type (cursor, windsurf, claude-code, codex, clinerules, roo)"
+    "Target editor type (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode)"
   )
   .argument("[packageName]", "Optional NPM package name to install rules from")
   .option("-g, --global", "Apply to global config path if supported (claude-code, codex)", false)

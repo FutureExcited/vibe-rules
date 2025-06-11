@@ -22,6 +22,7 @@ export const RuleType = {
   WINDSURF: "windsurf",
   CLAUDE_CODE: "claude-code",
   CODEX: "codex",
+  AMP: "amp",
   CLINERULES: "clinerules",
   ROO: "roo",
   ZED: "zed",

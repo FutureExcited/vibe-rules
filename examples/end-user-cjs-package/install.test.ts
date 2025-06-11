@@ -14,6 +14,7 @@
  * - Clinerules (.clinerules/*.md files)
  * - Claude Code (CLAUDE.md file with tagged blocks)
  * - Codex (AGENTS.md file with tagged blocks)
+ * - Amp (AGENT.md file with tagged blocks)
  * - ZED (.rules file with tagged blocks)
  */
 
@@ -522,6 +523,83 @@ test("install should create rules in AGENTS.md file", async () => {
 
   // Clean up AGENTS.md file at the end of the test
   await $`rm -f AGENTS.md`.quiet();
+});
+
+test("install should create rules in AGENT.md file", async () => {
+  // Import the llms modules from our dependencies
+  const cjsRules = require("cjs-package/llms");
+  const esmRules = await import("esm-package/llms");
+
+  // Clean up any existing AGENT.md file
+  await $`rm -f AGENT.md`.quiet();
+
+  // Run npm install
+  console.log("Running npm install...");
+  await $`npm install`;
+
+  // Run vibe-rules install amp command
+  console.log("Running vibe-rules install amp...");
+  await $`npm run vibe-rules install amp`;
+
+  // Check that AGENT.md file exists
+  const ampFilePath = join(process.cwd(), "AGENT.md");
+  const ampFileStat = await stat(ampFilePath);
+  expect(ampFileStat.isFile()).toBe(true);
+
+  // Read the AGENT.md file content
+  const ampFileContent = await readFile(ampFilePath, "utf-8");
+
+  console.log("Validating AGENT.md file content...");
+
+  // Get expected rule names from the imported modules
+  const cjsRuleNames = cjsRules.map((r) => r.name);
+  const esmRuleNames = esmRules.default.map((r) => r.name);
+  const expectedRules = [...new Set([...cjsRuleNames, ...esmRuleNames])]; // Unique names
+
+  // Count the number of rule blocks in the file
+  // Each rule should be wrapped in XML-like tags: <packageName_ruleName>...</packageName_ruleName>
+  const ruleBlockPattern = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
+  const ruleBlocks = ampFileContent.match(ruleBlockPattern) || [];
+
+  console.log(`Found ${ruleBlocks.length} rule blocks in AGENT.md file`);
+
+  // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
+  expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
+
+  // Amp doesn't use wrapper blocks like Claude Code or Codex (simple like ZED)
+  // Validate that rules from both packages are present
+  for (const rule of expectedRules) {
+    const cjsRuleTag = `<cjs-package_${rule}>`;
+    const esmRuleTag = `<esm-package_${rule}>`;
+
+    expect(ampFileContent).toContain(cjsRuleTag);
+    expect(ampFileContent).toContain(esmRuleTag);
+  }
+
+  // Validate that the actual rule content from imported modules appears in the file
+  console.log("Validating rule content matches imported modules...");
+
+  const allRules = [...cjsRules, ...esmRules.default];
+  for (const rule of allRules) {
+    // Check that the rule content appears in the file
+    expect(ampFileContent).toContain(rule.rule);
+    // Note: description is metadata and may not appear directly in the content
+  }
+
+  // Validate that metadata is included (alwaysApply and globs)
+  for (const rule of allRules) {
+    if (rule.alwaysApply) {
+      expect(ampFileContent).toContain("Always Apply: true");
+    }
+    if (rule.globs && rule.globs.length > 0) {
+      expect(ampFileContent).toContain("Always apply this rule in these files:");
+    }
+  }
+
+  console.log("✅ All Amp assertions passed! Rules properly installed in AGENT.md file.");
+
+  // Clean up AGENT.md file at the end of the test
+  await $`rm -f AGENT.md`.quiet();
 });
 
 test("install should create rules in .rules file", async () => {

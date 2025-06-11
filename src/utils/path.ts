@@ -62,6 +62,9 @@ export function getRulePath(
       return isGlobal
         ? path.join(CODEX_HOME_DIR, "AGENTS.md")
         : path.join(projectRoot, "AGENTS.md");
+    case RuleType.AMP:
+      // Amp uses AGENT.md (local only, no global support)
+      return path.join(projectRoot, "AGENT.md");
     case RuleType.CLINERULES:
     case RuleType.ROO:
       // Cline/Roo rules are project-local files in .clinerules/
@@ -117,6 +120,9 @@ export function getDefaultTargetPath(
       return isGlobalHint
         ? CODEX_HOME_DIR // Directory
         : process.cwd(); // Project root (for local AGENTS.md)
+    case RuleType.AMP:
+      // Amp only supports local project root (for local AGENT.md)
+      return process.cwd();
     case RuleType.CLINERULES:
     case RuleType.ROO:
       // Default target is the .clinerules directory
@@ -193,6 +199,9 @@ export async function editorConfigExists(
       checkPath = isGlobal
         ? path.join(CODEX_HOME_DIR, "AGENTS.md")
         : path.join(projectRoot, "AGENTS.md");
+      break;
+    case RuleType.AMP:
+      checkPath = path.join(projectRoot, "AGENT.md");
       break;
     default:
       return false; // Unknown or unsupported for this check

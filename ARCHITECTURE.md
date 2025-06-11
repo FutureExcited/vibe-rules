@@ -34,6 +34,7 @@ vibe-rules/
 │   │   ├── windsurf-provider.ts # Windsurf editor provider
 │   │   ├── claude-code-provider.ts # Claude Code provider
 │   │   ├── codex-provider.ts       # Codex provider (Updated: AGENTS.md support)
+│   │   ├── amp-provider.ts         # Amp provider (Added: AGENT.md support, local only)
 │   │   ├── clinerules-provider.ts  # Clinerules/Roo provider
 │   │   ├── zed-provider.ts         # Zed editor provider
 │   │   └── unified-provider.ts     # Unified .rules provider (Added)
@@ -57,8 +58,9 @@ vibe-rules/
 │   ├── windsurf-rules-directory/   # Example Windsurf workspace rules structure
 │   ├── cline-rules-directory/      # Example Cline workspace rules structure (Added)
 │   ├── codex-rules-directory/      # Example CODEX workspace rules structure (Updated: AGENTS.md)
+│   ├── amp-rules-directory/        # Example Amp workspace rules structure (Added: AGENT.md)
 │   ├── zed-rules-directory/        # Example ZED editor rules structure (Added)
-│   └── README.md               # Documentation of reference structures (Updated: Codex AGENTS.md)
+│   └── README.md               # Documentation of reference structures (Updated: Codex AGENTS.md, Amp AGENT.md)
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
@@ -413,6 +415,7 @@ Defines the core types and interfaces used throughout the application.
   - `WINDSURF`: "windsurf" - For Windsurf editor
   - `CLAUDE_CODE`: "claude-code" - For Claude Code IDE
   - `CODEX`: "codex" - For Codex IDE
+  - `AMP`: "amp" - For Amp AI coding assistant (Added)
   - `CLINERULES`: "clinerules" - For Cline/Roo IDEs
   - `ROO`: "roo" - Alias for CLINERULES
   - `ZED`: "zed" - For Zed editor
@@ -559,6 +562,7 @@ Utilizes `debugLog` from `cli.ts` for conditional logging in `ensureDirectoryExi
   - `ZED`/`UNIFIED`: Checks for `.rules` file
   - `CLAUDE_CODE`: Checks for `CLAUDE.md` (global: `~/.claude/CLAUDE.md`, local: `./CLAUDE.md`)
   - `CODEX`: Checks for AGENTS.md file (global: `~/.codex/AGENTS.md`, local: `./AGENTS.md`)
+  - `AMP`: Checks for AGENT.md file (local only: `./AGENT.md`)
 
 #### `slugifyRuleName(name: string): string`
 
@@ -719,7 +723,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
-Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `CLINERULES`, `ROO`, `ZED`, `UNIFIED`, and `VSCODE` (Added).
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `AMP`, `CLINERULES`, `ROO`, `ZED`, `UNIFIED`, and `VSCODE` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 
@@ -829,6 +833,28 @@ Implementation of the `RuleProvider` interface for Codex IDE with proper `AGENTS
   - **Rule Updating:** If a rule with the same name already exists, replaces its content.
   - **Rule Insertion:** If an integration block exists, inserts new rules just before the closing `<!-- /vibe-rules Integration -->` tag.
   - Ensures all rules are properly contained within the integration wrapper for consistency with expected file format.
+
+### src/providers/amp-provider.ts (Added)
+
+Implementation of the `RuleProvider` interface for Amp AI coding assistant with simplified `AGENT.md` file support.
+
+#### `AmpRuleProvider` (class)
+
+##### Methods: `generateRuleContent`, `saveRule`, `loadRule`, `listRules`, `appendRule`, `appendFormattedRule`
+
+- Manages rules within a single `AGENT.md` file with XML-like tagged blocks using a simplified approach similar to ZED.
+- **File Structure (Local Only):** Only supports local project configurations:
+  - **Local:** `AGENT.md` at project root - project-specific agent guidance
+  - **Global:** Not supported by Amp
+  - **Subdirectory:** Not yet supported by Amp
+- **`saveRule`, `loadRule`, `listRules`:** Use utility functions from `src/utils/rule-storage.ts` to interact with internal storage.
+- **`generateRuleContent`:** Formats rule content with metadata using `formatRuleWithMetadata`.
+- **`appendFormattedRule`:**
+  - Creates XML-like tagged blocks using `createTaggedRuleBlock` from `rule-formatter.ts`.
+  - **Simple Structure:** Uses direct tagged blocks without wrapper integration comments (similar to ZED provider).
+  - **Rule Updating:** If a rule with the same name already exists, replaces its content.
+  - **Rule Insertion:** Appends new rules directly to the file without special integration blocks.
+  - **Local Only:** Always ignores `isGlobal` parameter as Amp only supports local project files.
 
 ## New Documentation Files
 
@@ -999,6 +1025,27 @@ The test suite has been enhanced for maximum robustness:
   1. `~/.codex/AGENTS.md` - personal global guidance (use `--global` flag)
   2. `AGENTS.md` at repo root - shared project notes (default behavior)
   3. `AGENTS.md` in current working directory - sub-folder/feature specifics (use `--target` flag)
+
+**Amp Installation Test:** (Added)
+
+- **Setup:** Cleans existing `AGENT.md` file to ensure fresh test environment
+- **Installation Process:**
+  - Runs `npm install` to ensure dependencies are available
+  - Executes `npm run vibe-rules install amp` to install rules from all package dependencies
+- **Validation:**
+  - Verifies `AGENT.md` file exists
+  - Counts generated rule blocks (expects exactly 8 tagged blocks)
+  - Validates XML-like tagged block structure with proper opening/closing tags
+  - Confirms no wrapper blocks are used (similar to ZED, unlike Claude Code or Codex)
+  - Validates rule content and metadata from both dependency packages
+
+**Amp Format:**
+
+- **File Format:** All rules stored as XML-like tagged blocks within a single `AGENT.md` file
+- **Block Pattern:** `<{packageName}_{ruleName}>...rule content...</{packageName}_{ruleName}>` (e.g., `<cjs-package_api>...content...</cjs-package_api>`)
+- **No Wrapper Block:** Rules are stored directly without any integration wrapper (follows simple approach like ZED)
+- **Content:** Formatted using `formatRuleWithMetadata` with human-readable metadata lines
+- **Local Only:** Only supports local project `AGENT.md` files, no global or subdirectory support
 
 **ZED Installation Test:** (Added)
 
