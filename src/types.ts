@@ -21,6 +21,7 @@ export const RuleType = {
   CURSOR: "cursor",
   WINDSURF: "windsurf",
   CLAUDE_CODE: "claude-code",
+  GEMINI: "gemini",
   CODEX: "codex",
   AMP: "amp",
   CLINERULES: "clinerules",

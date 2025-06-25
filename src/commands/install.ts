@@ -33,6 +33,7 @@ async function clearExistingRules(
   const singleFileProviders: RuleTypeArray = [
     RuleType.WINDSURF,
     RuleType.CLAUDE_CODE,
+    RuleType.GEMINI,
     RuleType.CODEX,
   ];
   let isSingleFileProvider = singleFileProviders.includes(editorType);
