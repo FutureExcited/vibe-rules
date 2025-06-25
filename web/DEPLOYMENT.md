@@ -5,14 +5,17 @@ This website can be deployed to Cloudflare using Alchemy.
 ## Prerequisites
 
 1. **Install dependencies:**
+
    ```bash
    bun install
    ```
 
 2. **Cloudflare Authentication:**
+
    ```bash
    bun wrangler login
    ```
+
    This will authenticate you with Cloudflare. Alchemy automatically reuses your Wrangler OAuth tokens.
 
 3. **Environment Setup:**
@@ -30,6 +33,7 @@ bun run deploy
 ```
 
 You'll get the live URL of your Nuxt site:
+
 ```
 {
   url: "https://vibe-rules-web.<your-account>.workers.dev"
@@ -61,6 +65,7 @@ bun run destroy
 ## Configuration
 
 The deployment:
+
 - Builds the site using `bun run generate` for static output
 - Deploys static assets to Cloudflare
 - Creates a Worker to serve the assets
@@ -70,16 +75,19 @@ The deployment:
 ## Custom Domain Setup
 
 The deployment automatically:
+
 - Creates or adopts the zone for `vibe-rules.com`
 - Sets up `vibe-rules.com` as the main domain
 - Sets up `www.vibe-rules.com` as a subdomain
 - Configures Worker routes for both domains
 
 **If the zone doesn't exist yet:**
+
 - Alchemy will attempt to create it
 - You'll need appropriate permissions on your Cloudflare account
 - After deployment, update your domain's nameservers to the ones provided
 
 **If the zone already exists:**
+
 - Alchemy will adopt and use it
 - Custom domains will be configured automatically

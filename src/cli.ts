@@ -53,7 +53,11 @@ program
     "<editor>",
     "Target editor type (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
   )
-  .option("-g, --global", "Apply to global config path if supported (claude-code, gemini, codex)", false)
+  .option(
+    "-g, --global",
+    "Apply to global config path if supported (claude-code, gemini, codex)",
+    false
+  )
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
   .action(loadCommandAction);
 
@@ -67,7 +71,11 @@ program
     "Target editor type (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
   )
   .argument("[packageName]", "Optional NPM package name to install rules from")
-  .option("-g, --global", "Apply to global config path if supported (claude-code, gemini, codex)", false)
+  .option(
+    "-g, --global",
+    "Apply to global config path if supported (claude-code, gemini, codex)",
+    false
+  )
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
   .action(installCommandAction);
 

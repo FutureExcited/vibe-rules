@@ -9,7 +9,7 @@
 <style>
 /* Global styles */
 html {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   scroll-behavior: smooth;
 }
 
@@ -76,7 +76,7 @@ html {
 
 /* Background grid pattern */
 .bg-grid-pattern {
-  background-image: 
+  background-image:
     linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
   background-size: 60px 60px;
