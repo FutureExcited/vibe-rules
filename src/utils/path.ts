@@ -9,6 +9,7 @@ export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
 
 // Home directories for specific IDEs/Tools
 export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
+export const GEMINI_HOME_DIR = path.join(os.homedir(), ".gemini");
 export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
 export const ZED_RULES_FILE = ".rules"; // Added for Zed
 
@@ -57,6 +58,11 @@ export function getRulePath(
       return isGlobal
         ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
         : path.join(projectRoot, "CLAUDE.md");
+    case RuleType.GEMINI:
+      // Gemini rules are GEMINI.md, either global or local
+      return isGlobal
+        ? path.join(GEMINI_HOME_DIR, "GEMINI.md")
+        : path.join(projectRoot, "GEMINI.md");
     case RuleType.CODEX:
       // Codex uses AGENTS.md (global) or AGENTS.md (local)
       return isGlobal
@@ -115,6 +121,11 @@ export function getDefaultTargetPath(
       return isGlobalHint
         ? CLAUDE_HOME_DIR // Directory
         : process.cwd(); // Project root (for local CLAUDE.md)
+    case RuleType.GEMINI:
+      // Default target depends on global hint
+      return isGlobalHint
+        ? GEMINI_HOME_DIR // Directory
+        : process.cwd(); // Project root (for local GEMINI.md)
     case RuleType.CODEX:
       // Default target depends on global hint
       return isGlobalHint
@@ -194,6 +205,11 @@ export async function editorConfigExists(
       checkPath = isGlobal
         ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md")
         : path.join(projectRoot, "CLAUDE.md");
+      break;
+    case RuleType.GEMINI:
+      checkPath = isGlobal
+        ? path.join(GEMINI_HOME_DIR, "GEMINI.md")
+        : path.join(projectRoot, "GEMINI.md");
       break;
     case RuleType.CODEX:
       checkPath = isGlobal

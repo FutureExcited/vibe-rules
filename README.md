@@ -99,11 +99,11 @@ vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.md
 Arguments:
 
 - `<name>`: The name of the rule saved in the local store (`~/.vibe-rules/rules/`).
-- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`, `vscode`.
+- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `gemini`, `codex`, `clinerules`, `roo`, `vscode`.
 
 Options:
 
-- `-g, --global`: Apply to the editor's global configuration path (if supported, e.g., `claude-code`, `codex`). Defaults to project-local.
+- `-g, --global`: Apply to the editor's global configuration path (if supported, e.g., `claude-code`, `gemini`, `codex`). Defaults to project-local.
 - `-t, --target <path>`: Specify a custom target file path or directory, overriding default/global paths.
 
 ### Sharing and Installing Rules via NPM
@@ -138,7 +138,7 @@ Add the `--debug` global option to any `vibe-rules` command to enable detailed d
 
 Arguments:
 
-- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `clinerules`, `roo`, `vscode`.
+- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `gemini`, `codex`, `clinerules`, `roo`, `vscode`.
 - `[packageName]` (Optional): The specific NPM package name to install rules from. If omitted, `vibe-rules` scans all dependencies and devDependencies in your project's `package.json`.
 
 Options:
@@ -168,6 +168,10 @@ Options:
   - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
 - **Claude Code (`claude-code`)**:
   - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-rules Integration -->` section in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
+  - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
+  - Supports metadata formatting for `alwaysApply` and `globs` configurations.
+- **Gemini (`gemini`)**:
+  - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-rules Integration -->` section in `./GEMINI.md` (local) or `~/.gemini/GEMINI.md` (global).
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Codex (`codex`)**:

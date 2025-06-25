@@ -2,6 +2,7 @@ import { RuleProvider, RuleType } from "../types.js";
 import { CursorRuleProvider } from "./cursor-provider.js";
 import { WindsurfRuleProvider } from "./windsurf-provider.js";
 import { ClaudeCodeRuleProvider } from "./claude-code-provider.js";
+import { GeminiRuleProvider } from "./gemini-provider.js";
 import { CodexRuleProvider } from "./codex-provider.js";
 import { AmpRuleProvider } from "./amp-provider.js";
 import { ClinerulesRuleProvider } from "./clinerules-provider.js";
@@ -20,6 +21,8 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
       return new WindsurfRuleProvider();
     case RuleType.CLAUDE_CODE:
       return new ClaudeCodeRuleProvider();
+    case RuleType.GEMINI:
+      return new GeminiRuleProvider();
     case RuleType.CODEX:
       return new CodexRuleProvider();
     case RuleType.AMP:
