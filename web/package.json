@@ -1,0 +1,31 @@
+{
+  "name": "vibe-rules-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "deploy": "bun alchemy.run.ts",
+    "destroy": "alchemy destroy"
+  },
+  "dependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxt/fonts": "^0.10.3",
+    "nuxt": "^4.0.0-alpha.2",
+    "alchemy": "latest"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.12.1",
+    "tailwindcss": "^3.4.16",
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@types/node": "^22.10.2"
+  },
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.0.0"
+  },
+  "packageManager": "bun@1.1.38"
+}
