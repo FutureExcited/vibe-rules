@@ -91,6 +91,9 @@ export function getRulePath(
         "instructions",
         slugifyRuleName(ruleName) + ".instructions.md"
       );
+    case RuleType.OPENCODE:
+      // OpenCode uses OpenCode.md file in project root
+      return path.join(projectRoot, "OpenCode.md");
     case RuleType.CUSTOM:
     default:
       // Fallback for custom or unknown - store internally for now
@@ -145,6 +148,9 @@ export function getDefaultTargetPath(
     case RuleType.VSCODE:
       // Default target is the .github/instructions directory
       return path.join(process.cwd(), ".github", "instructions");
+    case RuleType.OPENCODE:
+      // Default target is the project root (for OpenCode.md)
+      return process.cwd();
     default:
       console.warn(
         `Default target path not defined for rule type: ${ruleType}, defaulting to CWD.`
@@ -218,6 +224,9 @@ export async function editorConfigExists(
       break;
     case RuleType.AMP:
       checkPath = path.join(projectRoot, "AGENT.md");
+      break;
+    case RuleType.OPENCODE:
+      checkPath = path.join(projectRoot, "OpenCode.md");
       break;
     default:
       return false; // Unknown or unsupported for this check

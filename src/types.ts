@@ -29,6 +29,7 @@ export const RuleType = {
   ZED: "zed",
   UNIFIED: "unified",
   VSCODE: "vscode",
+  OPENCODE: "opencode",
   CUSTOM: "custom",
 } as const;
 

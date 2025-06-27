@@ -9,6 +9,7 @@ import { ClinerulesRuleProvider } from "./clinerules-provider.js";
 import { ZedRuleProvider } from "./zed-provider.js";
 import { UnifiedRuleProvider } from "./unified-provider.js";
 import { VSCodeRuleProvider } from "./vscode-provider.js";
+import { OpenCodeRuleProvider } from "./opencode-provider.js";
 
 /**
  * Factory function to get the appropriate rule provider based on rule type
@@ -36,6 +37,8 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
       return new UnifiedRuleProvider();
     case RuleType.VSCODE:
       return new VSCodeRuleProvider();
+    case RuleType.OPENCODE:
+      return new OpenCodeRuleProvider();
     case RuleType.CUSTOM:
     default:
       throw new Error(`Unsupported rule type: ${ruleType}`);
