@@ -35,6 +35,7 @@ async function clearExistingRules(
     RuleType.CLAUDE_CODE,
     RuleType.GEMINI,
     RuleType.CODEX,
+    RuleType.OPENCODE,
   ];
   let isSingleFileProvider = singleFileProviders.includes(editorType);
 

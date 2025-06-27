@@ -30,3 +30,4 @@ coverage/
 .env.production.local 
 
 .repomix-*
+.opencode
