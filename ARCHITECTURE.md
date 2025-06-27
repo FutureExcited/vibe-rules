@@ -37,6 +37,7 @@ vibe-rules/
 │   │   ├── amp-provider.ts         # Amp provider (Added: AGENT.md support, local only)
 │   │   ├── clinerules-provider.ts  # Clinerules/Roo provider
 │   │   ├── zed-provider.ts         # Zed editor provider
+│   │   ├── opencode-provider.ts    # OpenCode AI coding assistant provider (Added)
 │   │   └── unified-provider.ts     # Unified .rules provider (Added)
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers (Updated: Codex AGENTS.md paths)
@@ -421,6 +422,7 @@ Defines the core types and interfaces used throughout the application.
   - `ZED`: "zed" - For Zed editor
   - `UNIFIED`: "unified" - For the unified `.rules` file convention (Added)
   - `VSCODE`: "vscode" - For Visual Studio Code (Added)
+  - `OPENCODE`: "opencode" - For OpenCode AI coding assistant (Added)
   - `CUSTOM`: "custom" - For custom implementations
 
 #### `RuleProvider`
@@ -723,7 +725,7 @@ Provides utility functions for interacting with the internal rule definition sto
 ### src/providers/index.ts
 
 Contains a factory function `getRuleProvider(ruleType: RuleType)` that returns the appropriate provider instance based on the `RuleType` enum.
-Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `AMP`, `CLINERULES`, `ROO`, `ZED`, `UNIFIED`, and `VSCODE` (Added).
+Handles `CURSOR`, `WINDSURF`, `CLAUDE_CODE`, `CODEX`, `AMP`, `CLINERULES`, `ROO`, `ZED`, `UNIFIED`, `VSCODE`, and `OPENCODE` (Added).
 
 ### src/providers/cursor-provider.ts (Refactored)
 

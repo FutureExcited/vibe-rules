@@ -806,3 +806,78 @@ test("install should create 8 rules files in .github/instructions", async () => 
   // Clean up .github directory at the end of the test
   await $`rm -rf .github`.quiet();
 });
+
+test("install should create rules in OpenCode.md file", async () => {
+  // Import the llms modules from our dependencies
+  const cjsRules = require("cjs-package/llms");
+  const esmRules = await import("esm-package/llms");
+
+  // Clean up any existing OpenCode.md file
+  await $`rm -f OpenCode.md`.quiet();
+
+  // Run npm install
+  console.log("Running npm install...");
+  await $`npm install`;
+
+  // Run vibe-rules install opencode command
+  console.log("Running vibe-rules install opencode...");
+  await $`npm run vibe-rules install opencode`;
+
+  // Check that OpenCode.md file exists
+  const opencodeFilePath = join(process.cwd(), "OpenCode.md");
+  const opencodeFileStat = await stat(opencodeFilePath);
+  expect(opencodeFileStat.isFile()).toBe(true);
+
+  // Read the OpenCode.md file content
+  const opencodeFileContent = await readFile(opencodeFilePath, "utf-8");
+
+  console.log("Validating OpenCode.md file content...");
+
+  // Get expected rule names from the imported modules
+  const cjsRuleNames = cjsRules.map((r) => r.name);
+  const esmRuleNames = esmRules.default.map((r) => r.name);
+  const expectedRules = [...new Set([...cjsRuleNames, ...esmRuleNames])]; // Unique names
+
+  // Count the number of rule blocks in the file
+  // Each rule should be wrapped in XML-like tags: <packageName_ruleName>...</packageName_ruleName>
+  const ruleBlockPattern = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
+  const ruleBlocks = opencodeFileContent.match(ruleBlockPattern) || [];
+
+  console.log(`Found ${ruleBlocks.length} rule blocks in OpenCode.md file`);
+
+  // Expect 8 rule blocks (4 from cjs-package + 4 from esm-package)
+  expect(ruleBlocks.length).toBe(cjsRules.length + esmRules.default.length);
+
+  // Validate that rules from both packages are present
+  for (const rule of expectedRules) {
+    const cjsRuleTag = `<cjs-package_${rule}>`;
+    const esmRuleTag = `<esm-package_${rule}>`;
+
+    expect(opencodeFileContent).toContain(cjsRuleTag);
+    expect(opencodeFileContent).toContain(esmRuleTag);
+  }
+
+  // Validate that the actual rule content from imported modules appears in the file
+  console.log("Validating rule content matches imported modules...");
+
+  const allRules = [...cjsRules, ...esmRules.default];
+  for (const rule of allRules) {
+    // Check that the rule content appears in the file
+    expect(opencodeFileContent).toContain(rule.rule);
+  }
+
+  // Validate that metadata is included (alwaysApply and globs)
+  for (const rule of allRules) {
+    if (rule.alwaysApply) {
+      expect(opencodeFileContent).toContain("Always Apply: true");
+    }
+    if (rule.globs && rule.globs.length > 0) {
+      expect(opencodeFileContent).toContain("Always apply this rule in these files:");
+    }
+  }
+
+  console.log("✅ All OpenCode assertions passed! Rules properly installed in OpenCode.md file.");
+
+  // Clean up OpenCode.md file at the end of the test
+  await $`rm -f OpenCode.md`.quiet();
+});
