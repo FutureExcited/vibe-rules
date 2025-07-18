@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
-    "dev": "ts-node src/cli.ts",
+    "dev": "bun run src/cli.ts",
     "test": "bun run test:examples",
     "lint": "oxlint",
     "format": "prettier --write .",

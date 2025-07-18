@@ -106,11 +106,66 @@ Options:
 - `-g, --global`: Apply to the editor's global configuration path (if supported, e.g., `claude-code`, `gemini`, `codex`). Defaults to project-local.
 - `-t, --target <path>`: Specify a custom target file path or directory, overriding default/global paths.
 
+### Convert Rules Between Editor Formats
+
+Convert rules from one editor format to another, supporting both directories and individual files.
+
+```bash
+# Convert cursor directory to claude-code format
+vibe-rules convert cursor claude-code .cursor
+
+# Convert windsurf file to separate cursor rules
+vibe-rules convert windsurf cursor .windsurfrules
+
+# Convert single cursor rule to claude-code with custom target
+vibe-rules convert cursor claude-code .cursor/rules/my-rule.mdc --target output.md
+
+# Convert VSCode directory to unified format with global target
+vibe-rules convert vscode unified .github/instructions --global
+```
+
+Arguments:
+
+- `<sourceFormat>`: Source editor format (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode).
+- `<targetFormat>`: Target editor format (same options as source).
+- `<sourcePath>`: Path to source directory (like `.cursor`) or file (like `CLAUDE.md`).
+
+Options:
+
+- `-g, --global`: Apply to global config path if supported (claude-code, codex, etc.). Defaults to project-local.
+- `-t, --target <path>`: Specify custom target file or directory path.
+
 ### Sharing and Installing Rules via NPM
 
 In the evolving AI landscape, prompts and context are becoming increasingly crucial components of development workflows. Just like code libraries, reusable AI rules and prompts are emerging as shareable assets.
 
 We anticipate more NPM packages will begin exporting standardized AI configurations, often via a `llms` entry point (e.g., `my-package/llms`). `vibe-rules` embraces this trend with the `install` command.
+
+### Convert Rules Between Formats
+
+🔄 **Seamlessly migrate between editors!** 🔄
+
+Convert rules from one editor format to another, supporting both directories and individual files. Perfect for migrating between editors or sharing rules across different development environments.
+
+```bash
+# Convert cursor rules to claude-code format
+vibe-rules convert cursor claude-code .cursor
+
+# Convert a single windsurf file to separate cursor rules
+vibe-rules convert windsurf cursor .windsurfrules
+
+# Convert VSCode instructions to unified format
+vibe-rules convert vscode unified .github/instructions
+
+# Convert with custom target path
+vibe-rules convert cursor claude-code .cursor --target my-claude.md
+```
+
+**Supported conversions:**
+
+- **Directory-based**: `cursor` ↔ `clinerules` ↔ `vscode` (individual files)
+- **File-based**: `windsurf` ↔ `claude-code` ↔ `codex` ↔ `amp` ↔ `zed` ↔ `unified` (tagged blocks)
+- **Cross-format**: Any format to any other format with automatic metadata preservation
 
 ### Install Rules from NPM Packages
 
@@ -165,7 +220,7 @@ Options:
   - Creates/updates individual `.mdc` files in `./.cursor/rules/` (local) or `~/.cursor/rules/` (global, if supported via `-t`).
   - Uses frontmatter for metadata (`description`, `alwaysApply`, `globs`).
 - **Windsurf (`windsurf`)**:
-  - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-g`) is not typically used.
+  - Appends rules wrapped in `<rule-name>` tags to `./.windsurfrules` (local) or a target file specified by `-t`. Global (`-  g`) is not typically used.
 - **Claude Code (`claude-code`)**:
   - Appends/updates rules within XML-like tagged blocks in a `<!-- vibe-rules Integration -->` section in `./CLAUDE.md` (local) or `~/.claude/CLAUDE.md` (global).
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` within the single markdown file.

@@ -227,13 +227,13 @@
               </div>
             </div>
 
-            <!-- Install from NPM -->
+            <!-- Convert Formats -->
             <div class="feature-card group">
               <div
-                class="w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-200"
+                class="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-200"
               >
                 <svg
-                  class="w-7 h-7 text-purple-600 dark:text-purple-400"
+                  class="w-7 h-7 text-blue-600 dark:text-blue-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -242,18 +242,17 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     stroke-width="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
                   ></path>
                 </svg>
               </div>
-              <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Install from NPM</h3>
+              <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3">Convert Formats</h3>
               <p class="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
-                Automatically install rules from NPM packages with
-                <code class="text-sm bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">llms</code>
-                exports.
+                Seamlessly convert rules between all supported editor formats with metadata
+                preservation.
               </p>
               <div class="code-block text-sm">
-                <div class="text-purple-400">vibe-rules install cursor</div>
+                <div class="text-blue-400">vibe-rules convert cursor claude-code</div>
               </div>
             </div>
           </div>

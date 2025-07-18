@@ -22,6 +22,7 @@ import { test, expect } from "bun:test";
 import { $ } from "bun";
 import { readdir, stat, readFile } from "fs/promises";
 import { join } from "path";
+import { pathExists } from "fs-extra";
 
 test("install should create 8 rules files in .cursor/rules", async () => {
   // Import the llms modules from our dependencies
@@ -805,4 +806,240 @@ test("install should create 8 rules files in .github/instructions", async () => 
 
   // Clean up .github directory at the end of the test
   await $`rm -rf .github`.quiet();
+});
+
+test("should convert rules from cursor to claude-code format", async () => {
+  // First, install cursor rules to have something to convert
+  await $`rm -rf .cursor CLAUDE.md`;
+  await $`npm install`;
+  await $`npm run vibe-rules install cursor`;
+
+  // Verify cursor rules were installed
+  expect(await pathExists(".cursor/rules")).toBe(true);
+  const cursorFiles = await readdir(".cursor/rules");
+  const mdcFiles = cursorFiles.filter((file) => file.endsWith(".mdc"));
+  expect(mdcFiles.length).toBe(8);
+
+  // Convert cursor directory to claude-code format
+  await $`npm run vibe-rules convert cursor claude-code .cursor`;
+
+  // Verify claude-code file was created
+  expect(await pathExists("CLAUDE.md")).toBe(true);
+  const claudeContent = await readFile("CLAUDE.md", "utf-8");
+
+  // Check for integration wrapper block
+  expect(claudeContent).toContain("<!-- vibe-rules Integration -->");
+  expect(claudeContent).toContain("<!-- /vibe-rules Integration -->");
+
+  // Count tagged blocks in claude content
+  const taggedBlocks = [...claudeContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(taggedBlocks.length).toBe(8);
+
+  // Verify rule names are preserved
+  const ruleNames = taggedBlocks.map((match) => match[1]);
+  expect(ruleNames).toContain("cjs-package_usage");
+  expect(ruleNames).toContain("esm-package_api");
+
+  // Cleanup
+  await $`rm -rf .cursor CLAUDE.md`;
+});
+
+test("should convert individual rule file from windsurf to cursor format", async () => {
+  // First, install windsurf rules to have something to convert
+  await $`rm -rf .cursor .windsurfrules`;
+  await $`npm install`;
+  await $`npm run vibe-rules install windsurf`;
+
+  // Verify windsurf file was created
+  expect(await pathExists(".windsurfrules")).toBe(true);
+  const windsurfContent = await readFile(".windsurfrules", "utf-8");
+  const taggedBlocks = [...windsurfContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(taggedBlocks.length).toBe(8);
+
+  // Convert windsurf file to cursor format
+  await $`npm run vibe-rules convert windsurf cursor .windsurfrules`;
+
+  // Verify cursor directory was created
+  expect(await pathExists(".cursor/rules")).toBe(true);
+  const cursorFiles = await readdir(".cursor/rules");
+  const mdcFiles = cursorFiles.filter((file) => file.endsWith(".mdc"));
+  expect(mdcFiles.length).toBe(8);
+
+  // Verify specific rule files exist
+  expect(cursorFiles).toContain("cjs-package_usage.mdc");
+  expect(cursorFiles).toContain("esm-package_api.mdc");
+
+  // Check one specific file has correct format
+  const sampleRuleContent = await readFile(".cursor/rules/cjs-package_usage.mdc", "utf-8");
+  expect(sampleRuleContent).toContain("---"); // frontmatter
+  expect(sampleRuleContent).toContain("alwaysApply: true"); // metadata preserved
+
+  // Cleanup
+  await $`rm -rf .cursor .windsurfrules`;
+});
+
+test("should convert VSCode directory to unified format", async () => {
+  // First, install VSCode rules to have something to convert
+  await $`rm -rf .github/instructions .rules`;
+  await $`npm install`;
+  await $`npm run vibe-rules install vscode`;
+
+  // Verify VSCode directory was created
+  expect(await pathExists(".github/instructions")).toBe(true);
+  const vscodeFiles = await readdir(".github/instructions");
+  const instructionFiles = vscodeFiles.filter((file) => file.endsWith(".instructions.md"));
+  expect(instructionFiles.length).toBe(8);
+
+  // Convert VSCode directory to unified format
+  await $`npm run vibe-rules convert vscode unified .github/instructions`;
+
+  // Verify unified .rules file was created
+  expect(await pathExists(".rules")).toBe(true);
+  const unifiedContent = await readFile(".rules", "utf-8");
+
+  // Count tagged blocks in unified content
+  const taggedBlocks = [...unifiedContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(taggedBlocks.length).toBe(8);
+
+  // Verify rule names are preserved
+  const ruleNames = taggedBlocks.map((match) => match[1]);
+  expect(ruleNames).toContain("cjs-package_usage");
+  expect(ruleNames).toContain("esm-package_api");
+
+  // Cleanup
+  await $`rm -rf .github/instructions .rules`;
+});
+
+test("should handle custom target path in convert command", async () => {
+  // First, install cursor rules
+  await $`rm -rf .cursor custom-claude.md`;
+  await $`npm install`;
+  await $`npm run vibe-rules install cursor`;
+
+  // Convert cursor to claude-code with custom target (use -- to separate npm args from our args)
+  await $`npm run vibe-rules -- convert cursor claude-code .cursor --target custom-claude.md`;
+
+  // Verify custom target file was created
+  expect(await pathExists("custom-claude.md")).toBe(true);
+  const claudeContent = await readFile("custom-claude.md", "utf-8");
+
+  // Verify content structure
+  expect(claudeContent).toContain("<!-- vibe-rules Integration -->");
+  const taggedBlocks = [...claudeContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(taggedBlocks.length).toBe(8);
+
+  // Cleanup
+  await $`rm -rf .cursor custom-claude.md`;
+});
+
+test("should show error for invalid source format", async () => {
+  const result = await $`npm run vibe-rules convert invalid-format cursor .cursor`.nothrow();
+
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("Invalid source format");
+});
+
+test("should show error for same source and target formats", async () => {
+  const result = await $`npm run vibe-rules convert cursor cursor .cursor`.nothrow();
+
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("Source and target formats cannot be the same");
+});
+
+test("should show error for non-existent source path", async () => {
+  const result =
+    await $`npm run vibe-rules convert cursor claude-code ./non-existent-path`.nothrow();
+
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("Source path not found");
+});
+
+test("should handle complete convert workflow with metadata preservation", async () => {
+  // Step 1: Clean environment and install cursor rules
+  await $`rm -rf .cursor CLAUDE.md .windsurfrules custom-output.md`;
+  await $`npm install`;
+  await $`npm run vibe-rules install cursor`;
+
+  // Verify cursor installation
+  expect(await pathExists(".cursor/rules")).toBe(true);
+  const originalCursorFiles = await readdir(".cursor/rules");
+  expect(originalCursorFiles.filter((f) => f.endsWith(".mdc")).length).toBe(8);
+
+  // Step 2: Convert cursor → claude-code
+  await $`npm run vibe-rules convert cursor claude-code .cursor`;
+  expect(await pathExists("CLAUDE.md")).toBe(true);
+
+  const claudeContent = await readFile("CLAUDE.md", "utf-8");
+  expect(claudeContent).toContain("<!-- vibe-rules Integration -->");
+  expect(claudeContent).toContain("<!-- /vibe-rules Integration -->");
+
+  // Verify all rules are present in claude format
+  const claudeBlocks = [...claudeContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(claudeBlocks.length).toBe(8);
+
+  // Step 3: Convert claude-code → cursor (roundtrip)
+  await $`rm -rf .cursor`;
+  await $`npm run vibe-rules convert claude-code cursor CLAUDE.md`;
+
+  expect(await pathExists(".cursor/rules")).toBe(true);
+  const roundtripCursorFiles = await readdir(".cursor/rules");
+  expect(roundtripCursorFiles.filter((f) => f.endsWith(".mdc")).length).toBe(8);
+
+  // Step 4: Verify metadata preservation in roundtrip
+  const apiRuleContent = await readFile(".cursor/rules/cjs-package_api.mdc", "utf-8");
+  expect(apiRuleContent).toContain("---"); // frontmatter
+  expect(apiRuleContent).toContain("alwaysApply: false");
+  expect(apiRuleContent).toContain("# API Rules");
+
+  // Step 5: Test custom target conversion
+  await $`npm run vibe-rules -- convert cursor claude-code .cursor/rules/cjs-package_api.mdc --target custom-output.md`;
+
+  expect(await pathExists("custom-output.md")).toBe(true);
+  const customContent = await readFile("custom-output.md", "utf-8");
+  expect(customContent).toContain("<cjs-package_api>");
+  expect(customContent).toContain("# API Rules");
+  expect(customContent).toContain("<!-- vibe-rules Integration -->");
+
+  console.log("✅ Complete convert workflow test passed!");
+
+  // Cleanup
+  await $`rm -rf .cursor CLAUDE.md .windsurfrules custom-output.md`;
+});
+
+test("should convert between different single-file formats correctly", async () => {
+  // Setup windsurf rules first
+  await $`rm -rf .windsurfrules .rules AGENT.md`;
+  await $`npm install`;
+  await $`npm run vibe-rules install windsurf`;
+
+  expect(await pathExists(".windsurfrules")).toBe(true);
+  const windsurfContent = await readFile(".windsurfrules", "utf-8");
+  const windsurfBlocks = [...windsurfContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(windsurfBlocks.length).toBe(8);
+
+  // Convert windsurf → zed (unified .rules format)
+  await $`npm run vibe-rules convert windsurf unified .windsurfrules`;
+
+  expect(await pathExists(".rules")).toBe(true);
+  const rulesContent = await readFile(".rules", "utf-8");
+  const rulesBlocks = [...rulesContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(rulesBlocks.length).toBe(8);
+
+  // Convert unified → amp format
+  await $`npm run vibe-rules convert unified amp .rules`;
+
+  expect(await pathExists("AGENT.md")).toBe(true);
+  const ampContent = await readFile("AGENT.md", "utf-8");
+  const ampBlocks = [...ampContent.matchAll(/<([^>]+)>([\s\S]*?)<\/\1>/g)];
+  expect(ampBlocks.length).toBe(8);
+
+  // Verify a specific rule exists with metadata
+  expect(ampContent).toContain("<cjs-package_api>");
+  expect(ampContent).toContain("Always Apply: false");
+  expect(ampContent).toContain("# API Rules");
+
+  console.log("✅ Single-file format conversion test passed!");
+
+  // Cleanup
+  await $`rm -rf .windsurfrules .rules AGENT.md`;
 });

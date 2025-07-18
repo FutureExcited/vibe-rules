@@ -117,23 +117,23 @@ export function getDefaultTargetPath(
       // Default target is the .windsurfrules file
       return path.join(process.cwd(), ".windsurfrules");
     case RuleType.CLAUDE_CODE:
-      // Default target depends on global hint
+      // Default target should be the CLAUDE.md file path
       return isGlobalHint
-        ? CLAUDE_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local CLAUDE.md)
+        ? path.join(CLAUDE_HOME_DIR, "CLAUDE.md") // Global CLAUDE.md
+        : path.join(process.cwd(), "CLAUDE.md"); // Local CLAUDE.md
     case RuleType.GEMINI:
-      // Default target depends on global hint
+      // Default target should be the GEMINI.md file path
       return isGlobalHint
-        ? GEMINI_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local GEMINI.md)
+        ? path.join(GEMINI_HOME_DIR, "GEMINI.md") // Global GEMINI.md
+        : path.join(process.cwd(), "GEMINI.md"); // Local GEMINI.md
     case RuleType.CODEX:
-      // Default target depends on global hint
+      // Default target should be the AGENTS.md file path
       return isGlobalHint
-        ? CODEX_HOME_DIR // Directory
-        : process.cwd(); // Project root (for local AGENTS.md)
+        ? path.join(CODEX_HOME_DIR, "AGENTS.md") // Global AGENTS.md
+        : path.join(process.cwd(), "AGENTS.md"); // Local AGENTS.md
     case RuleType.AMP:
-      // Amp only supports local project root (for local AGENT.md)
-      return process.cwd();
+      // Amp only supports local AGENT.md file
+      return path.join(process.cwd(), "AGENT.md");
     case RuleType.CLINERULES:
     case RuleType.ROO:
       // Default target is the .clinerules directory

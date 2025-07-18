@@ -21,7 +21,11 @@ vibe-rules/
 ├── src/                   # Source code
 │   ├── cli.ts             # Command-line interface
 │   ├── commands/          # CLI command action handlers (Added)
-│   │   └── install.ts     # Action handler for the 'install' command (Added)
+│   │   ├── install.ts     # Action handler for the 'install' command (Added)
+│   │   ├── save.ts        # Action handler for the 'save' command (Added)
+│   │   ├── load.ts        # Action handler for the 'load' command (Added)
+│   │   ├── list.ts        # Action handler for the 'list' command (Added)
+│   │   └── convert.ts     # Action handler for the 'convert' command (Added)
 │   ├── index.ts           # Main exports
 │   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED)
 │   ├── schemas.ts         # Zod schema definitions
@@ -64,6 +68,7 @@ vibe-rules/
 ├── web/                   # Web interface
 │   ├── pages/             # Vue/Nuxt pages
 │   │   └── index.vue      # Landing page
+│   │   └── local-usage.vue # Local usage guide
 │   ├── public/            # Public assets
 │   └── nuxt.config.ts     # Nuxt configuration
 ├── package.json           # Project metadata and dependencies (including import-meta-resolve polyfill, dynamic build/test scripts, CI automation)
@@ -255,13 +260,17 @@ It handles parsing of command-line arguments, options, and delegates the executi
 - `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean; target?: string }): Promise<void>` (Added)
   - Clears previously installed rule files associated with a specific NPM package before installing new ones.
   - Determines the target directory based on `editorType` and `options`.
-  - **Behavior for Single-File Providers** (e.g., Windsurf, Claude Code, Codex):
-    - Reads the determined single target file (e.g., `.windsurfrules`, `CLAUDE.md`).
+  - **Fixed Bug (Latest)**: Now correctly handles single-file providers by ensuring only the parent directory is created, not the file itself as a directory. The `singleFileProviders` array has been updated to include all single-file providers: `WINDSURF`, `CLAUDE_CODE`, `GEMINI`, `CODEX`, `AMP`, `ZED`, `UNIFIED`.
+  - **Behavior for Single-File Providers** (e.g., Windsurf, Claude Code, Codex, AMP, ZED, Unified):
+    - For non-existing file paths: Creates only the parent directory using `fs.ensureDir(path.dirname(defaultPath))` instead of incorrectly creating the file path as a directory.
+    - Reads the determined single target file (e.g., `.windsurfrules`, `CLAUDE.md`, `AGENTS.md`, `AGENT.md`, `.rules`).
     - Removes any XML-like blocks within the file where the tag name starts with the package prefix (e.g., finds and removes `<pkgName_rule1>...</pkgName_rule1>`, `<pkgName_anotherRule>...</pkgName_anotherRule>`).
     - Writes the modified content back to the file.
     - Does _not_ delete the file itself.
-  - **Behavior for Multi-File Providers** (e.g., Cursor, Clinerules):
+  - **Behavior for Multi-File Providers** (e.g., Cursor, Clinerules, VSCode):
+    - For non-existing directory paths: Creates the directory using `fs.ensureDir(defaultPath)`.
     - Deletes files within the target directory whose names start with `${pkgName}_`.
+  - Handles cases where target paths don't exist gracefully.
 
 #### Commands
 
@@ -288,10 +297,90 @@ It handles parsing of command-line arguments, options, and delegates the executi
 - `install <editor> [packageName] [options]`
   - Defines the CLI options and arguments for the install command.
   - Delegates the action to `installCommandAction` from `src/commands/install.ts`.
+- `convert <sourceFormat> <targetFormat> <sourcePath> [options]`
+  - Defines the CLI options and arguments for the convert command.
+  - Enables seamless rule conversion between different editor formats.
+  - Supports both directory-based (cursor, clinerules, vscode) and file-based (windsurf, claude-code, etc.) conversions.
+  - Delegates the action to `convertCommandAction` from `src/commands/convert.ts`.
 
 ### src/commands/install.ts (Added)
 
 Contains the action handler for the `vibe-rules install` command and handles the complex module loading requirements for both CommonJS and ES modules.
+
+### src/commands/convert.ts (Added)
+
+Contains the action handler for the `vibe-rules convert` command with comprehensive rule format conversion capabilities.
+
+#### Functions
+
+- `convertCommandAction(sourceFormat: string, targetFormat: string, sourcePath: string, options: ConvertOptions): Promise<void>` (Exported)
+  - Main handler for the `convert` command.
+  - Validates source and target formats using `validateAndGetRuleType`.
+  - Determines if source is a directory or file using `fs.stat`.
+  - Extracts rules using format-specific extraction functions.
+  - Converts each rule using the target format provider.
+  - Supports both directory and file-based conversion with proper error handling.
+
+#### Rule Extraction Functions
+
+- `extractRulesFromDirectory(sourceType: RuleType, dirPath: string): Promise<StoredRuleConfig[]>`
+
+  - Extracts rules from directories based on source format (Cursor, Clinerules, VSCode).
+  - Delegates to format-specific directory extraction functions.
+
+- `extractRulesFromFile(sourceType: RuleType, filePath: string): Promise<StoredRuleConfig[]>`
+  - Extracts rules from individual files based on source format.
+  - Supports all single-file formats (Windsurf, Claude Code, Codex, Amp, ZED, Unified).
+
+#### Format-Specific Extraction Functions
+
+- `extractFromCursorDirectory(dirPath: string)`: Extracts rules from `.cursor/rules/*.mdc` files with frontmatter parsing.
+- `extractFromCursorFile(filePath: string)`: Extracts metadata and content from individual Cursor `.mdc` files.
+- `extractFromClinerulesDireatory(dirPath: string)`: Extracts rules from `.clinerules/*.md` files.
+- `extractFromVSCodeDirectory(dirPath: string)`: Extracts rules from `.github/instructions/*.instructions.md` files.
+- `extractFromVSCodeFile(filePath: string)`: Extracts metadata from VSCode instruction files with frontmatter.
+- `extractFromWindsurfFile(filePath: string)`: Extracts tagged rule blocks from `.windsurfrules` file.
+- `extractFromClaudeCodeFile(filePath: string)`: Extracts rules from `CLAUDE.md` with integration wrapper support.
+- `extractFromCodexFile(filePath: string)`: Extracts rules from `AGENTS.md` with integration wrapper support.
+- `extractFromAmpFile(filePath: string)`: Extracts rules from `AGENT.md` file.
+- `extractFromTaggedFile(filePath: string)`: Generic extraction for XML-like tagged blocks (ZED, Unified).
+- `extractFromTaggedFileWithWrapper(filePath: string, wrapperStart: string)`: Extraction for tagged blocks within comment wrappers (Claude Code, Codex).
+
+#### Utility Functions
+
+- `parseMetadataFromContent(content: string): RuleGeneratorOptions`: Parses metadata from rule content text.
+- `removeMetadataFromContent(content: string): string`: Removes metadata lines from rule content.
+- `validateAndGetRuleType(format: string, type: 'source' | 'target'): RuleType | null`: Validates and converts format strings to RuleType enum.
+- `escapeRegex(string: string): string`: Escapes special regex characters.
+
+#### Supported Conversions
+
+**Source Formats (Directory-based):**
+
+- `cursor`: Converts from `.cursor/rules/*.mdc` files with frontmatter metadata
+- `clinerules`/`roo`: Converts from `.clinerules/*.md` files
+- `vscode`: Converts from `.github/instructions/*.instructions.md` files
+
+**Source Formats (File-based):**
+
+- `windsurf`: Converts from `.windsurfrules` file with tagged blocks
+- `claude-code`: Converts from `CLAUDE.md` file with integration wrapper
+- `codex`: Converts from `AGENTS.md` file with integration wrapper
+- `amp`: Converts from `AGENT.md` file with tagged blocks
+- `zed`/`unified`: Converts from `.rules` file with tagged blocks
+
+**Target Formats:**
+
+- All supported editor formats via their respective providers
+- Automatic metadata preservation and format-specific adaptation
+- Smart target path resolution using `getDefaultTargetPath`
+
+#### Error Handling
+
+- Comprehensive validation of source and target formats
+- File system error handling with user-friendly messages
+- Graceful handling of missing files or invalid formats
+- Proper exit codes for CLI integration
 
 ### src/commands/save.ts (Added)
 
@@ -369,10 +458,19 @@ Contains the action handler for the `vibe-rules list` command with unified rule 
   - **Metadata Handling**: Extracts and applies metadata (`alwaysApply`, `globs`) from rule objects to the provider options.
   - **Error Handling**: Provides specific error messages for different failure modes (module not found, syntax errors, initialization errors).
   - Returns the count of successfully applied rules.
-- `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean }): Promise<void>`
-  - Clears previously installed rules for a given package and editor type.
-  - **Single-File Providers** (Windsurf, Claude Code, Codex): Uses regex to remove XML-like blocks matching `<pkgName_ruleName>...</pkgName_ruleName>` patterns from the target file.
-  - **Multi-File Providers** (Cursor, Clinerules): Deletes files starting with `${pkgName}_` in the target directory.
+- `clearExistingRules(pkgName: string, editorType: RuleType, options: { global?: boolean; target?: string }): Promise<void>` (Added)
+  - Clears previously installed rule files associated with a specific NPM package before installing new ones.
+  - Determines the target directory based on `editorType` and `options`.
+  - **Fixed Bug (Latest)**: Now correctly handles single-file providers by ensuring only the parent directory is created, not the file itself as a directory. The `singleFileProviders` array has been updated to include all single-file providers: `WINDSURF`, `CLAUDE_CODE`, `GEMINI`, `CODEX`, `AMP`, `ZED`, `UNIFIED`.
+  - **Behavior for Single-File Providers** (e.g., Windsurf, Claude Code, Codex, AMP, ZED, Unified):
+    - For non-existing file paths: Creates only the parent directory using `fs.ensureDir(path.dirname(defaultPath))` instead of incorrectly creating the file path as a directory.
+    - Reads the determined single target file (e.g., `.windsurfrules`, `CLAUDE.md`, `AGENTS.md`, `AGENT.md`, `.rules`).
+    - Removes any XML-like blocks within the file where the tag name starts with the package prefix (e.g., finds and removes `<pkgName_rule1>...</pkgName_rule1>`, `<pkgName_anotherRule>...</pkgName_anotherRule>`).
+    - Writes the modified content back to the file.
+    - Does _not_ delete the file itself.
+  - **Behavior for Multi-File Providers** (e.g., Cursor, Clinerules, VSCode):
+    - For non-existing directory paths: Creates the directory using `fs.ensureDir(defaultPath)`.
+    - Deletes files within the target directory whose names start with `${pkgName}_`.
   - Handles cases where target paths don't exist gracefully.
 - `importModuleFromCwd(ruleModulePath: string): Promise<any>`
   - **Dual-Strategy Module Loading**: Implements a robust approach for loading modules that works with both CommonJS and ES modules.
@@ -855,6 +953,30 @@ Implementation of the `RuleProvider` interface for Amp AI coding assistant with 
   - **Rule Updating:** If a rule with the same name already exists, replaces its content.
   - **Rule Insertion:** Appends new rules directly to the file without special integration blocks.
   - **Local Only:** Always ignores `isGlobal` parameter as Amp only supports local project files.
+
+## Web Interface
+
+### web/app/pages/index.vue
+
+The main landing page for the `vibe-rules` web interface.
+
+#### Key Sections
+
+- **Hero Section**: Introduces `vibe-rules` with a quick start guide.
+- **Features Section**: Highlights key features like `save`, `load`, and `convert`.
+- **Supported Editors Section**: Lists all the editors that `vibe-rules` supports.
+
+### web/app/pages/local-usage.vue
+
+A detailed guide on how to use `vibe-rules` in a local development environment.
+
+#### Key Sections
+
+- **Installation**: Instructions on how to install `vibe-rules` globally.
+- **Basic Commands**: Detailed explanation of the `save`, `list`, and `load` commands.
+- **Convert Rule Formats**: Explains how to use the `convert` command to migrate rules between different editor formats.
+- **Install from NPM**: Guide on how to install rules from NPM packages.
+- **Supported Editors & Formats**: A list of all supported editors and their corresponding formats.
 
 ## New Documentation Files
 

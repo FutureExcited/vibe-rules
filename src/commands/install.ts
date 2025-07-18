@@ -35,6 +35,9 @@ async function clearExistingRules(
     RuleType.CLAUDE_CODE,
     RuleType.GEMINI,
     RuleType.CODEX,
+    RuleType.AMP,
+    RuleType.ZED,
+    RuleType.UNIFIED,
   ];
   let isSingleFileProvider = singleFileProviders.includes(editorType);
 
@@ -50,9 +53,16 @@ async function clearExistingRules(
         targetDir = path.dirname(defaultPath);
       }
     } else {
-      // Default path doesn't exist. Create it.
-      await fs.ensureDir(defaultPath);
-      targetDir = defaultPath;
+      // Default path doesn't exist
+      if (isSingleFileProvider) {
+        // For single-file providers, ensure parent directory exists but don't create the file yet
+        targetDir = path.dirname(defaultPath);
+        await fs.ensureDir(targetDir);
+      } else {
+        // For multi-file providers, create the directory
+        await fs.ensureDir(defaultPath);
+        targetDir = defaultPath;
+      }
     }
   } catch (error: any) {
     console.error(chalk.red(`Error checking default path ${defaultPath}: ${error.message}`));

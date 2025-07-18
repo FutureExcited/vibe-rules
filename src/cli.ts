@@ -6,6 +6,7 @@ import { installCommandAction } from "./commands/install.js";
 import { saveCommandAction } from "./commands/save.js";
 import { loadCommandAction } from "./commands/load.js";
 import { listCommandAction } from "./commands/list.js";
+import { convertCommandAction } from "./commands/convert.js";
 
 // Simple debug logger
 export let isDebugEnabled = false;
@@ -78,6 +79,26 @@ program
   )
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
   .action(installCommandAction);
+
+program
+  .command("convert")
+  .description("Convert rules from one format to another (directory or file-based)")
+  .argument(
+    "<sourceFormat>",
+    "Source format (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
+  )
+  .argument(
+    "<targetFormat>",
+    "Target format (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
+  )
+  .argument("<sourcePath>", "Source path (directory like .cursor or file like CLAUDE.md)")
+  .option(
+    "-g, --global",
+    "Apply to global config path if supported (claude-code, gemini, codex)",
+    false
+  )
+  .option("-t, --target <path>", "Custom target path (overrides default path)")
+  .action(convertCommandAction);
 
 program.parse(process.argv);
 

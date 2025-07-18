@@ -146,6 +146,40 @@
           </div>
         </section>
 
+        <!-- Convert Command -->
+        <section class="mb-16">
+          <h2 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-8">
+            Convert Rule Formats
+          </h2>
+
+          <div class="space-y-6">
+            <!-- Convert Rule -->
+            <div class="feature-card">
+              <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Convert Between Formats
+              </h3>
+              <p class="text-gray-600 dark:text-gray-300 mb-4">
+                Seamlessly convert rules between all supported editor formats.
+              </p>
+              <div class="code-block mb-4">
+                <div class="text-primary-400 mb-1"># Convert from cursor to claude-code</div>
+                <div class="text-gray-300 mb-3">
+                  vibe-rules convert cursor claude-code ./.cursor/rules
+                </div>
+              </div>
+              <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4">
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Usage:</strong><br />
+                  <code class="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-xs"
+                    >vibe-rules convert &lt;sourceFormat&gt; &lt;targetFormat&gt; &lt;sourcePath&gt;
+                    [options]</code
+                  >
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- Install from NPM -->
         <section class="mb-12">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
