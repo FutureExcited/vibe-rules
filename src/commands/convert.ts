@@ -1,7 +1,7 @@
 import { RuleConfig, RuleType, StoredRuleConfig, RuleGeneratorOptions } from "../types.js";
 import { getRuleProvider } from "../providers/index.js";
 import { getDefaultTargetPath, getRulePath } from "../utils/path.js";
-import { debugLog } from "../cli.js";
+import { debugLog } from "../utils/debug.js";
 import { parseFrontmatter } from "../utils/frontmatter.js";
 import * as fs from "fs/promises";
 import * as fsExtra from "fs-extra";

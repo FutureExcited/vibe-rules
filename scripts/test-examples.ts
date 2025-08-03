@@ -176,8 +176,131 @@ function printTestResults(results: TestResult[]): void {
   }
 }
 
+async function testRuleChangeDetector(): Promise<void> {
+  console.log("🧪 Testing rule-change-detector...");
+
+  try {
+    const { areAllRulesUnchanged } = await import("../src/utils/rule-change-detector.js");
+    const { getRulePath, slugifyRuleName } = await import("../src/utils/path.js");
+    const { writeFile, mkdir, rm } = await import("fs/promises");
+    const { join } = await import("path");
+    const { tmpdir } = await import("os");
+
+    // Create a temporary test directory
+    const testDir = join(tmpdir(), `vibe-rules-test-${Date.now()}`);
+    const rulesDir = join(testDir, ".cursor", "rules");
+    await mkdir(rulesDir, { recursive: true });
+
+    // Mock process.cwd to point to our test directory
+    const originalCwd = process.cwd;
+    process.cwd = () => testDir;
+
+    const mockProvider = {
+      generateRuleContent: (config: any, options: any) => {
+        return `# ${config.name}\n\n${config.content}\n\n<!-- Generated rule -->`;
+      },
+    };
+
+    try {
+      // Test 1: No existing file - should detect change
+      console.log("🔍 Test 1: New rule (no existing file)");
+      let result = await areAllRulesUnchanged(
+        "This is a test rule content",
+        "test-pkg",
+        "cursor",
+        mockProvider as any,
+        { global: false, debug: false }
+      );
+      if (result !== false) throw new Error("Should detect change when file doesn't exist");
+      console.log("✅ Correctly detected new rule as changed");
+
+      // Test 2: Create existing file with same content - should be unchanged
+      console.log("🔍 Test 2: Existing rule with same content");
+      // The rule-change-detector creates rule names like pkgName_slugifiedName for strings
+      let ruleName = slugifyRuleName("test-pkg");
+      if (!ruleName.startsWith("test-pkg_")) {
+        ruleName = `test-pkg_${ruleName}`;
+      }
+      const actualRulePath = getRulePath("cursor", ruleName, false, testDir);
+      console.log(`📍 Expected rule path: ${actualRulePath}`);
+      console.log(`📍 Rule name: ${ruleName}`);
+
+      const expectedContent = mockProvider.generateRuleContent(
+        {
+          name: ruleName,
+          content: "This is a test rule content",
+          description: "Rule from test-pkg",
+        },
+        { description: "Rule from test-pkg", isGlobal: false, debug: false }
+      );
+      console.log(`📄 Writing content: ${expectedContent}`);
+      await writeFile(actualRulePath, expectedContent);
+
+      result = await areAllRulesUnchanged(
+        "This is a test rule content",
+        "test-pkg",
+        "cursor",
+        mockProvider as any,
+        { global: false, debug: true } // Enable debug
+      );
+      console.log(`🔍 areAllRulesUnchanged returned: ${result}`);
+      if (result !== true) throw new Error("Should detect no change when content is same");
+      console.log("✅ Correctly detected unchanged rule");
+
+      // Test 3: Change content - should detect change
+      console.log("🔍 Test 3: Existing rule with different content");
+      result = await areAllRulesUnchanged(
+        "This is DIFFERENT test rule content",
+        "test-pkg",
+        "cursor",
+        mockProvider as any,
+        { global: false, debug: false }
+      );
+      if (result !== false) throw new Error("Should detect change when content differs");
+      console.log("✅ Correctly detected changed rule content");
+
+      // Test 4: Multiple rules with mixed changes
+      console.log("🔍 Test 4: Multiple rules - one unchanged, one changed");
+      const multiRules = [
+        { name: "rule1", rule: "This is a test rule content", description: "First rule" },
+        { name: "rule2", rule: "This is a different rule", description: "Second rule" },
+      ];
+
+      // Create first rule file to match
+      const rule1Name = `test-pkg_rule1`;
+      const rule1Path = getRulePath("cursor", rule1Name, false, testDir);
+      const rule1Content = mockProvider.generateRuleContent(
+        { name: rule1Name, content: "This is a test rule content", description: "First rule" },
+        { description: "First rule", isGlobal: false, debug: false }
+      );
+      await writeFile(rule1Path, rule1Content);
+
+      result = await areAllRulesUnchanged(multiRules, "test-pkg", "cursor", mockProvider as any, {
+        global: false,
+        debug: false,
+      });
+      if (result !== false) throw new Error("Should detect change when any rule changes");
+      console.log("✅ Correctly detected mixed rule changes");
+
+      console.log("✅ All rule-change-detector tests passed!");
+    } finally {
+      // Restore original cwd
+      process.cwd = originalCwd;
+    }
+
+    // Cleanup
+    await rm(testDir, { recursive: true, force: true });
+  } catch (error) {
+    console.error("❌ rule-change-detector test failed:", error);
+    throw error;
+  }
+}
+
 async function main() {
   console.log("🧪 Running tests for example projects...\n");
+
+  // Test core utilities first
+  await testRuleChangeDetector();
 
   const projects = await discoverTestableProjects();
 

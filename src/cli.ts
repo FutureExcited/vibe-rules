@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import chalk from "chalk";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { installCommandAction } from "./commands/install.js";
 import { saveCommandAction } from "./commands/save.js";
 import { loadCommandAction } from "./commands/load.js";
 import { listCommandAction } from "./commands/list.js";
 import { convertCommandAction } from "./commands/convert.js";
 
-// Simple debug logger
-export let isDebugEnabled = false;
-export const debugLog = (message: string, ...optionalParams: any[]) => {
-  if (isDebugEnabled) {
-    console.log(chalk.dim(`[Debug] ${message}`), ...optionalParams);
-  }
-};
+// Get version from package.json
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = join(__dirname, "../package.json");
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+const version = packageJson.version;
+
+import { debugLog, setDebugEnabled } from "./utils/debug.js";
 
 const program = new Command();
 
@@ -23,11 +26,11 @@ program
   .description(
     "A utility for managing Cursor rules, Windsurf rules, Amp rules, and other AI prompts"
   )
-  .version("0.1.0")
+  .version(version, "-v, --version", "display version number")
   .option("--debug", "Enable debug logging", false);
 
 program.on("option:debug", () => {
-  isDebugEnabled = program.opts().debug;
+  setDebugEnabled(program.opts().debug);
   debugLog("Debug logging enabled.");
 });
 

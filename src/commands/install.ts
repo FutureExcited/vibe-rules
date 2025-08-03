@@ -16,7 +16,8 @@ import {
 import { getRuleProvider } from "../providers/index.js";
 import { getDefaultTargetPath, getRulePath, slugifyRuleName } from "../utils/path.js";
 import { VibePackageRulesSchema } from "../schemas.js";
-import { isDebugEnabled, debugLog } from "../cli.js"; // Assuming these will be exported from cli.ts
+import { isDebugEnabled, debugLog } from "../utils/debug.js";
+import { areAllRulesUnchanged } from "../utils/rule-change-detector.js";
 
 // Helper function to clear existing rules installed from a package
 async function clearExistingRules(
@@ -177,7 +178,7 @@ async function importModuleFromCwd(ruleModulePath: string) {
     );
     try {
       const fileUrlString = `file://${process.cwd()}/package.json`;
-      debugLog(`trying to resolve ${ruleModulePath} with importMetaResolve`, fileUrlString);
+      debugLog(`trying to resolve ${ruleModulePath} with importMetaResolve`, null, fileUrlString);
       const importPath = importMetaResolve(ruleModulePath, fileUrlString);
       debugLog(`Falling back to dynamic import() path: ${importPath}`);
       module = await import(importPath);
@@ -200,9 +201,6 @@ async function installSinglePackage(
   installOptions: { global?: boolean; target?: string; debug?: boolean }
 ): Promise<number> {
   // Return count of successfully applied rules
-  if (isDebugEnabled) {
-    console.log(chalk.blue(`Attempting to install rules from ${pkgName}...`));
-  }
 
   let rulesSuccessfullyAppliedCount = 0;
 
@@ -225,11 +223,14 @@ async function installSinglePackage(
           `Package ${pkgName} exports ./llms: ${JSON.stringify(exports["./llms"], null, 2)}`
         );
         debugLog(`Package ${pkgName} has ./llms export, proceeding with import attempt.`);
+        debugLog(`Attempting to install rules from ${pkgName}...`, "blue");
       }
     } catch (pkgError: any) {
       debugLog(
         `Could not check package.json for ${pkgName}: ${pkgError.message}. Proceeding anyway.`
       );
+      // Still show the message if we're proceeding anyway
+      debugLog(`Attempting to install rules from ${pkgName}...`, "blue");
     }
 
     const ruleModulePath = `${pkgName}/llms`;
@@ -243,6 +244,20 @@ async function installSinglePackage(
         )
       );
       return 0;
+    }
+
+    // OPTIMIZATION: Check if all rules would be unchanged before clearing and reinstalling
+    const allRulesUnchanged = await areAllRulesUnchanged(
+      defaultExport,
+      pkgName,
+      editorType,
+      provider,
+      installOptions
+    );
+
+    if (allRulesUnchanged) {
+      debugLog(`All rules from ${pkgName} are unchanged, skipping clearing and reinstalling.`);
+      return 0; // Return 0 to indicate no new rules were installed
     }
 
     await clearExistingRules(pkgName, editorType, installOptions);
@@ -305,13 +320,10 @@ async function installSinglePackage(
     }
 
     if (rulesToInstall.length > 0) {
-      if (isDebugEnabled) {
-        console.log(
-          chalk.blue(
-            `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`
-          )
-        );
-      }
+      debugLog(
+        `Applying ${rulesToInstall.length} rule(s) from ${pkgName} to ${editorType}...`,
+        "blue"
+      );
 
       for (const ruleConfig of rulesToInstall) {
         try {
@@ -367,25 +379,21 @@ async function installSinglePackage(
             `Applying rule ${ruleConfig.name} with options: ${JSON.stringify(generatorOptions)}`
           );
 
-          if (isDebugEnabled) {
-            if (generatorOptions.globs) {
-              console.log(
-                chalk.blue(
-                  `Rule "${ruleConfig.name}" has globs: ${
-                    Array.isArray(generatorOptions.globs)
-                      ? generatorOptions.globs.join(", ")
-                      : generatorOptions.globs
-                  }`
-                )
-              );
-            }
-            if (generatorOptions.alwaysApply !== undefined) {
-              console.log(
-                chalk.blue(
-                  `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`
-                )
-              );
-            }
+          if (generatorOptions.globs) {
+            debugLog(
+              `Rule "${ruleConfig.name}" has globs: ${
+                Array.isArray(generatorOptions.globs)
+                  ? generatorOptions.globs.join(", ")
+                  : generatorOptions.globs
+              }`,
+              "blue"
+            );
+          }
+          if (generatorOptions.alwaysApply !== undefined) {
+            debugLog(
+              `Rule "${ruleConfig.name}" has alwaysApply: ${generatorOptions.alwaysApply}`,
+              "blue"
+            );
           }
 
           try {
@@ -397,13 +405,11 @@ async function installSinglePackage(
             );
             if (success) {
               rulesSuccessfullyAppliedCount++;
-              if (isDebugEnabled) {
-                console.log(
-                  chalk.green(
-                    `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`
-                  )
-                );
-              } else {
+              debugLog(
+                `Rule "${ruleConfig.name}" from ${pkgName} applied successfully for ${editorType} at ${finalTargetPath}`,
+                "green"
+              );
+              if (!isDebugEnabled) {
                 // Concise output for normal (non-debug) mode
                 console.log(
                   chalk.green(
@@ -491,7 +497,7 @@ export async function installCommandAction(
 ): Promise<void> {
   const editorType = editor.toLowerCase() as RuleType;
   let provider: RuleProvider;
-  const combinedOptions = { ...options, debug: isDebugEnabled }; // Use isDebugEnabled from cli.ts
+  const combinedOptions = { ...options, debug: isDebugEnabled };
 
   try {
     provider = getRuleProvider(editorType);
@@ -519,13 +525,7 @@ export async function installCommandAction(
       );
     }
   } else {
-    console.log(
-      chalk.blue(
-        `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
-      )
-    );
-
-    // VSCode-specific warning about glob limitations
+    // VSCode-specific warning about glob limitations - only show if we're going to process dependencies
     if (editorType === RuleType.VSCODE) {
       console.log(
         chalk.yellow(
@@ -553,15 +553,50 @@ export async function installCommandAction(
           `Found ${allDeps.length} dependencies. Checking for rules to install for ${editor}...`
         )
       );
+
+      // Only show the "Installing rules..." message if we actually start installing
+      let hasStartedInstalling = false;
       let totalRulesInstalled = 0;
+      let hasAnyRulePackages = false;
+
+      // First pass: check if any packages export ./llms
       for (const depName of allDeps) {
-        totalRulesInstalled += await installSinglePackage(
+        try {
+          const pkgJsonPath = `${depName}/package.json`;
+          const pkgJson = await importModuleFromCwd(pkgJsonPath);
+          const exports = pkgJson?.default?.exports || pkgJson?.exports;
+          if (exports && exports["./llms"]) {
+            hasAnyRulePackages = true;
+            break;
+          }
+        } catch {
+          // Ignore errors during pre-check
+        }
+      }
+
+      // Second pass: actually install rules
+      for (const depName of allDeps) {
+        const rulesFromThisPackage = await installSinglePackage(
           depName,
           editorType,
           provider,
           combinedOptions
         );
+
+        // Show the initial message only when we find the first package with rules that actually installs something
+        if (!hasStartedInstalling && rulesFromThisPackage > 0) {
+          hasStartedInstalling = true;
+          console.log(
+            chalk.blue(
+              `[vibe-rules] Installing rules from all dependencies in package.json for ${editor}...`
+            )
+          );
+        }
+
+        totalRulesInstalled += rulesFromThisPackage;
       }
+
+      // Only show completion message if we actually installed rules
       if (!isDebugEnabled && totalRulesInstalled > 0) {
         console.log(
           chalk.green(
@@ -569,7 +604,12 @@ export async function installCommandAction(
           )
         );
       } else if (!isDebugEnabled && totalRulesInstalled === 0 && allDeps.length > 0) {
-        console.log(chalk.yellow("[vibe-rules] No rules found to install from dependencies."));
+        // Only log "no rules found" if we actually checked packages but found no ./llms exports
+        if (!hasAnyRulePackages) {
+          debugLog("[vibe-rules] No packages with vibe-rules found in dependencies.");
+        } else {
+          debugLog("[vibe-rules] No new rules to install from dependencies.");
+        }
       }
 
       debugLog(chalk.green("Finished checking all dependencies."));

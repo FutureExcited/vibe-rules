@@ -2,7 +2,7 @@ import path from "path";
 import os from "os";
 import fs, { pathExists } from "fs-extra/esm";
 import { RuleType } from "../types.js";
-import { debugLog } from "../cli.js";
+import { debugLog } from "./debug.js";
 
 // Base directory for storing internal rule definitions
 export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");

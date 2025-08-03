@@ -45,9 +45,10 @@ vibe-rules/
 │   └── utils/             # Utility functions
 │       ├── path.ts        # Path helpers (Updated: Codex AGENTS.md paths)
 │       ├── similarity.ts  # Text similarity utilities
-│       └── rule-formatter.ts # Rule formatting utilities for metadata
-│       └── single-file-helpers.ts # Helpers for single-file providers
-│       └── rule-storage.ts # Helpers for internal rule storage
+│       ├── rule-formatter.ts # Rule formatting utilities for metadata
+│       ├── single-file-helpers.ts # Helpers for single-file providers
+│       ├── rule-storage.ts # Helpers for internal rule storage
+│       └── rule-change-detector.ts # Rule change detection for optimized installs (Added)
 ├── examples/              # Example packages for end-users and library authors
 │   ├── end-user-cjs-package/   # CommonJS project consuming rules from multiple packages (Updated)
 │   │   ├── src/
@@ -307,6 +308,33 @@ It handles parsing of command-line arguments, options, and delegates the executi
 
 Contains the action handler for the `vibe-rules install` command and handles the complex module loading requirements for both CommonJS and ES modules.
 
+#### Two-Phase Installation Approach (Latest)
+
+**Pre-Check Phase:** The install command now implements a two-phase approach for optimized installation:
+
+- **Package Export Detection:** First pass checks all dependencies for `./llms` exports in their `package.json` before attempting any actual installation
+- **Rule Change Detection:** Uses `areAllRulesUnchanged` from the rule change detector to compare existing rule content with what would be installed
+- **Skip Optimization:** If all rules from a package would be unchanged, skips clearing and reinstalling entirely
+- **Reduced File System Operations:** Prevents unnecessary file operations when rules haven't changed
+- **Performance Improvement:** Significantly reduces installation time when most rules are already up-to-date
+
+#### Enhanced Logging Behavior (Latest)
+
+**Conditional Output Logging:** The install command now implements intelligent logging that only displays output when rules are actually found and installed:
+
+- **Silent Operation:** When no packages with rules are found, the command runs completely silently without any console output
+- **Dynamic Start Message:** The "Installing rules..." message is only shown when the first package with actual rules is detected
+- **Completion Summary:** The final "Finished installing rules..." message is only shown when rules were actually installed
+- **Debug Mode:** Full verbose logging is still available with the `--debug` flag for troubleshooting
+- **User Experience:** Eliminates noise when running `npm install` or similar operations where no new rules are available
+
+**Implementation Details:**
+
+- Uses a `hasStartedInstalling` flag to track when the first rule installation begins
+- Delays the initial "Installing rules..." message until actual installation occurs
+- The `debugLog` function continues to provide detailed tracing when debug mode is enabled
+- Individual rule installation messages are still shown as they happen (when not in debug mode)
+
 ### src/commands/convert.ts (Added)
 
 Contains the action handler for the `vibe-rules convert` command with comprehensive rule format conversion capabilities.
@@ -324,7 +352,6 @@ Contains the action handler for the `vibe-rules convert` command with comprehens
 #### Rule Extraction Functions
 
 - `extractRulesFromDirectory(sourceType: RuleType, dirPath: string): Promise<StoredRuleConfig[]>`
-
   - Extracts rules from directories based on source format (Cursor, Clinerules, VSCode).
   - Delegates to format-specific directory extraction functions.
 
@@ -449,7 +476,8 @@ Contains the action handler for the `vibe-rules list` command with unified rule 
   - **Pre-validation**: Checks if the package exports `./llms` in its `package.json` before attempting import.
   - Creates the necessary directories for the specified editor type (e.g., `.cursor/` for Cursor, `.clinerules/` for Clinerules).
   - Dynamically imports `<pkgName>/llms` using `importModuleFromCwd`.
-  - Calls `clearExistingRules` before processing new rules.
+  - **Change Detection Optimization**: Uses `areAllRulesUnchanged` to detect if rules would be unchanged, skipping clearing and reinstalling if no changes are detected.
+  - Calls `clearExistingRules` before processing new rules (only if rules have changed).
   - Validates the imported module content (string or array of rules/rule objects) using `VibePackageRulesSchema`.
   - **Rule Processing**: Handles both simple string rules and complex rule objects with metadata.
   - For each rule, determines the final target path and uses `provider.appendFormattedRule` to apply it.
@@ -770,6 +798,42 @@ Utilizes `debugLog` from `cli.ts` for conditional logging (Updated).
 - Ensures the parent directory exists using `ensureDirectoryExists`.
 - Handles file not found errors gracefully (creates the file).
 - Returns `true` on success, `false` on failure.
+
+### src/utils/rule-change-detector.ts (Added)
+
+Provides utility functions for detecting if rules from a package would change if reinstalled, enabling optimized installation behavior.
+
+#### `areAllRulesUnchanged(defaultExport, pkgName, editorType, provider, installOptions): Promise<boolean>`
+
+**Purpose:** Determines if all rules from a package would be unchanged if reinstalled, allowing the install command to skip unnecessary operations.
+
+**Algorithm:**
+
+- **Rule Preparation:** Parses the package's exported rules (string or array format) into a normalized rule format
+- **Content Generation:** Uses the provider's `generateRuleContent` method to generate what the new rule content would be
+- **File Comparison:** Compares the generated content with existing rule files on disk
+- **Optimization Decision:** Returns `true` if all rules would be identical, `false` if any rule would change
+
+**Key Features:**
+
+- **Metadata Preservation:** Handles rule metadata like `alwaysApply` and `globs` during comparison
+- **Provider-Agnostic:** Works with all editor providers by using their specific `generateRuleContent` methods
+- **Early Exit:** Returns `false` immediately upon finding the first changed rule for performance
+- **Error Handling:** Treats any comparison errors as changes to ensure reliability
+- **Debug Logging:** Provides detailed logging of comparison results when debug mode is enabled
+
+**Performance Benefits:**
+
+- **Reduced I/O:** Prevents unnecessary file system operations when rules haven't changed
+- **Faster Installation:** Significantly reduces installation time for packages with unchanged rules
+- **Network Efficiency:** Avoids redundant operations during CI/CD or repeated installations
+- **User Experience:** Eliminates unnecessary output when no actual changes occur
+
+**Integration:**
+
+- **Install Command:** Used by `installSinglePackage` to check rules before clearing and reinstalling
+- **Validation Schema:** Leverages `VibePackageRulesSchema` for consistent rule parsing
+- **Path Resolution:** Uses existing path utilities for consistent file location logic
 
 ### src/utils/rule-storage.ts (Added)
 

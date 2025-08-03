@@ -4,7 +4,7 @@ import * as path from "path";
 import { RuleConfig, RuleGeneratorOptions } from "../types.js";
 import { createTaggedRuleBlock } from "./rule-formatter.js";
 import { ensureDirectoryExists } from "./path.js";
-import { debugLog } from "../cli.js";
+import { debugLog } from "./debug.js";
 
 /**
  * Appends or updates a tagged block within a single target file.
