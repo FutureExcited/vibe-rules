@@ -1,6 +1,6 @@
 {
   "name": "vibe-rules",
-  "version": "0.3.90",
+  "version": "0.3.91",
   "description": "A utility for managing Cursor rules, Windsurf rules, and other AI prompts",
   "main": "dist/index.js",
   "type": "module",
@@ -46,7 +46,6 @@
   },
   "homepage": "https://github.com/FutureExcited/vibe-rules#readme",
   "dependencies": {
-    "alchemy": "^0.56.0",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.3.0",
