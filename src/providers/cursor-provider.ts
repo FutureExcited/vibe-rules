@@ -1,8 +1,10 @@
 import * as path from "path";
 import { writeFile } from "fs/promises";
+import * as fs from "fs-extra";
 import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
-import { getRulePath, ensureDirectoryExists } from "../utils/path.js";
+import { getRulePath, ensureDirectoryExists, getDefaultTargetPath } from "../utils/path.js";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
+import { debugLog } from "../utils/debug.js";
 
 // Custom function to format frontmatter simply
 const formatFrontmatter = (fm: Record<string, any>): string => {
@@ -115,6 +117,42 @@ export class CursorRuleProvider implements RuleProvider {
       return true;
     } catch (error) {
       console.error(`Error applying Cursor rule "${config.name}" to ${fullPath}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Removes a rule from cursor configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    try {
+      let ruleFilePath: string;
+
+      if (targetPath) {
+        // If targetPath is provided, check if it's a full file path or directory
+        if (targetPath.endsWith(".mdc")) {
+          // Full file path provided
+          ruleFilePath = targetPath;
+        } else {
+          // Directory path provided
+          ruleFilePath = path.join(targetPath, `${name}.mdc`);
+        }
+      } else {
+        // Use default path
+        const finalTargetPath = getDefaultTargetPath(RuleType.CURSOR, isGlobal);
+        ruleFilePath = path.join(finalTargetPath, `${name}.mdc`);
+      }
+
+      if (!(await fs.pathExists(ruleFilePath))) {
+        debugLog(`Rule file does not exist: ${ruleFilePath}`, "red");
+        return false;
+      }
+
+      await fs.remove(ruleFilePath);
+      debugLog(`Removed cursor rule file: ${ruleFilePath}`);
+      return true;
+    } catch (error) {
+      debugLog(`Error removing cursor rule "${name}":`, "red", error);
       return false;
     }
   }

@@ -2,6 +2,7 @@ import path from "path";
 import { RuleConfig, RuleProvider, RuleType, RuleGeneratorOptions } from "../types.js";
 
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { removeTaggedRuleFromFile } from "../utils/single-file-removal.js";
 import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import {
   saveInternalRule as saveRuleToInternalStorage,
@@ -69,5 +70,13 @@ export class UnifiedRuleProvider implements RuleProvider {
     // The 'targetPath' for unified provider should directly be the path to the '.rules' file.
     // The 'config.name' is used for the tag name within the '.rules' file.
     return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+
+  /**
+   * Removes a rule from unified configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    const filePath = targetPath || this.getRuleFilePath(name, isGlobal);
+    return removeTaggedRuleFromFile(filePath, name);
   }
 }

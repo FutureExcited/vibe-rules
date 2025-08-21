@@ -1,7 +1,8 @@
 import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
-import { getRulePath } from "../utils/path.js";
+import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
 import { formatRuleWithMetadata } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { removeTaggedRuleFromFile } from "../utils/single-file-removal.js";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 export class AmpRuleProvider implements RuleProvider {
@@ -86,5 +87,13 @@ export class AmpRuleProvider implements RuleProvider {
       options,
       false // No special integration block needed for Amp
     );
+  }
+
+  /**
+   * Removes a rule from amp configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    const filePath = targetPath || getDefaultTargetPath(this.ruleType, false); // Amp only supports local
+    return removeTaggedRuleFromFile(filePath, name);
   }
 }

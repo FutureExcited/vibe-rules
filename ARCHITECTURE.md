@@ -25,6 +25,7 @@ vibe-rules/
 │   │   ├── save.ts        # Action handler for the 'save' command (Added)
 │   │   ├── load.ts        # Action handler for the 'load' command (Added)
 │   │   ├── list.ts        # Action handler for the 'list' command (Added)
+│   │   ├── uninstall.ts   # Action handler for the 'uninstall' command (Added)
 │   │   └── convert.ts     # Action handler for the 'convert' command (Added)
 │   ├── index.ts           # Main exports
 │   ├── types.ts           # Type definitions (Updated: RuleType.UNIFIED)
@@ -48,11 +49,13 @@ vibe-rules/
 │       ├── rule-formatter.ts # Rule formatting utilities for metadata
 │       ├── single-file-helpers.ts # Helpers for single-file providers
 │       ├── rule-storage.ts # Helpers for internal rule storage
-│       └── rule-change-detector.ts # Rule change detection for optimized installs (Added)
+│       ├── rule-change-detector.ts # Rule change detection for optimized installs (Added)
+│       └── single-file-removal.ts # Helpers for single-file removal
 ├── examples/              # Example packages for end-users and library authors
 │   ├── end-user-cjs-package/   # CommonJS project consuming rules from multiple packages (Updated)
 │   │   ├── src/
 │   │   ├── install.test.ts     # Integration test for vibe-rules install functionality (Updated: AGENTS.md)
+│   │   ├── uninstall.test.ts   # Integration test for vibe-rules uninstall functionality (Added)
 │   │   └── package.json        # Uses Bun for testing, includes vibe-rules script (Updated)
 │   ├── end-user-esm-package/   # ES Module project consuming rules from multiple packages
 │   ├── library-cjs-package/    # CommonJS library that exports AI prompt rules
@@ -303,6 +306,9 @@ It handles parsing of command-line arguments, options, and delegates the executi
   - Enables seamless rule conversion between different editor formats.
   - Supports both directory-based (cursor, clinerules, vscode) and file-based (windsurf, claude-code, etc.) conversions.
   - Delegates the action to `convertCommandAction` from `src/commands/convert.ts`.
+- `uninstall <name> <editor> [options]`
+  - Defines the CLI options and arguments for the uninstall command.
+  - Delegates the action to `uninstallCommandAction` from `src/commands/uninstall.ts`.
 
 ### src/commands/install.ts (Added)
 
@@ -1017,6 +1023,51 @@ Implementation of the `RuleProvider` interface for Amp AI coding assistant with 
   - **Rule Updating:** If a rule with the same name already exists, replaces its content.
   - **Rule Insertion:** Appends new rules directly to the file without special integration blocks.
   - **Local Only:** Always ignores `isGlobal` parameter as Amp only supports local project files.
+
+### src/commands/uninstall.ts (Added)
+
+Provides the action handler for the `vibe-rules uninstall` command.
+
+- `uninstallCommandAction(name: string, editor: string, options: { global?: boolean; target?: string }): Promise<void>`
+  - Resolves editor string to `RuleType`
+  - Uses `getRuleProvider` and calls `provider.removeRule(name, options.target, options.global)`
+  - Emits success/failure messages and suggests similar rule names from `listCommonRules()` on failure
+
+### Provider `removeRule` Implementations (Updated)
+
+All providers implement `removeRule(name, targetPath?, isGlobal?)`:
+
+- `CursorRuleProvider`: Deletes `.cursor/rules/<name>.mdc` (respects custom directory `-t`)
+- `ClinerulesRuleProvider`: Deletes `.clinerules/<name>.md`
+- `VSCodeRuleProvider`: Deletes `.github/instructions/<name>.instructions.md`
+- `WindsurfRuleProvider`: Removes `<name>...</name>` tagged block from `.windsurfrules`
+- `ClaudeCodeRuleProvider`: Removes `<name>...</name>` tagged block inside the `<!-- vibe-rules Integration -->` wrapper in `CLAUDE.md`
+- `CodexRuleProvider`: Removes tagged block within `AGENTS.md` wrapper
+- `AmpRuleProvider`: Removes tagged block from `AGENT.md`
+- `UnifiedRuleProvider`: Removes tagged block from `.rules`
+
+### src/utils/single-file-removal.ts (Added)
+
+Shared helpers to delete tagged rule blocks from single-file providers:
+
+- `removeTaggedRuleFromFile(filePath: string, ruleName: string): Promise<boolean>`
+  - Removes `<ruleName> ... </ruleName>` from a file
+- `removeTaggedRuleFromWrapper(filePath: string, ruleName: string, wrapperStart: string, wrapperEnd: string): Promise<boolean>`
+  - Removes a rule only within a specific wrapper block (Claude Code, Codex)
+
+### CLI (Updated)
+
+`src/cli.ts` registers the new command:
+
+- `uninstall <name> <editor> [options]`
+  - Options: `-g, --global`, `-t, --target <path>`
+  - Delegates to `uninstallCommandAction`
+
+### Examples Tests (Updated)
+
+- New test file `examples/end-user-cjs-package/uninstall.test.ts` exports `registerUninstallTests()`
+- Main test suite `install.test.ts` imports and invokes this function to include uninstall coverage without duplicating code
+- The uninstall test installs rules for each editor, verifies presence, runs `vibe-rules uninstall`, and re-checks absence
 
 ## Web Interface
 

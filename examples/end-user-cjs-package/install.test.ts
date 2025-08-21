@@ -23,6 +23,9 @@ import { $ } from "bun";
 import { readdir, stat, readFile } from "fs/promises";
 import { join } from "path";
 import { pathExists } from "fs-extra";
+import { registerUninstallTests } from "./uninstall.test";
+
+registerUninstallTests();
 
 test("install should create 8 rules files in .cursor/rules", async () => {
   // Import the llms modules from our dependencies

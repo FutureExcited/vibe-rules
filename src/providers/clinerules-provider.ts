@@ -5,10 +5,12 @@ import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../typ
 import {
   getRulePath, // Returns the .clinerules directory path
   ensureDirectoryExists,
+  getDefaultTargetPath,
 } from "../utils/path.js";
 import { formatRuleWithMetadata } from "../utils/rule-formatter.js";
 import chalk from "chalk";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
+import { debugLog } from "../utils/debug.js";
 
 // Helper function specifically for clinerules/roo setup
 // Focuses on the directory structure: .clinerules/vibe-rules.md
@@ -139,6 +141,30 @@ export class ClinerulesRuleProvider implements RuleProvider {
       return true;
     } catch (error) {
       console.error(chalk.red(`Error applying rule "${config.name}" to ${targetPath}: ${error}`));
+      return false;
+    }
+  }
+
+  /**
+   * Removes a rule from clinerules configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    try {
+      const finalTargetPath = targetPath || getDefaultTargetPath(this.ruleType, isGlobal);
+
+      // For clinerules, we need to remove individual .md files
+      const ruleFilePath = path.join(finalTargetPath, `${name}.md`);
+
+      if (!(await fs.pathExists(ruleFilePath))) {
+        debugLog(`Rule file does not exist: ${ruleFilePath}`);
+        return false;
+      }
+
+      await fs.remove(ruleFilePath);
+      debugLog(`Removed clinerules rule file: ${ruleFilePath}`);
+      return true;
+    } catch (error) {
+      debugLog(`Error removing clinerules rule "${name}":`, "red", error);
       return false;
     }
   }

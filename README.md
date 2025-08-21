@@ -212,6 +212,37 @@ Options:
 4.  Uses the appropriate editor provider (`cursor`, `windsurf`, etc.) to format and apply each found rule to the correct target path (respecting `-g` and `-t` options). Metadata like `alwaysApply` and `globs` is passed to the provider if present in a rule object.
 5.  **Important:** Rules installed this way are applied _directly_ to the editor configuration; they are **not** saved to the common local store (`~/.vibe-rules/rules/`). Use `vibe-rules save` for that.
 
+### Uninstall (Remove) a Rule from an Editor
+
+Remove a previously installed rule from a specific editor configuration.
+
+```bash
+# Remove a Cursor rule file
+vibe-rules uninstall my-package_my-rule cursor
+
+# Remove from Claude Code (local project)
+vibe-rules uninstall my-package_my-rule claude-code
+
+# Remove from Codex (global)
+vibe-rules uninstall my-package_my-rule codex --global
+
+# Remove from Zed / unified .rules file
+vibe-rules uninstall my-package_my-rule zed
+
+# Remove from VSCode instructions directory
+vibe-rules uninstall my-package_my-rule vscode
+```
+
+Arguments:
+
+- `<name>`: The fully-qualified rule name as applied (typically `<package>_<rule>`)
+- `<editor>`: Target editor type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `amp`, `clinerules`, `roo`, `zed`, `unified`, `vscode`.
+
+Options:
+
+- `-g, --global`: Remove from the editor's global configuration path when supported (`claude-code`, `codex`).
+- `-t, --target <path>`: Custom target path overriding default/global paths.
+
 ## Supported Editors & Formats
 
 `vibe-rules` automatically handles formatting for:

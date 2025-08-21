@@ -1,8 +1,10 @@
 import * as path from "path";
 import { writeFile } from "fs/promises";
+import * as fs from "fs-extra";
 import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
-import { getRulePath, ensureDirectoryExists } from "../utils/path.js";
+import { getRulePath, ensureDirectoryExists, getDefaultTargetPath } from "../utils/path.js";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
+import { debugLog } from "../utils/debug.js";
 
 //vs code bugged for 2+ globs...
 
@@ -109,6 +111,30 @@ export class VSCodeRuleProvider implements RuleProvider {
       return true;
     } catch (error) {
       console.error(`Error applying VSCode rule "${config.name}" to ${fullPath}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Removes a rule from VSCode configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    try {
+      const finalTargetPath = targetPath || getDefaultTargetPath(RuleType.VSCODE, isGlobal);
+
+      // For VSCode, we need to remove individual .instructions.md files
+      const ruleFilePath = path.join(finalTargetPath, `${name}.instructions.md`);
+
+      if (!(await fs.pathExists(ruleFilePath))) {
+        debugLog(`Rule file does not exist: ${ruleFilePath}`);
+        return false;
+      }
+
+      await fs.remove(ruleFilePath);
+      debugLog(`Removed VSCode rule file: ${ruleFilePath}`);
+      return true;
+    } catch (error) {
+      debugLog(`Error removing VSCode rule "${name}":`, "red", error);
       return false;
     }
   }

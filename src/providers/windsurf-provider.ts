@@ -2,6 +2,7 @@ import { RuleConfig, RuleProvider, RuleType, RuleGeneratorOptions } from "../typ
 import { getDefaultTargetPath } from "../utils/path.js";
 import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { removeTaggedRuleFromFile } from "../utils/single-file-removal.js";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 export class WindsurfRuleProvider implements RuleProvider {
@@ -80,5 +81,13 @@ export class WindsurfRuleProvider implements RuleProvider {
   ): Promise<boolean> {
     // Delegate to the shared helper
     return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+
+  /**
+   * Removes a rule from windsurf configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    const filePath = targetPath || getDefaultTargetPath(this.ruleType, isGlobal);
+    return removeTaggedRuleFromFile(filePath, name);
   }
 }

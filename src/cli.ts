@@ -9,6 +9,7 @@ import { saveCommandAction } from "./commands/save.js";
 import { loadCommandAction } from "./commands/load.js";
 import { listCommandAction } from "./commands/list.js";
 import { convertCommandAction } from "./commands/convert.js";
+import { uninstallCommandAction } from "./commands/uninstall.js";
 
 // Get version from package.json
 const __filename = fileURLToPath(import.meta.url);
@@ -102,6 +103,18 @@ program
   )
   .option("-t, --target <path>", "Custom target path (overrides default path)")
   .action(convertCommandAction);
+
+program
+  .command("uninstall")
+  .description("Remove a rule from an editor configuration")
+  .argument("<name>", "Name of the rule to remove")
+  .argument(
+    "<editor>",
+    "Target editor type (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode)"
+  )
+  .option("-g, --global", "Remove from global config path if supported (claude-code, codex)", false)
+  .option("-t, --target <path>", "Custom target path (overrides default and global)")
+  .action(uninstallCommandAction);
 
 program.parse(process.argv);
 

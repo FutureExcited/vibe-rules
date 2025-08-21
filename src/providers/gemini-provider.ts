@@ -2,8 +2,9 @@ import * as fs from "fs-extra/esm";
 import { readFile, writeFile } from "fs/promises";
 import * as path from "path";
 import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
-import { getRulePath } from "../utils/path.js";
+import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
 import { formatRuleWithMetadata, createTaggedRuleBlock } from "../utils/rule-formatter.js";
+import { removeTaggedRuleFromWrapper } from "../utils/single-file-removal.js";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 import chalk from "chalk";
 
@@ -137,5 +138,16 @@ export class GeminiRuleProvider implements RuleProvider {
       console.error(chalk.red(`Error writing updated rules to ${destinationPath}: ${error}`));
       return false;
     }
+  }
+
+  /**
+   * Removes a rule from Gemini configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    const filePath = targetPath || getDefaultTargetPath(this.ruleType, isGlobal);
+    const wrapperStart = "<!-- vibe-rules Integration -->";
+    const wrapperEnd = "<!-- /vibe-rules Integration -->";
+
+    return removeTaggedRuleFromWrapper(filePath, name, wrapperStart, wrapperEnd);
   }
 }

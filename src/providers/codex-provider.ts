@@ -1,7 +1,8 @@
 import { RuleConfig, RuleProvider, RuleGeneratorOptions, RuleType } from "../types.js";
-import { getRulePath } from "../utils/path.js";
+import { getRulePath, getDefaultTargetPath } from "../utils/path.js";
 import { formatRuleWithMetadata } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { removeTaggedRuleFromWrapper } from "../utils/single-file-removal.js";
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 
 export class CodexRuleProvider implements RuleProvider {
@@ -85,5 +86,16 @@ export class CodexRuleProvider implements RuleProvider {
       options,
       true // Append inside <vibe-rules Integration>
     );
+  }
+
+  /**
+   * Removes a rule from codex configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    const filePath = targetPath || getDefaultTargetPath(this.ruleType, isGlobal);
+    const wrapperStart = "<!-- vibe-rules Integration -->";
+    const wrapperEnd = "<!-- /vibe-rules Integration -->";
+
+    return removeTaggedRuleFromWrapper(filePath, name, wrapperStart, wrapperEnd);
   }
 }

@@ -2,6 +2,7 @@ import { RuleConfig, RuleProvider, RuleType, RuleGeneratorOptions } from "../typ
 import { saveInternalRule, loadInternalRule, listInternalRules } from "../utils/rule-storage.js";
 import { createTaggedRuleBlock } from "../utils/rule-formatter.js";
 import { appendOrUpdateTaggedBlock } from "../utils/single-file-helpers.js";
+import { removeTaggedRuleFromFile } from "../utils/single-file-removal.js";
 import { getDefaultTargetPath } from "../utils/path.js";
 
 export class ZedRuleProvider implements RuleProvider {
@@ -49,5 +50,13 @@ export class ZedRuleProvider implements RuleProvider {
     // Zed .rules files are at the root of the worktree, so isGlobal is likely false.
     // We don't append inside a specific <vibe-rules Integration> block by default for .rules
     return appendOrUpdateTaggedBlock(targetPath, config, options, false);
+  }
+
+  /**
+   * Removes a rule from zed configuration
+   */
+  async removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean> {
+    const filePath = targetPath || getDefaultTargetPath(RuleType.ZED, isGlobal);
+    return removeTaggedRuleFromFile(filePath, name);
   }
 }

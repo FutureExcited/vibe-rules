@@ -70,6 +70,11 @@ export interface RuleProvider {
    * Generates formatted rule content with editor-specific formatting
    */
   generateRuleContent(config: RuleConfig, options?: RuleGeneratorOptions): string;
+
+  /**
+   * Removes a rule from editor configuration
+   */
+  removeRule(name: string, targetPath?: string, isGlobal?: boolean): Promise<boolean>;
 }
 
 export interface RuleGeneratorOptions {
