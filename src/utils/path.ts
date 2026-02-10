@@ -11,6 +11,7 @@ export const RULES_BASE_DIR = path.join(os.homedir(), ".vibe-rules");
 export const CLAUDE_HOME_DIR = path.join(os.homedir(), ".claude");
 export const GEMINI_HOME_DIR = path.join(os.homedir(), ".gemini");
 export const CODEX_HOME_DIR = path.join(os.homedir(), ".codex");
+export const KIRO_HOME_DIR = path.join(os.homedir(), ".kiro");
 export const ZED_RULES_FILE = ".rules"; // Added for Zed
 
 /**
@@ -79,6 +80,11 @@ export function getRulePath(
         ".clinerules",
         slugifyRuleName(ruleName) + ".md" // Use .md extension
       );
+    case RuleType.KIRO:
+      // Kiro rules are .md files in .kiro/steering/ (local) or ~/.kiro/steering/ (global)
+      return isGlobal
+        ? path.join(KIRO_HOME_DIR, "steering", slugifyRuleName(ruleName) + ".md")
+        : path.join(projectRoot, ".kiro", "steering", slugifyRuleName(ruleName) + ".md");
     case RuleType.ZED: // Added for Zed
       return path.join(projectRoot, ZED_RULES_FILE);
     case RuleType.UNIFIED:
@@ -138,6 +144,11 @@ export function getDefaultTargetPath(
     case RuleType.ROO:
       // Default target is the .clinerules directory
       return path.join(process.cwd(), ".clinerules");
+    case RuleType.KIRO:
+      // Default target is the .kiro/steering directory
+      return isGlobalHint
+        ? path.join(KIRO_HOME_DIR, "steering")
+        : path.join(process.cwd(), ".kiro", "steering");
     case RuleType.ZED: // Added for Zed
       return path.join(process.cwd(), ZED_RULES_FILE);
     case RuleType.UNIFIED:
@@ -193,6 +204,11 @@ export async function editorConfigExists(
     case RuleType.CLINERULES:
     case RuleType.ROO:
       checkPath = path.join(projectRoot, ".clinerules");
+      break;
+    case RuleType.KIRO:
+      checkPath = isGlobal
+        ? path.join(KIRO_HOME_DIR, "steering")
+        : path.join(projectRoot, ".kiro", "steering");
       break;
     case RuleType.ZED:
     case RuleType.UNIFIED:

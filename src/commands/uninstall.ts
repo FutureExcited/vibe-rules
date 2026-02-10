@@ -19,7 +19,7 @@ export async function uninstallCommandAction(
     console.error(chalk.red(`Unsupported editor: ${editor}`));
     console.log(
       chalk.gray(
-        "Supported editors: cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode"
+        "Supported editors: cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode, kiro"
       )
     );
     process.exit(1);
@@ -59,6 +59,7 @@ function getRuleTypeFromString(editor: string): RuleType | null {
     zed: RuleType.ZED,
     unified: RuleType.UNIFIED,
     vscode: RuleType.VSCODE,
+    kiro: RuleType.KIRO,
   };
 
   return editorMap[editor.toLowerCase()] || null;

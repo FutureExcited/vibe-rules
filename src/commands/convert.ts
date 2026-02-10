@@ -162,6 +162,9 @@ async function extractRulesFromDirectory(
     case RuleType.VSCODE:
       return await extractFromVSCodeDirectory(dirPath);
 
+    case RuleType.KIRO:
+      return await extractFromKiroDirectory(dirPath);
+
     default:
       throw new Error(`Directory extraction not supported for ${sourceType}`);
   }
@@ -328,6 +331,31 @@ async function extractFromVSCodeFile(filePath: string): Promise<StoredRuleConfig
 }
 
 /**
+ * Extract rules from Kiro .md files in a .kiro/steering directory
+ */
+async function extractFromKiroDirectory(dirPath: string): Promise<StoredRuleConfig[]> {
+  const rules: StoredRuleConfig[] = [];
+  const steeringDir = dirPath.endsWith("steering") ? dirPath : path.join(dirPath, "steering");
+
+  if (!(await fsExtra.pathExists(steeringDir))) {
+    throw new Error(`Kiro steering directory not found: ${steeringDir}`);
+  }
+
+  const files = await fs.readdir(steeringDir);
+  const mdFiles = files.filter((file) => file.endsWith(".md"));
+
+  for (const file of mdFiles) {
+    const filePath = path.join(steeringDir, file);
+    const content = await fs.readFile(filePath, "utf-8");
+    const ruleName = path.basename(file, ".md");
+
+    rules.push({ name: ruleName, content });
+  }
+
+  return rules;
+}
+
+/**
  * Extract rules from Windsurf .windsurfrules file using tagged blocks
  */
 async function extractFromWindsurfFile(filePath: string): Promise<StoredRuleConfig[]> {
@@ -487,6 +515,7 @@ function validateAndGetRuleType(format: string, type: "source" | "target"): Rule
     zed: RuleType.ZED,
     unified: RuleType.UNIFIED,
     vscode: RuleType.VSCODE,
+    kiro: RuleType.KIRO,
   };
 
   const ruleType = formatMap[normalizedFormat];
@@ -510,6 +539,7 @@ function isMultiFileProvider(ruleType: RuleType): boolean {
     case RuleType.CLINERULES:
     case RuleType.ROO:
     case RuleType.VSCODE:
+    case RuleType.KIRO:
       return true;
     default:
       return false;

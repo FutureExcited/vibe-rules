@@ -56,11 +56,11 @@ program
   .argument("<n>", "Name of the rule to apply")
   .argument(
     "<editor>",
-    "Target editor type (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
+    "Target editor type (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode, kiro)"
   )
   .option(
     "-g, --global",
-    "Apply to global config path if supported (claude-code, gemini, codex)",
+    "Apply to global config path if supported (claude-code, gemini, codex, kiro)",
     false
   )
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
@@ -73,12 +73,12 @@ program
   )
   .argument(
     "<editor>",
-    "Target editor type (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
+    "Target editor type (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode, kiro)"
   )
   .argument("[packageName]", "Optional NPM package name to install rules from")
   .option(
     "-g, --global",
-    "Apply to global config path if supported (claude-code, gemini, codex)",
+    "Apply to global config path if supported (claude-code, gemini, codex, kiro)",
     false
   )
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
@@ -89,16 +89,16 @@ program
   .description("Convert rules from one format to another (directory or file-based)")
   .argument(
     "<sourceFormat>",
-    "Source format (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
+    "Source format (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode, kiro)"
   )
   .argument(
     "<targetFormat>",
-    "Target format (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode)"
+    "Target format (cursor, windsurf, claude-code, gemini, codex, amp, clinerules, roo, zed, unified, vscode, kiro)"
   )
   .argument("<sourcePath>", "Source path (directory like .cursor or file like CLAUDE.md)")
   .option(
     "-g, --global",
-    "Apply to global config path if supported (claude-code, gemini, codex)",
+    "Apply to global config path if supported (claude-code, gemini, codex, kiro)",
     false
   )
   .option("-t, --target <path>", "Custom target path (overrides default path)")
@@ -110,9 +110,9 @@ program
   .argument("<name>", "Name of the rule to remove")
   .argument(
     "<editor>",
-    "Target editor type (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode)"
+    "Target editor type (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode, kiro)"
   )
-  .option("-g, --global", "Remove from global config path if supported (claude-code, codex)", false)
+  .option("-g, --global", "Remove from global config path if supported (claude-code, codex, kiro)", false)
   .option("-t, --target <path>", "Custom target path (overrides default and global)")
   .action(uninstallCommandAction);
 

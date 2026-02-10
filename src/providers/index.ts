@@ -6,6 +6,7 @@ import { GeminiRuleProvider } from "./gemini-provider.js";
 import { CodexRuleProvider } from "./codex-provider.js";
 import { AmpRuleProvider } from "./amp-provider.js";
 import { ClinerulesRuleProvider } from "./clinerules-provider.js";
+import { KiroRuleProvider } from "./kiro-provider.js";
 import { ZedRuleProvider } from "./zed-provider.js";
 import { UnifiedRuleProvider } from "./unified-provider.js";
 import { VSCodeRuleProvider } from "./vscode-provider.js";
@@ -30,6 +31,8 @@ export function getRuleProvider(ruleType: RuleType): RuleProvider {
     case RuleType.CLINERULES:
     case RuleType.ROO:
       return new ClinerulesRuleProvider();
+    case RuleType.KIRO:
+      return new KiroRuleProvider();
     case RuleType.ZED:
       return new ZedRuleProvider();
     case RuleType.UNIFIED:

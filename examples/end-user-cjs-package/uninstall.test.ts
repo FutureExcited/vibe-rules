@@ -96,5 +96,14 @@ export function registerUninstallTests() {
     await $`npm run vibe-rules uninstall ${fullName} clinerules`;
     expect(await pathExists(`.clinerules/${fullName}.md`)).toBe(false);
     await $`rm -rf .clinerules`.quiet();
+
+    // Kiro (multi-file .md in .kiro/steering/)
+    await $`rm -rf .kiro`.quiet();
+    await $`npm install`;
+    await $`npm run vibe-rules install kiro`;
+    expect(await pathExists(`.kiro/steering/${fullName}.md`)).toBe(true);
+    await $`npm run vibe-rules uninstall ${fullName} kiro`;
+    expect(await pathExists(`.kiro/steering/${fullName}.md`)).toBe(false);
+    await $`rm -rf .kiro`.quiet();
   }, 60000);
 }

@@ -214,6 +214,35 @@ describe("Metadata Application Patterns", () => {
     });
   });
 
+  describe("Kiro Provider Format", () => {
+    test("should output plain markdown without frontmatter or metadata", () => {
+      // Kiro steering files are plain markdown
+      const generateKiroFormat = (rule: any, _metadata: any) => {
+        return rule.content;
+      };
+
+      const result = generateKiroFormat(testRule, testMetadata);
+
+      expect(result).toBe(testRule.content);
+      expect(result).not.toContain("---");
+      expect(result).not.toContain("Always Apply:");
+      expect(result).not.toContain("Globs:");
+      expect(result).toContain("# Test Rule");
+      expect(result).toContain("This is test content for metadata application.");
+    });
+
+    test("should ignore metadata and return content unchanged", () => {
+      const generateKiroFormat = (rule: any, _metadata: any) => {
+        return rule.content;
+      };
+
+      const result = generateKiroFormat(testRule, alwaysApplyMetadata);
+
+      expect(result).toBe(testRule.content);
+      expect(result).not.toContain("alwaysApply");
+    });
+  });
+
   describe("Single-File Provider Patterns", () => {
     test("should generate content with metadata lines for Zed/Claude/Codex", () => {
       // Simulate what single-file providers should produce
@@ -266,6 +295,10 @@ describe("Metadata Application Patterns", () => {
         (rule: any, _metadata: any) => {
           return rule.content;
         },
+        // Kiro format (plain markdown)
+        (rule: any, _metadata: any) => {
+          return rule.content;
+        },
       ];
 
       formats.forEach((format) => {
@@ -290,6 +323,8 @@ describe("Metadata Application Patterns", () => {
         // Others just return content
         (rule: any) => rule.content,
         (rule: any) => rule.content,
+        (rule: any) => rule.content,
+        // Kiro (plain markdown)
         (rule: any) => rule.content,
       ];
 
