@@ -26,6 +26,7 @@ export const RuleType = {
   AMP: "amp",
   CLINERULES: "clinerules",
   ROO: "roo",
+  KIRO: "kiro",
   ZED: "zed",
   UNIFIED: "unified",
   VSCODE: "vscode",

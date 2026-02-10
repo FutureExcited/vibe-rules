@@ -811,6 +811,112 @@ test("install should create 8 rules files in .github/instructions", async () => 
   await $`rm -rf .github`.quiet();
 });
 
+test("install should create 8 rules files in .kiro/steering", async () => {
+  // Import the llms modules from our dependencies
+  const cjsRules = require("cjs-package/llms");
+  const esmRules = await import("esm-package/llms");
+
+  // Clean up any existing .kiro directory
+  await $`rm -rf .kiro`.quiet();
+
+  // Run npm install
+  console.log("Running npm install...");
+  await $`npm install`;
+
+  // Run vibe-rules install kiro command
+  console.log("Running vibe-rules install kiro...");
+  await $`npm run vibe-rules install kiro`;
+
+  // Check that .kiro/steering directory exists
+  const kiroSteeringPath = join(process.cwd(), ".kiro", "steering");
+  const kiroSteeringStat = await stat(kiroSteeringPath);
+  expect(kiroSteeringStat.isDirectory()).toBe(true);
+
+  // Read the files in .kiro/steering directory
+  const rulesFiles = await readdir(kiroSteeringPath);
+
+  // Filter only .md files
+  const mdFiles = rulesFiles.filter((file) => file.endsWith(".md"));
+
+  console.log(`Found ${mdFiles.length} rules files:`, mdFiles);
+
+  // Expect 8 rules files (4 from cjs-package + 4 from esm-package)
+  expect(mdFiles.length).toBe(cjsRules.length + esmRules.default.length);
+
+  // Get expected rule names from the imported modules
+  const cjsRuleNames = cjsRules.map((r) => r.name);
+  const esmRuleNames = esmRules.default.map((r) => r.name);
+  const expectedRules = [...new Set([...cjsRuleNames, ...esmRuleNames])];
+
+  // Check that we have rules from both packages
+  for (const rule of expectedRules) {
+    const cjsRuleExists = mdFiles.some((file) => file.includes("cjs") && file.includes(rule));
+    const esmRuleExists = mdFiles.some((file) => file.includes("esm") && file.includes(rule));
+
+    expect(cjsRuleExists).toBe(true);
+    expect(esmRuleExists).toBe(true);
+  }
+
+  // Validate imported rules structure
+  console.log("Validating imported rules structure...");
+
+  expect(Array.isArray(cjsRules)).toBe(true);
+  expect(cjsRules.length).toBe(4);
+
+  const esmRulesArray = esmRules.default;
+  expect(Array.isArray(esmRulesArray)).toBe(true);
+  expect(esmRulesArray.length).toBe(4);
+
+  const allRules = [...cjsRules, ...esmRulesArray];
+  for (const rule of allRules) {
+    expect(rule).toHaveProperty("name");
+    expect(rule).toHaveProperty("rule");
+    expect(rule).toHaveProperty("alwaysApply");
+
+    expect(typeof rule.name).toBe("string");
+    expect(typeof rule.rule).toBe("string");
+    expect(typeof rule.alwaysApply).toBe("boolean");
+
+    if (rule.description !== undefined) {
+      expect(typeof rule.description).toBe("string");
+    }
+    if (rule.globs !== undefined) {
+      expect(Array.isArray(rule.globs) || typeof rule.globs === "string").toBe(true);
+    }
+  }
+
+  // Read and validate actual file contents match the imported rules
+  console.log("Validating file content matches imported rules...");
+
+  for (const rule of cjsRules) {
+    const fileName = `cjs-package_${rule.name}.md`;
+    expect(mdFiles).toContain(fileName);
+
+    const filePath = join(kiroSteeringPath, fileName);
+    const fileContent = await readFile(filePath, "utf-8");
+
+    // Kiro uses plain markdown — content should appear directly without tags or frontmatter
+    expect(fileContent).toContain(rule.rule);
+  }
+
+  for (const rule of esmRulesArray) {
+    const fileName = `esm-package_${rule.name}.md`;
+    expect(mdFiles).toContain(fileName);
+
+    const filePath = join(kiroSteeringPath, fileName);
+    const fileContent = await readFile(filePath, "utf-8");
+
+    expect(fileContent).toContain(rule.rule);
+  }
+
+  console.log(
+    "✅ All Kiro assertions passed! Rules properly installed and match source modules."
+  );
+
+  // Clean up .kiro directory at the end of the test
+  await $`rm -rf .kiro`.quiet();
+});
+
 test("should convert rules from cursor to claude-code format", async () => {
   // First, install cursor rules to have something to convert
   await $`rm -rf .cursor CLAUDE.md`;

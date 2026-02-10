@@ -99,7 +99,7 @@ vibe-rules load my-rule-name cursor -t ./my-project/.cursor-rules/custom-rule.md
 Arguments:
 
 - `<name>`: The name of the rule saved in the local store (`~/.vibe-rules/rules/`).
-- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `gemini`, `codex`, `clinerules`, `roo`, `vscode`.
+- `<editor>`: The target editor/tool type. Supported: `cursor`, `windsurf`, `claude-code`, `gemini`, `codex`, `clinerules`, `roo`, `vscode`, `kiro`.
 
 Options:
 
@@ -126,7 +126,7 @@ vibe-rules convert vscode unified .github/instructions --global
 
 Arguments:
 
-- `<sourceFormat>`: Source editor format (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode).
+- `<sourceFormat>`: Source editor format (cursor, windsurf, claude-code, codex, amp, clinerules, roo, zed, unified, vscode, kiro).
 - `<targetFormat>`: Target editor format (same options as source).
 - `<sourcePath>`: Path to source directory (like `.cursor`) or file (like `CLAUDE.md`).
 
@@ -163,7 +163,7 @@ vibe-rules convert cursor claude-code .cursor --target my-claude.md
 
 **Supported conversions:**
 
-- **Directory-based**: `cursor` ↔ `clinerules` ↔ `vscode` (individual files)
+- **Directory-based**: `cursor` ↔ `clinerules` ↔ `vscode` ↔ `kiro` (individual files)
 - **File-based**: `windsurf` ↔ `claude-code` ↔ `codex` ↔ `amp` ↔ `zed` ↔ `unified` (tagged blocks)
 - **Cross-format**: Any format to any other format with automatic metadata preservation
 
@@ -193,7 +193,7 @@ Add the `--debug` global option to any `vibe-rules` command to enable detailed d
 
 Arguments:
 
-- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `gemini`, `codex`, `clinerules`, `roo`, `vscode`.
+- `<editor>`: The target editor/tool type (mandatory). Supported: `cursor`, `windsurf`, `claude-code`, `gemini`, `codex`, `clinerules`, `roo`, `vscode`, `kiro`.
 - `[packageName]` (Optional): The specific NPM package name to install rules from. If omitted, `vibe-rules` scans all dependencies and devDependencies in your project's `package.json`.
 
 Options:
@@ -236,7 +236,7 @@ vibe-rules uninstall my-package_my-rule vscode
 Arguments:
 
 - `<name>`: The fully-qualified rule name as applied (typically `<package>_<rule>`)
-- `<editor>`: Target editor type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `amp`, `clinerules`, `roo`, `zed`, `unified`, `vscode`.
+- `<editor>`: Target editor type. Supported: `cursor`, `windsurf`, `claude-code`, `codex`, `amp`, `clinerules`, `roo`, `zed`, `unified`, `vscode`, `kiro`.
 
 Options:
 
@@ -272,6 +272,9 @@ Options:
   - Supports metadata formatting for `alwaysApply` and `globs` configurations.
 - **Cline/Roo (`clinerules`, `roo`)**:
   - Creates/updates individual `.md` files within `./.clinerules/` (local) or a target directory specified by `-t`. Global (`-g`) is not typically used.
+- **Kiro (`kiro`)**:
+  - Creates/updates individual `.md` files in `./.kiro/steering/` (local) or `~/.kiro/steering/` (global).
+  - Uses plain markdown with no frontmatter or metadata formatting.
 - **ZED (`zed`)**:
   - Manages rules within a single `.rules` file in the project root using XML-like tagged blocks.
   - Each rule is encapsulated in tags like `<rule-name>...</rule-name>` without requiring wrapper blocks.
